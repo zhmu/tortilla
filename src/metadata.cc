@@ -1,4 +1,3 @@
-#include <ctype.h>
 #include <ostream>
 #include <string>
 #include "metadata.h"
@@ -13,9 +12,9 @@ Metadata::handleField()
 	if (is.eof())
 		return NULL;
 
-	if (isdigit(b)) {
+	if (b >= '0' && b <= '9') {
 		/* string: <length>:<data> */
-		uint32_t len = getInteger(':', b);
+		uint64_t len = getInteger(':', b);
 		string s;
 		while (len--) {
 			b = getByte();
@@ -24,8 +23,7 @@ Metadata::handleField()
 		return new MetaString(s);
 	} else if (b == 'i') {
 		/* integer: i<number>e */
-		uint32_t val = getInteger('e', b);
-		return new MetaInteger(val);
+		return new MetaInteger(getInteger('e', b));
 	} else if (b == 'l') {
 		/* list: l<elements>e */
 		MetaList* list = new MetaList();
@@ -70,7 +68,7 @@ Metadata::handleField()
 Metadata::Metadata(std::istream& s)
 	 : is(s)
 {
-	while (!endOfBuffer()) {
+	while (1) {
 		MetaField* f = handleField();
 		if (f == NULL)
 			break;
@@ -86,22 +84,15 @@ Metadata::~Metadata()
 uint8_t
 Metadata::getByte()
 {
-#if 0
-	if (endOfBuffer())
-		throw MetaDataException(METADATA_CODE_EOF);
-
-	return buffer[buffer_pos++];
-#endif
 	uint8_t c;
 	is.read((char*)&c, 1);
-//printf("[%c]\n",c);
 	return c;
 }
 
-uint32_t
+uint64_t
 Metadata::getInteger(uint8_t terminator, uint8_t curch)
 {
-	uint32_t v = 0;
+	uint64_t v = 0;
 
 	if (curch >= '0' && curch <= '9')
 		v = (curch - '0');
@@ -117,13 +108,6 @@ Metadata::getInteger(uint8_t terminator, uint8_t curch)
 			return v;
 		throw MetaDataException(METADATA_CODE_CORRUPT); 
 	}
-}
-
-bool
-Metadata::endOfBuffer()
-{
-	return is.eof();
-//	return (buffer_pos >= buffer_len);
 }
 
 ostream&

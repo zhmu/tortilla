@@ -45,25 +45,17 @@ private:
 	 *  \param terminator Terminator charachter, ends the value
 	 *  \param curch Current charachter
 	 */
-	uint32_t getInteger(uint8_t terminator, uint8_t curch);
-
-	//! \brief Is the buffer at the end?
-	bool endOfBuffer();
+	uint64_t getInteger(uint8_t terminator, uint8_t curch);
 
 	//! \brief List containing all metadata fields
 	std::list<MetaField*> fields;
 
-	//! \brief Current buffer used
-	const char* buffer;
-
-	//! \brief Current position in the buffer
-	size_t buffer_pos;
-
-	//! \brief Total number of bytes in the buffer
-	size_t buffer_len;
-
+	/* \brief Attemps to parse a field from the stream
+	 * \returns Field constructed, or NULL on end of list/dictionary/stream marker
+	 */
 	MetaField* handleField();
 
+	//! \brief The input stream used
 	std::istream& is;
 };
 

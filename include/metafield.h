@@ -8,9 +8,6 @@
 
 class MetaField {
 public:
-	/* Dummy function to ensure we can use dynamic casts */
-	virtual void dummy() { };
-
 	friend std::ostream& operator<<(std::ostream& os, const MetaField& mf);
 	friend std::istream& operator>>(std::istream& is, const MetaField& mf);
 
@@ -36,17 +33,17 @@ private:
 
 class MetaInteger : public MetaField {
 public:
-	inline MetaInteger (uint32_t i) {
+	inline MetaInteger (uint64_t i) {
 		integer = i;
 	}
 
-	inline uint32_t getInteger() { return integer; }
+	inline uint64_t getInteger() { return integer; }
 
 protected:
 	void stream(std::ostream& o) const;
 
 private:
-	uint32_t integer;
+	uint64_t integer;
 };
 
 class MetaList : public MetaField {
@@ -90,7 +87,6 @@ public:
 		dictionary.push_back(sfm);
 	}
 
-//	friend std::ostream& operator<<(std::ostream& os, const MetaDictionary& mi);
 protected:
 	void stream(std::ostream& o) const;
 
