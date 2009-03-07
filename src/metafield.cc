@@ -50,3 +50,25 @@ void MetaDictionary::stream(ostream& os) const
 	}
 	os << "e";
 }
+
+MetaField* MetaDictionary::operator[](std::string key)
+{
+	for (std::list<StringFieldMap*>::const_iterator it = dictionary.begin();
+	     it != dictionary.end(); it++) {
+		StringFieldMap* sfm = *it;
+		if (sfm->getKey() == key)
+			return sfm->getValue();
+	}
+	return NULL;
+}
+
+void MetaDictionary::dump()
+{
+	for (std::list<StringFieldMap*>::const_iterator it = dictionary.begin();
+	     it != dictionary.end(); it++) {
+		StringFieldMap* sfm = *it;
+		printf("%s\n", sfm->getKey().c_str());
+	}
+}
+
+/* vim:set ts=2 sw=2: */

@@ -1,11 +1,25 @@
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <err.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include "metadata.h"
+#include "sha1.h"
+#include "http.h"
+#include "torrent.h"
 
 using namespace std;
+
+std::string
+constructPeerID()
+{
+	string result = "";
+	for(int i = 0; i < 20; i++) {
+		result += "1";
+	}
+	return result;
+}
 
 int
 main(int argc, char** argv)
@@ -20,7 +34,9 @@ main(int argc, char** argv)
 
 	Metadata md(is);
 
-	std::cout << md;
+	Torrent t(&md);
 
 	return 0;
 }
+
+/* vim:set ts=2 sw=2: */

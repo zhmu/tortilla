@@ -1,5 +1,6 @@
 #include <ostream>
 #include <string>
+#include "exceptions.h"
 #include "metadata.h"
 #include "metafield.h"
 
@@ -45,12 +46,12 @@ Metadata::handleField()
 				break;
 			MetaString* string = dynamic_cast<MetaString*>(key);
 			if (string == NULL)
-				throw MetaDataException(METADATA_CODE_CORRUPT); 
+				throw MetadataException("dictionary entry isn't followed by a string");
 
 			/* get the value part, this must not be the end specifier */
 			MetaField* value = handleField();
 			if (value == NULL)
-				throw MetaDataException(METADATA_CODE_CORRUPT); 
+				throw MetadataException("dictionary entry doesn't have a value");
 
 			/* assign the value */
 			dict->assign(string->getString(), value);
@@ -62,23 +63,20 @@ Metadata::handleField()
 		return NULL;
 	} else
 		/* ? */
-		throw MetaDataException(METADATA_CODE_CORRUPT); 
+		throw MetadataException("unsupported field type");
 }
 
 Metadata::Metadata(std::istream& s)
 	 : is(s)
 {
-	while (1) {
-		MetaField* f = handleField();
-		if (f == NULL)
-			break;
-		fields.push_back(f);
-	}
-
+	dictionary = dynamic_cast<MetaDictionary*>(handleField());
+	if (dictionary == NULL)
+		throw MetadataException("metadata content isn't a dictionary");
 }
 
 Metadata::~Metadata()
 {
+	delete dictionary;
 }
 
 uint8_t
@@ -106,18 +104,27 @@ Metadata::getInteger(uint8_t terminator, uint8_t curch)
 		}
 		if (b == terminator)
 			return v;
-		throw MetaDataException(METADATA_CODE_CORRUPT); 
+		throw MetadataException("integer type followed by non-terminator digit");
 	}
+}
+
+MetaDictionary*
+Metadata::getInfo()
+{
+	return dynamic_cast<MetaDictionary*>((*dictionary)["info"]);
+}
+
+std::string
+Metadata::getAnnounceURL()
+{
+	MetaString* ms = dynamic_cast<MetaString*>((*dictionary)["announce"]);
+	return ms->getString();
 }
 
 ostream&
 operator<<(ostream& os, const Metadata& md)
 {
-
-	for (list<MetaField*>::const_iterator it = md.fields.begin();
-	     it != md.fields.end(); it++) {
-		os << **it;
-	}
+	os << *md.dictionary;
 	return os;
 }
 

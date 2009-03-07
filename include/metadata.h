@@ -7,20 +7,6 @@
 #ifndef __METADATA_H__
 #define __METADATA_H__
 
-#define METADATA_CODE_UNKNOWN	0
-#define METADATA_CODE_EOF	1
-#define METADATA_CODE_CORRUPT	2
-
-class MetaDataException {
-public:
-	MetaDataException(int code) {
-		errorcode = code;
-	}
-
-private:
-	int errorcode;
-};
-
 /*! \brief Contains torrent file metadata
  */
 class Metadata {
@@ -33,7 +19,14 @@ public:
 	//! \brief Destructs the metadata object
 	~Metadata();
 
+	//! Used for streaming the metadata
 	friend std::ostream& operator<<(std::ostream& os, const Metadata& md);
+
+	//! \brief Retrieve the dictionary
+	inline MetaDictionary* getDictionary() { return dictionary; }
+
+	//! \brief Retrieve the 'announce' URL
+	std::string getAnnounceURL();
 
 private:
 	/*! \brief Retrieves the next byte from the metadata buffer
@@ -47,8 +40,8 @@ private:
 	 */
 	uint64_t getInteger(uint8_t terminator, uint8_t curch);
 
-	//! \brief List containing all metadata fields
-	std::list<MetaField*> fields;
+	//! \brief Our metainfofile dictionary
+	MetaDictionary* dictionary;
 
 	/* \brief Attemps to parse a field from the stream
 	 * \returns Field constructed, or NULL on end of list/dictionary/stream marker

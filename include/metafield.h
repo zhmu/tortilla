@@ -87,6 +87,10 @@ public:
 		dictionary.push_back(sfm);
 	}
 
+	MetaField* operator[](std::string key);
+
+	void dump();
+
 protected:
 	void stream(std::ostream& o) const;
 
