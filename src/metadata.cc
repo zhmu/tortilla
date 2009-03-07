@@ -108,19 +108,6 @@ Metadata::getInteger(uint8_t terminator, uint8_t curch)
 	}
 }
 
-MetaDictionary*
-Metadata::getInfo()
-{
-	return dynamic_cast<MetaDictionary*>((*dictionary)["info"]);
-}
-
-std::string
-Metadata::getAnnounceURL()
-{
-	MetaString* ms = dynamic_cast<MetaString*>((*dictionary)["announce"]);
-	return ms->getString();
-}
-
 ostream&
 operator<<(ostream& os, const Metadata& md)
 {

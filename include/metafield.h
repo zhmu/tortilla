@@ -52,7 +52,7 @@ public:
 		list.push_back(f);
 	}
 
-	inline std::list<MetaField*> getList() { return list; }
+	inline std::list<MetaField*>& getList() { return list; }
 
 protected:
 	void stream(std::ostream& o) const;

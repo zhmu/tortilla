@@ -1,7 +1,11 @@
+#include <map>
+#include <string>
 #include "metadata.h"
 
 #ifndef __TORRENT_H__
 #define __TORRENT_H__
+
+class Peer;
 
 //! \brief Implements a single, independant torrent
 class Torrent {
@@ -13,6 +17,10 @@ public:
 
 	//! \brief Destructs the torrent object
 	~Torrent();
+
+	/*! \brief Handle periodic update to the tracker
+	 */
+	void handleTracker();
 
 protected:
 	/*! \brief Contact the tracker
@@ -47,6 +55,15 @@ private:
 	 *  This is only cached for efficiency reasons.
 	 */
 	std::string infoHash;
+
+	/*! \brief List of peers
+	 *
+	 *  A map is used as we consider the peer ID to be unique and identify
+	 *  peers using it, which is an O(log n) operation. For other
+	 *  operations, we need the entire list anyway which is O(n), so using
+	 *  a map will work out for us.
+	 */
+	std::map<std::string, Peer*> peers;
 };
 
 #endif /* __TORRENT_H__ */
