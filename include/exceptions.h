@@ -43,4 +43,10 @@ public:
 	TorrentException(const std::string errstr) : TortillaException(errstr) { }
 };
 
+//! \brief Exception used for connection issues
+class ConnectionException : public TortillaException {
+public:
+	ConnectionException(const std::string errstr) : TortillaException(errstr) { }
+};
+
 #endif /* __EXCEPTION_H__ */

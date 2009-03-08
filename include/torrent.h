@@ -5,6 +5,8 @@
 #ifndef __TORRENT_H__
 #define __TORRENT_H__
 
+#define TORRENT_HASH_LEN 20
+
 class Peer;
 
 //! \brief Implements a single, independant torrent
@@ -18,9 +20,11 @@ public:
 	//! \brief Destructs the torrent object
 	~Torrent();
 
-	/*! \brief Handle periodic update to the tracker
-	 */
-	void handleTracker();
+	//! \brief Go, speedracer, go!
+	void go();
+
+	//! \brief Fetch the info hash
+	std::string getInfoHash() { return infoHash; }
 
 protected:
 	/*! \brief Contact the tracker
@@ -31,6 +35,9 @@ protected:
 	 *  they are done with it.
 	 */
 	Metadata* contactTracker(std::string event = "");
+
+	//! \brief Handle periodic update to the tracker
+	void handleTracker();
 
 	/*! \brief Convert an integer to a string
 	 *  \param i Integer to use

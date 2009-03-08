@@ -1,6 +1,9 @@
+#include <sys/types.h>
 #include <iostream>
 #include <sstream>
 #include <stdint.h>
+#include <sys/select.h>
+#include <sys/socket.h>
 #include "exceptions.h"
 #include "http.h"
 #include "peer.h"
@@ -34,8 +37,6 @@ Torrent::Torrent(Metadata* md)
 	HashSHA1 sha1(is);
 	os << *info;
  	infoHash = sha1.getHash();
-
-	handleTracker();
 }
 
 Metadata*
@@ -101,11 +102,62 @@ Torrent::handleTracker()
 			if (peers.find(msPeerID->getString()) != peers.end())
 				continue;
 		
-			peers[msPeerID->getString()] = new Peer(this, msPeerID->getString(), msHost->getString(), msPort->getInteger());
+			peers[msPeerID->getString()] = new Peer(this, peerID, msPeerID->getString(), msHost->getString(), msPort->getInteger());
 		}
 	}
 
 	delete md;
+}
+
+void
+Torrent::go()
+{
+	handleTracker();
+
+	while (true) {
+		fd_set fds;
+
+		/* Construct our file descriptor set */
+		int maxfd = -1;
+		FD_ZERO(&fds);
+		for (map<string, Peer*>::iterator it = peers.begin();
+		     it != peers.end(); it++) {
+			int fd = (*it).second->getFD();
+			if (maxfd < fd) maxfd = fd;
+			FD_SET(fd, &fds);
+		}
+
+		int n = select(maxfd + 1, &fds, (fd_set*)NULL, (fd_set*)NULL, NULL);
+
+		/* Wade through all peers, handle any data to service */
+		for (map<string, Peer*>::iterator it = peers.begin();
+		     it != peers.end(); it++) {
+			int fd = (*it).second->getFD();
+			if (!FD_ISSET(fd, &fds))
+				continue;
+
+			/*
+			 * There is data here.
+			 */
+			char buf[65536 /* XXX */];
+			ssize_t len = ::recv(fd, buf, sizeof(buf), 0);
+			if (len <= 0)
+				/* XXX cleanup socket */
+				break;
+
+			/* Hand the data off to the application */
+			string s;
+			s.append(buf, len);
+			if ((*it).second->receive(s) == true) {
+				/*
+				* Need to server the connection - we decide to nuke the connection, and
+				* leave the dirty work to the destructor.
+				*/
+				peers.erase(it);
+				continue;
+			}
+		}
+	}
 }
 
 Torrent::~Torrent()

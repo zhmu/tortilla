@@ -36,6 +36,8 @@ main(int argc, char** argv)
 
 	Torrent t(&md);
 
+	t.go();
+
 	return 0;
 }
 
