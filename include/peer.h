@@ -1,4 +1,5 @@
 #include <string>
+#include <vector>
 #include "connection.h"
 
 #ifndef __PEER_H__
@@ -7,6 +8,17 @@
 class Torrent;
 
 #define PEER_PSTR "BitTorrent protocol"
+
+#define PEER_MSGID_CHOKE		0x0
+#define PEER_MSGID_UNCHOKE		0x1
+#define PEER_MSGID_INTERESTED		0x2
+#define PEER_MSGID_NOTINTERESTED	0x3
+#define PEER_MSGID_HAVE			0x4
+#define PEER_MSGID_BITFIELD		0x5
+#define PEER_MSGID_REQUEST		0x6
+#define PEER_MSGID_PIECE		0x7
+#define PEER_MSGID_CANCEL		0x8
+#define PEER_MSGID_PORT			0x9
 
 /*! \brief A single bittorrent peer
  */
@@ -29,6 +41,34 @@ public:
 	 */
 	bool receive(std::string data);
 
+protected:
+	//! \brief Handles a 'choke' message
+	bool msgChoke();
+
+	//! \brief Handles an 'unchoke' message
+	bool msgUnchoke();
+
+	//! \brief Handles an 'interested' message
+	bool msgInterested();
+
+	//! \brief Handles a 'notinterested' message
+	bool msgNotInterested();
+
+	//! \brief Handles a 'have' message
+	bool msgHave(std::string data);
+
+	//! \brief Handles a 'bitfield' message
+	bool msgBitfield(std::string data);
+
+	//! \brief Handles a 'request' message
+	bool msgRequest(std::string data);
+
+	//! \brief Handles a 'piece' message
+	bool msgPiece(std::string data);
+
+	//! \brief Handles a 'cancel' message
+	bool msgCancel(std::string data);
+
 private:
 	//! \brief Are we choked?
 	bool choked;
@@ -38,6 +78,9 @@ private:
 
 	//! \brief Are we waiting for the protocol handshake?
 	bool handshaking;
+
+	//! \brief Which pieces does this peer have?
+	std::vector<bool> havePiece;
 
 	//! \brief ID of the peer
 	std::string peerID;

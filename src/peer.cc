@@ -10,6 +10,11 @@ Peer::Peer(Torrent* t, std::string my_id, std::string peer_id, std::string peer_
 	torrent = t; choked = true; interested = false; handshaking = true;
 	prepend = ""; peerID = peerID; 
 
+	/* Assume the peer doesn't have any pieces */
+	havePiece.reserve(t->getNumPieces());
+	for (int i = 0; i < t->getNumPieces(); i++)
+		havePiece.push_back(false);
+
 	connection = new Connection(peer_host, peer_port);
 
 	/*
@@ -105,6 +110,32 @@ Peer::receive(std::string data)
 		prepend = "";
 	}
 
+	/* Extract the message ID and data payload */
+	uint8_t msg = fulldata.c_str()[0];
+	fulldata = fulldata.substr(1);
+	switch (msg) {
+		case PEER_MSGID_CHOKE:
+			return msgChoke();
+		case PEER_MSGID_UNCHOKE:
+			return msgUnchoke();
+		case PEER_MSGID_INTERESTED:
+			return msgInterested();
+		case PEER_MSGID_NOTINTERESTED:
+			return msgNotInterested();
+		case PEER_MSGID_HAVE:
+			return msgHave(fulldata);
+		case PEER_MSGID_BITFIELD:
+			return msgBitfield(fulldata);
+		case PEER_MSGID_REQUEST:
+			return msgRequest(fulldata);
+		case PEER_MSGID_PIECE:
+			return msgPiece(fulldata);
+		case PEER_MSGID_CANCEL:
+			return msgCancel(fulldata);
+	}
+
+	/* ? */
+
 #if 0
 	printf("datalen=%u,len=%u\n", fulldata.size(), len);
 	for (int i = 0; i < len; i++) {
@@ -113,6 +144,69 @@ Peer::receive(std::string data)
 	printf("\n");
 #endif
 
+	return false;
+}
+
+bool
+Peer::msgChoke()
+{
+	cout << peerID + ": " + "choke" << endl;
+	return false;
+}
+
+bool
+Peer::msgUnchoke()
+{
+	cout << peerID + ": " + "unchoke" << endl;
+	return false;
+}
+
+bool
+Peer::msgInterested()
+{
+	cout << peerID + ": " + "interested" << endl;
+	return false;
+}
+
+bool
+Peer::msgNotInterested()
+{
+	cout << peerID + ": " + "notinterested" << endl;
+	return false;
+}
+
+bool
+Peer::msgHave(string data)
+{
+	cout << peerID + ": " + "have" << endl;
+	return false;
+}
+
+bool
+Peer::msgBitfield(string data)
+{
+	cout << peerID + ": " + "bitfield" << endl;
+	return false;
+}
+
+bool
+Peer::msgRequest(string data)
+{
+	cout << peerID + ": " + "request" << endl;
+	return false;
+}
+
+bool
+Peer::msgPiece(string data)
+{
+	cout << peerID + ": " + "piece" << endl;
+	return false;
+}
+
+bool
+Peer::msgCancel(string data)
+{
+	cout << peerID + ": " + "cancel" << endl;
 	return false;
 }
 
