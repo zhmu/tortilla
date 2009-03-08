@@ -38,7 +38,10 @@ Peer::receive(std::string data)
 		const char* c = data.c_str();
 		int pstrlen = strlen(PEER_PSTR);
 
-		/* Safety measure: ensure the handshake is at least present in our string */
+		/*
+		 * Safety measure: ensure the handshake is at least present in our string.
+		 * XXX this breaks when peers don't send the greeter in a single go!
+		 */
 		if (data.size() < 1 + pstrlen + 8 + TORRENT_HASH_LEN + TORRENT_HASH_LEN)
 			return true;
 		if (c[0] != pstrlen)
@@ -57,6 +60,7 @@ Peer::receive(std::string data)
 		handshaking = false;
 		data = data.substr(1 + pstrlen + 8 + TORRENT_HASH_LEN + TORRENT_HASH_LEN);
 		if (data.size() == 0)
+			/* No more data left */
 			return false;
 	}
 
@@ -66,15 +70,16 @@ Peer::receive(std::string data)
 	 * [1 byte ] = command
 	 * [ ...   ] = <varying>
 	 */
-	data = prepend + data;
-	const char* c = data.c_str();
-	if (data.size() < 4) {
+	string fulldata = prepend + data;
+	const char* c = fulldata.c_str();
+	if (fulldata.size() < 4) {
 		/* Too little data */
 		prepend += data;
 		return false;
 	}
+
 	uint32_t len = c[0] << 24 | c[1] << 16 | c[2] << 8 | c[3];
-	if (len > data.size() - 4) {
+	if (len > fulldata.size() - 4) {
 		/*
 		 * We do not have all data; prepend our data buffer with the next
 		 * data, in the hopes we'll get a full message next time.
@@ -82,23 +87,31 @@ Peer::receive(std::string data)
 		prepend += data;
 		return false;
 	}
-	data = data.substr(4);
 
-	/* Seems we have a complete message */
-	if (data.size() - 4 >= len) {
-		/* We have data that we can pass next time! */
-		prepend += data.substr(len);
+	/*
+	 * We have a complete message; throw away the length prefix as we have
+	 * stored it already.
+	 */
+	fulldata = fulldata.substr(4);
+	if (fulldata.size() > len) {
+		/*
+		 * We have more data than we need; better handle it next time.
+		 */
+		prepend = fulldata.substr(len);
 	} else {
 		/*
-		 * XXX We have all the data we need - remove it from the prepend part, if
-		 * any.
+		 * We have all the data we need - remove it from the prepend part, if any.
 		 */
 		prepend = "";
 	}
 
-	for (int i = 0; i < data.size(); i++) {
-		printf("%02x ", (unsigned char)data[i]);
+#if 0
+	printf("datalen=%u,len=%u\n", fulldata.size(), len);
+	for (int i = 0; i < len; i++) {
+		printf("%02x ", (unsigned char)fulldata[i]);
 	}
+	printf("\n");
+#endif
 
 	return false;
 }
