@@ -1,5 +1,6 @@
 #include <map>
 #include <string>
+#include <vector>
 #include "metadata.h"
 
 #ifndef __TORRENT_H__
@@ -26,6 +27,9 @@ public:
 	//! \brief Fetch the info hash
 	std::string getInfoHash() { return infoHash; }
 
+	//! \brief Retrieve the number of pieces
+	unsigned int getNumPieces() { return numPieces; }
+
 protected:
 	/*! \brief Contact the tracker
 	 *  \param event Event to report to the tracker, if any
@@ -45,9 +49,6 @@ protected:
 	std::string convertInteger(uint64_t i);
 
 private:
-	//! \brief Metadata belonging to this torrent
-	Metadata* metadata;
-
 	//! \brief Amount of bytes uploaded / downloaded / left
 	uint32_t uploaded, downloaded, left;
 
@@ -62,6 +63,18 @@ private:
 	 *  This is only cached for efficiency reasons.
 	 */
 	std::string infoHash;
+
+	/*! \brief Number of pieces in the torrent */
+	unsigned int numPieces;
+
+	/*! \brief Piece chunk length */
+	unsigned int pieceLen;
+
+	//! \brief Announce URL of the tracker
+	std::string announceURL;
+
+	/*! \brief Contains the hash values for each piece */
+	std::vector<std::string> pieceHash;
 
 	/*! \brief List of peers
 	 *

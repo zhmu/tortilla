@@ -14,7 +14,6 @@ using namespace std;
 
 Torrent::Torrent(Metadata* md)
 {
-	metadata = md;
 	downloaded = 0; uploaded = 0; left = 0;
 
 	/* XXX these two variables should be passed from upper hand some day */
@@ -28,8 +27,27 @@ Torrent::Torrent(Metadata* md)
 	MetaDictionary* info = dynamic_cast<MetaDictionary*>((*dictionary)["info"]);
 	if (info == NULL)
 		throw TorrentException("metadata doesn't contain an info dictionary");
-	if (dynamic_cast<MetaString*>((*dictionary)["announce"]) == NULL)
+	MetaString* msAnnounce = dynamic_cast<MetaString*>((*dictionary)["announce"]);
+	if (msAnnounce == NULL)
 		throw TorrentException("metadata doesn't contain an announce URL");
+	announceURL = msAnnounce->getString();
+
+	MetaInteger* miPieceLength = dynamic_cast<MetaInteger*>((*info)["piece length"]);
+	MetaString* miPieces = dynamic_cast<MetaString*>((*info)["pieces"]);
+
+	if (miPieceLength == NULL)
+		throw TorrentException("metadata doesn't contain piece length");
+	if (miPieces == NULL)
+		throw TorrentException("metadata doesn't contain pieces");
+	if (miPieces->getString().size() % TORRENT_HASH_LEN != 0)
+		throw TorrentException("metadata pieces content isn't a multiple of hash length");
+
+	pieceLen = miPieceLength->getInteger();
+	numPieces = miPieces->getString().size() / TORRENT_HASH_LEN;
+	pieceHash.reserve(numPieces);
+	for (int i = 0; i < numPieces; i++) {
+		pieceHash.push_back(miPieces->getString().substr(i * TORRENT_HASH_LEN, TORRENT_HASH_LEN));
+	}
 
 	/* Construct the SHA1 hash of the 'info' dictionary  */
 	stringbuf sb;
@@ -53,7 +71,7 @@ Torrent::contactTracker(std::string event)
 	m["uploaded"] = convertInteger(uploaded);
 	m["left"] = convertInteger(left);
 	m["port"] = convertInteger(port);
-	string result = HTTP::get((dynamic_cast<MetaString*>((*metadata->getDictionary())["announce"]))->getString(), m);
+	string result = HTTP::get(announceURL, m);
 
 	/* Parse the result as metadata (which it should be) */
 	stringbuf sb(result);
@@ -64,7 +82,7 @@ Torrent::contactTracker(std::string event)
 	 * If we got here, the result is valid metadata. However, a failure may have
 	 * been reported.
 	 */
-	MetaString* ms = dynamic_cast<MetaString*>((*metadata->getDictionary())["failure reason"]);
+	MetaString* ms = dynamic_cast<MetaString*>((*md->getDictionary())["failure reason"]);
 	if (ms != NULL) {
 		string failure = ms->getString();
 		delete md; /* Prevent memory leak */
@@ -154,6 +172,7 @@ Torrent::go()
 				* leave the dirty work to the destructor.
 				*/
 				peers.erase(it);
+				delete (*it).second;
 				continue;
 			}
 		}
@@ -162,6 +181,14 @@ Torrent::go()
 
 Torrent::~Torrent()
 {
+	/*
+	 * Nuke all our peers. XXX we should implement signalling and exit more
+	 * gracefully.
+	 */
+	for (map<string, Peer*>::iterator it = peers.begin();
+	     it != peers.end(); it++) {
+		delete (*it).second;
+	}
 }
 
 std::string
