@@ -54,42 +54,15 @@ Peer::Peer(Torrent* t, std::string my_id, std::string peer_id, std::string peer_
 	connection->write(handshake.c_str(), handshake.size());
 }
 
+#define DATA_LEFT \
+		((command_buffer_readpos < command_buffer_writepos) ? \
+			(command_buffer_writepos - command_buffer_readpos) : \
+			((PEER_BUFFER_SIZE - command_buffer_readpos) + command_buffer_writepos))
+
 bool
 Peer::receive(const uint8_t* data, uint32_t data_len)
 {
 	assert (data_len > 0);
-
-	if (handshaking) {
-		int pstrlen = strlen(PEER_PSTR);
-
-		/*
-		 * Safety measure: ensure the handshake is at least present in our string.
-		 * XXX this breaks when peers don't send the greeter in a single go!
-		 */
-		if (data_len < 1 + pstrlen + 8 + TORRENT_HASH_LEN + TORRENT_HASH_LEN)
-			return true;
-		if (data[0] != pstrlen)
-			return true;
-		if (memcmp((data + 1), PEER_PSTR, pstrlen))
-			return true;
-		/* XXX ignore 8 feature bytes for now */
-		if (memcmp((uint8_t*)(data + 1 + pstrlen + 8), torrent->getInfoHash().c_str(), TORRENT_HASH_LEN))
-			return true;
-
-		/*
-		 * We don't check the peer ID, since Azureus seem to possibly anonymize it.
-		 * If we reach this point, we know the protocol and the torrent info hash
-		 * matches, which should be enough for us. To this extent, we just nuke the
-		 * handshake string and see if there is anything else to handle.
-		 */
-		handshaking = false;
-		data     += (1 + pstrlen + 8 + TORRENT_HASH_LEN + TORRENT_HASH_LEN);
-		data_len -= (1 + pstrlen + 8 + TORRENT_HASH_LEN + TORRENT_HASH_LEN);
-		if (data_len == 0)
-			/* No more data left */
-			return false;
-		printf("handshake done, %u bytes left\n", data_len);
-	}
 
 	/*
 	 * First of all, check how much data we can still place into the buffer. If we run
@@ -124,6 +97,42 @@ Peer::receive(const uint8_t* data, uint32_t data_len)
 	/* All data is in place; try to handle commands! */
 	while (1) {
 		printf("begin: read loop, readpos=%u,writepos=%u\n", command_buffer_readpos, command_buffer_writepos);
+
+		uint32_t data_left = DATA_LEFT;
+		if (handshaking) {
+			/* Only continue if we have at least the entire handshake string */
+			int pstrlen = strlen(PEER_PSTR);
+			uint32_t handshake_len = 1 + pstrlen + 8 + TORRENT_HASH_LEN + TORRENT_HASH_LEN;
+			if (data_left < handshake_len) {
+				printf("not enough data for handshake, delaying\n");
+				return true;
+			}
+
+			/* XXX we assume the buffer doesn't wrap yet */
+			data = (uint8_t*)(command_buffer + command_buffer_readpos);
+			if (data[0] != pstrlen)
+				return true;
+			if (memcmp((data + 1), PEER_PSTR, pstrlen))
+				return true;
+			/* XXX ignore 8 feature bytes for now */
+			if (memcmp((uint8_t*)(data + 1 + pstrlen + 8), torrent->getInfoHash().c_str(), TORRENT_HASH_LEN))
+				return true;
+
+			/*
+			 * We don't check the peer ID, since Azureus seem to possibly anonymize it.
+			 * If we reach this point, we know the protocol and the torrent info hash
+			 * matches, which should be enough for us. To this extent, we just nuke the
+			 * handshake string and see if there is anything else to handle.
+			 */
+			handshaking = false;
+			command_buffer_readpos = (command_buffer_readpos + handshake_len) % PEER_BUFFER_SIZE;
+			data_left -= handshake_len;
+		}
+
+		/* Only try something if we have at least the length */
+		if (data_left < 4)
+			break;
+
 		/*
 		 * readpos points the following:
 		 *  [4 bytes] = length, if 0, it's a keepalive
@@ -149,14 +158,6 @@ Peer::receive(const uint8_t* data, uint32_t data_len)
 		}
 
 		/* Find out how much data we have available in this buffer */
-		uint32_t data_left;
-		if (command_buffer_readpos < command_buffer_writepos) {
-			data_left = command_buffer_writepos - command_buffer_readpos;
-			printf("case 1 (r<w) => data_left = %u\n", data_left);
-		} else {
-			data_left = (PEER_BUFFER_SIZE - command_buffer_readpos) + command_buffer_writepos;
-			printf("case 2 (w>=r) => data_left = %u (maxlen=%u)\n", data_left, PEER_BUFFER_SIZE);
-		}
 		printf("data_left=%u,len=%u(-4)\n", data_left, len);
 		if (data_left < len + 4 /* 4 because we haven't skipped the header yet! */) {
 			/* We need more data */
@@ -272,6 +273,8 @@ Peer::receive(const uint8_t* data, uint32_t data_len)
 	}
 	return false;
 }
+
+#undef DATA_LEFT
 
 bool
 Peer::msgChoke()
