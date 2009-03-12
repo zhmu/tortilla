@@ -55,6 +55,8 @@ HTTP::get(string url, map<string, string> params)
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &s);
 
 	CURLcode cc = curl_easy_perform(curl);
+	if (cc != 0)
+		throw HTTPException("unable to talk to tracker");
 	return s;
 }
 

@@ -40,7 +40,7 @@ Connection::Connection(string host, uint16_t port)
 	freeaddrinfo(result);
 
 	if (rp == NULL)
-		throw ConnectionException("unable to connect to " + host);
+		throw ConnectionException("unable to connect to " + host + " port " + portstr);
 }
 
 void

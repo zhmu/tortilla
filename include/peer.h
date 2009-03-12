@@ -1,3 +1,5 @@
+#include <list>
+#include <stdint.h>
 #include <string>
 #include <vector>
 #include "connection.h"
@@ -6,6 +8,14 @@
 #define __PEER_H__
 
 class Torrent;
+
+#define PEER_MAX_OUTSTANDING_REQUESTS	5
+
+/*! \brief Length of the buffer used to cache incomplete commands
+ *
+ *  This should be 2 * max command length.
+ */
+#define PEER_BUFFER_SIZE		(131072)
 
 #define PEER_PSTR "BitTorrent protocol"
 
@@ -39,7 +49,34 @@ public:
 	/*! \brief Called if data is received for this peer
 	 *  \returns true if the connection must be severed
 	 */
-	bool receive(std::string data);
+	bool receive(const uint8_t* data, uint32_t data_len);
+
+	//! \brief Retrieve the piece map of the peer
+	std::vector<bool>& getPieceMap() { return havePiece; }
+
+	//! \brief How much pieces has this peer requested?
+	unsigned int getNumRequests();
+
+	//! \brief Called if we should express interest in this peer
+	void claimInterest();
+
+	//! \brief Called if we should revoke interest in this peer
+	void revokeInterest();
+
+	/*! \brief Called if we should request a piece from this peer
+	 *  \param num Piece to request
+	 */
+	void requestPiece(unsigned int num);
+
+	/*! \brief Called if we should cancel a piece from this peer
+	 *  \param num Piece to cancel
+	 */
+	void cancelPiece(unsigned int num);
+
+	//! \brief Check if the peer has a specific piece
+	bool hasPiece(unsigned int num);
+
+	void dump();
 
 protected:
 	//! \brief Handles a 'choke' message
@@ -55,32 +92,54 @@ protected:
 	bool msgNotInterested();
 
 	//! \brief Handles a 'have' message
-	bool msgHave(std::string data);
+	bool msgHave(const uint8_t* msg, uint32_t len);
 
 	//! \brief Handles a 'bitfield' message
-	bool msgBitfield(std::string data);
+	bool msgBitfield(const uint8_t* msg, uint32_t len);
 
 	//! \brief Handles a 'request' message
-	bool msgRequest(std::string data);
+	bool msgRequest(const uint8_t* msg, uint32_t len);
 
 	//! \brief Handles a 'piece' message
-	bool msgPiece(std::string data);
+	bool msgPiece(const uint8_t* msg, uint32_t len);
 
 	//! \brief Handles a 'cancel' message
-	bool msgCancel(std::string data);
+	bool msgCancel(const uint8_t* msg, uint32_t len);
+
+	/*! \brief Send a message to the peer
+	 *  \param msg Message to send
+	 *  \param data Payload of the message, if any
+	 *  \param len Length of message
+	 */
+	void sendMessage(uint8_t msg, const uint8_t* data, size_t len);
 
 private:
+	//! \brief Construct a request
+	std::string constructRequest(uint32_t index, uint32_t begin, uint32_t length);
+
+	//! \brief Send request for a piece, if any
+	void sendPieceRequest();
+
 	//! \brief Are we choked?
-	bool choked;
+	bool am_choked;
 
 	//! \brief Are we interested?
-	bool interested;
+	bool am_interested;
+
+	//! \brief Is the peer choked?
+	bool peer_choked;
+
+	//! \brief Is the peer interested?
+	bool peer_interested;
 
 	//! \brief Are we waiting for the protocol handshake?
 	bool handshaking;
 
 	//! \brief Which pieces does this peer have?
 	std::vector<bool> havePiece;
+
+	//! \brief Which pieces are we requesting from this peer?
+	std::list<unsigned int> requestedPieces;
 
 	//! \brief ID of the peer
 	std::string peerID;
@@ -91,8 +150,14 @@ private:
 	//! \brief Connection to the peer
 	Connection* connection;
 
-	//! \brief Data that needs to be prepended from the previous time
-	std::string prepend;
+	//! \brief Number of outstanding requests
+	int numOutstandingRequests;
+
+	//! \brief Current command buffer
+	uint8_t command_buffer[PEER_BUFFER_SIZE];
+
+	//! \brief Number of bytes in the command buffer
+	uint32_t command_buffer_readpos, command_buffer_writepos;
 };
 
 #endif /* __PEER_H__ */
