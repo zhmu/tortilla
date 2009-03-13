@@ -78,7 +78,6 @@ Peer::receive(const uint8_t* data, uint32_t data_len)
 	 * Need to store the peer's data now. First of all, try to use the chunk from
 	 * write_pos ... buffer_size.
 	 */
-	printf("Peer::receive: got %u bytes, readpos=%u,writepos=%u\n", data_len, command_buffer_readpos, command_buffer_writepos);
 	uint32_t write_chunk = MIN((PEER_BUFFER_SIZE - command_buffer_writepos), data_len);
 	memcpy((uint8_t*)(command_buffer + command_buffer_writepos), data, write_chunk);
 	data_len -= write_chunk; data += write_chunk;
@@ -89,24 +88,19 @@ Peer::receive(const uint8_t* data, uint32_t data_len)
 	 * part 0 ... read_pos, which is unused as well.
 	 */
 	if (data_len > 0) {
-		printf("doing chunk 2: %u bytes, starting at offset %u\n", data_len, command_buffer_writepos);
 		memcpy((uint8_t*)(command_buffer + command_buffer_writepos), data, data_len);
 		command_buffer_writepos = (command_buffer_writepos + data_len) % PEER_BUFFER_SIZE;
 	}
 
 	/* All data is in place; try to handle commands! */
 	while (1) {
-		printf("begin: read loop, readpos=%u,writepos=%u\n", command_buffer_readpos, command_buffer_writepos);
-
 		uint32_t data_left = DATA_LEFT;
 		if (handshaking) {
 			/* Only continue if we have at least the entire handshake string */
 			int pstrlen = strlen(PEER_PSTR);
 			uint32_t handshake_len = 1 + pstrlen + 8 + TORRENT_HASH_LEN + TORRENT_HASH_LEN;
-			if (data_left < handshake_len) {
-				printf("not enough data for handshake, delaying\n");
+			if (data_left < handshake_len)
 				return true;
-			}
 
 			/* XXX we assume the buffer doesn't wrap yet */
 			data = (uint8_t*)(command_buffer + command_buffer_readpos);
@@ -152,13 +146,11 @@ Peer::receive(const uint8_t* data, uint32_t data_len)
 			);
 		if (len == 0) {
 			/* Keepalive; skip the length bytes and continue */
-			printf("keepalive, skipping!\n");
 			command_buffer_readpos = (command_buffer_readpos + 4) % PEER_BUFFER_SIZE;
 			continue;
 		}
 
 		/* Find out how much data we have available in this buffer */
-		printf("data_left=%u,len=%u(-4)\n", data_left, len);
 		if (data_left < len + 4 /* 4 because we haven't skipped the header yet! */) {
 			/* We need more data */
 			return false;
@@ -206,10 +198,14 @@ Peer::receive(const uint8_t* data, uint32_t data_len)
 			 */
 			uint32_t pre = PEER_BUFFER_SIZE - command_buffer_readpos;
 			uint32_t mark = (command_buffer_readpos + len) % PEER_BUFFER_SIZE;
-			printf("read=%u,len=%u,pre=%u,mark=%u\n", command_buffer_readpos, len, pre,mark);
 
-			/* XXX check if we won't overwrite stuff from writepos onwards */
+			/* Ensure we will not overwrite unprocessed written data */
+			assert(command_buffer_writepos < PEER_BUFFER_SIZE - len);
 
+			/*
+			 * Place the entire packet at size - len ... size of the buffer; this is
+			 * guaranteed to be unused by the previous assertion.
+			 */
 			memcpy((uint8_t*)(command_buffer + PEER_BUFFER_SIZE - len), (command_buffer + command_buffer_readpos), pre);
 			memcpy((uint8_t*)(command_buffer + PEER_BUFFER_SIZE - len + pre), (command_buffer), mark);
 			ptr = (const uint8_t*)(command_buffer + PEER_BUFFER_SIZE - len);
@@ -259,7 +255,6 @@ Peer::receive(const uint8_t* data, uint32_t data_len)
 		command_buffer_readpos = (command_buffer_readpos + len) % PEER_BUFFER_SIZE;
 
 		/* If we ran out of data, wait until more arrives */
-		printf("[%u,%u]\n", command_buffer_readpos,  command_buffer_writepos);
 		if (command_buffer_readpos == command_buffer_writepos) {
 			/*
 			 * Reset the buffer to the start. While this makes no difference from a
@@ -380,12 +375,6 @@ Peer::msgPiece(const uint8_t* msg, uint32_t len)
 	cout << " begin "; cout << begin;
 	cout << " len "; cout << len;
 	cout << endl;
-
-	printf("piece msg hdr ");
-	for (unsigned int i = 0; i < 8; i++) {
-		printf("[%02x] ", msg[i]);
-	}
-	printf("\n");
 
 	if (numOutstandingRequests > 0)
 		numOutstandingRequests--;
@@ -509,12 +498,7 @@ Peer::sendPieceRequest()
 		WRITE_UINT32(msg, 8, TORRENT_CHUNK_SIZE);
 		torrent->setChunkRequested(piece, missingChunk, true);
 		sendMessage(PEER_MSGID_REQUEST, msg, 12);
-		printf("requested piece %u chunk %i\n", piece, missingChunk);
-	printf("message data ");
-	for (unsigned int i = 0; i < 12; i++) {
-		printf("[%02x] ", msg[i]);
-	}
-	printf("\n");
+
 		numOutstandingRequests++;
 	}
 }
@@ -522,7 +506,7 @@ Peer::sendPieceRequest()
 void
 Peer::dump()
 {
-	printf("outstanding requests: %u\n",  numOutstandingRequests);
+	cerr << "outstanding requests: "; cerr << numOutstandingRequests; cerr << endl;
 }
 
 #undef WRITE_UINT32
