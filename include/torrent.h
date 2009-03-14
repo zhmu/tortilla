@@ -1,6 +1,8 @@
 #include <map>
+#include <pthread.h>
 #include <string>
 #include <vector>
+#include "file.h"
 #include "metadata.h"
 
 #ifndef __TORRENT_H__
@@ -15,6 +17,7 @@
 #define TORRENT_PEER_MAX_REQUESTS 5
 
 class Peer;
+class Hasher;
 
 /*! \brief Implements a single, independant torrent
  *
@@ -22,6 +25,7 @@ class Peer;
  */
 class Torrent {
 friend class Peer;
+friend class Hasher;
 public:
 	/*! \brief Constructs a new torrent object
 	 *  \param md Metadata to use
@@ -40,6 +44,9 @@ public:
 	//! \brief Retrieve the number of pieces
 	unsigned int getNumPieces() { return numPieces; }
 
+	//! \brief Retrieve the size of a single piece
+	unsigned int getPieceLength() { return pieceLen; }
+
 	/*! \brief Returns the first chunk we don't have of a piece
 	 *  \param piece Piece to check
 	 *  \returns The missing piece, or -1 if we have all
@@ -54,6 +61,11 @@ public:
 
 	void dump();
 
+	/*! \brief Retrieve the hash of a piece
+	 *  \param piece Piece number to use
+	 */
+	std::string getPieceHash(unsigned int piece);
+
 protected:
 	/*! \brief Called by a peer if pieces are added to the map */
 	void callbackPiecesAdded(Peer* p, std::vector<unsigned int>& pieces);
@@ -62,10 +74,13 @@ protected:
 	void callbackPiecesRemoved(Peer* p, std::vector<unsigned int>& pieces);
 
 	/*! \brief Called by a peer if a chunk is completed */
-	void callbackCompleteChunk(Peer* p, unsigned int piece, unsigned int chunk, const uint8_t* data, uint32_t len);
+	void callbackCompleteChunk(Peer* p, unsigned int piece, uint32_t offset, const uint8_t* data, uint32_t len);
 
 	/*! \brief Called by a peer if a piece is completed */
 	void callbackCompletePiece(Peer* p, unsigned int piece);
+
+	/*! \brief Called by the hasher if piece hashing results are in */
+	void callbackCompleteHashing(unsigned int piece, bool result);
 
 private:
 	/*! \brief Contact the tracker
@@ -76,6 +91,22 @@ private:
 	 *  they are done with it.
 	 */
 	Metadata* contactTracker(std::string event = "");
+
+	/*! \brief Writes a chunk to our output files
+	 *  \param piece Piece number to write
+	 *  \param offset Byte offset within piece
+	 *  \param buf Buffer containing data to write
+	 *  \param length Length of the chunk
+	 */
+	void writeChunk(unsigned int piece, unsigned int offset, const uint8_t* buf, size_t length);
+
+	/*! \brief Retrieves a piece from the output files
+	 *  \param piece Piece number to read
+	 *  \param offset Byte offset within piece
+	 *  \param buf Buffer containing data to read to
+	 *  \param length Length of the chunk
+	 */
+	void readChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size_t length);
 
 	//! \brief Handle periodic update to the tracker
 	void handleTracker();
@@ -157,7 +188,11 @@ private:
 	 */
 	std::map<std::string, Peer*> peers;
 
-	int fd;
+	//! \brief Hasher thread used to validate chunk integrity
+	Hasher* hasher;
+
+	//! \brief Stores the files in the torrent
+	std::vector<File*> files;
 };
 
 #endif /* __TORRENT_H__ */

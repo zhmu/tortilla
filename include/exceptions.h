@@ -49,4 +49,11 @@ public:
 	ConnectionException(const std::string errstr) : TortillaException(errstr) { }
 };
 
+//! \brief Exception used for file I/O errors
+class FileException : public TortillaException {
+public:
+	FileException(const std::string errstr) : TortillaException(errstr) { }
+};
+
+
 #endif /* __EXCEPTION_H__ */

@@ -6,10 +6,14 @@
 
 class HashSHA1 {
 public:
-	/*! \brief Constructs a new SHA1 hasher
-	 *  \param s Stream to use
+	//! \brief Constructs a new SHA1 hasher
+	HashSHA1();
+
+	/*! \brief Process a piece of data
+	 *  \param buf Buffer to process
+	 *  \param size Number of bytes to process
 	 */
-	HashSHA1(std::istream& s);
+	void process(const void* buf, size_t size);
 	
 	/*! \brief Retrieves the hash for the input stream
 	 *
@@ -26,9 +30,6 @@ public:
 private:
 	//! \brief OpenSSL SHA contex
 	SHA_CTX ctx;
-
-	//! \brief The input stream used
-	std::istream& is;
 
 	//! \brief Computed hash, if any
 	std::string hash;

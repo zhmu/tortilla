@@ -7,12 +7,17 @@
 #include <sys/select.h>
 #include <sys/socket.h>
 #include "exceptions.h"
+#include "file.h"
+#include "hasher.h"
 #include "http.h"
 #include "peer.h"
 #include "sha1.h"
 #include "torrent.h"
 
 using namespace std;
+
+#define MIN(a,b) \
+	(((a) < (b)) ? (a) : (b))
 
 Torrent::Torrent(Metadata* md)
 {
@@ -78,17 +83,100 @@ Torrent::Torrent(Metadata* md)
 		}
 	}
 
-	/* Construct the SHA1 hash of the 'info' dictionary  */
+	/*
+	 * Construct the list of files. There are two possibilities:
+	 * 1) The torrent consists of only a single file
+	 *    info['name'] and info['length'] refer to this file
+	 * 2) The torrent has more than one file
+	 *    info['name'] refers to the directory where the files must be
+	 *    places.
+	 *   
+	 *
+	 * In case (2), there is a 'files' list, which houses the
+	 * dictionaries containing 'length' and 'path' information.
+	 */
+	MetaString* msName = dynamic_cast<MetaString*>((*info)["name"]);
+	if (msName == NULL)
+		throw TorrentException("info dictionary doesn't contain a name!");
+
+	/* XXX check name for badness */
+	uint64_t total_size = 0;
+	MetaList* mlFiles = dynamic_cast<MetaList*>((*info)["files"]);
+	if (mlFiles != NULL) {
+		for (list<MetaField*>::iterator it = mlFiles->getList().begin();
+			   it != mlFiles->getList().end(); it++) {
+				MetaDictionary* md = dynamic_cast<MetaDictionary*>(*it);
+				if (md == NULL)
+					throw TorrentException("files list doesn't contain dictionaries");
+
+				/* Fetch the file length and path */
+				MetaInteger* miLength = dynamic_cast<MetaInteger*>((*md)["length"]);
+				MetaList* mlPath = dynamic_cast<MetaList*>((*md)["path"]);
+				if (miLength == NULL)
+					throw TorrentException("file dictionary doesn't contain a length");
+				if (mlPath == NULL)
+					throw TorrentException("file dictionary doesn't contain a path");
+
+				/* Construct the full path of the torrent file */
+				string fullPath = msName->getString();
+				for (list<MetaField*>::iterator itt = mlPath->getList().begin();
+						 itt != mlPath->getList().end(); itt++) {
+					MetaString* ms = dynamic_cast<MetaString*>(*itt);
+					if (ms == NULL)
+						throw TorrentException("file path list doesn't contain strings");
+					/* XXX check string for badness */
+					fullPath += "/" + ms->getString();
+
+					files.push_back(new File(fullPath, miLength->getInteger()));
+					total_size += miLength->getInteger();
+				}
+			}
+	} else {
+		/* There is only a single file in this torrent - all too easy */
+		MetaInteger* miLength = dynamic_cast<MetaInteger*>((*info)["length"]);
+		if (miLength == NULL)
+			throw TorrentException("info dictionary doesn't contain a length");
+
+		files.push_back(new File(msName->getString(), miLength->getInteger()));
+		total_size += miLength->getInteger();
+	}
+
+	/* Ensure the total size is covered by the pieces in the torrent */
+	if ((total_size + (pieceLen - 1)) / pieceLen != numPieces)
+		throw TorrentException("sum of file lengths doesn't agree with number of pieces");
+
+	/* Stream the info-part of the torrent to a buffer... */
 	stringbuf sb;
-	ostream os(&sb); istream is(&sb);
-	HashSHA1 sha1(is);
+	ostream os(&sb);
 	os << *info;
+
+	/* ...and SHA1 that so we get our info hash */
+	HashSHA1 sha1;
+	sha1.process(sb.str().c_str(), sb.str().size());
  	infoHash = sha1.getHash();
 
-	fd = creat("out.put", 0644);
-	lseek(fd, pieceLen * numPieces - 1, SEEK_SET);
-	uint8_t b = 0xff;
-	write(fd, &b, 1);
+	/* Summon the hashing thread */
+	hasher = new Hasher(this);
+}
+
+Torrent::~Torrent()
+{
+	/*
+	 * Nuke all our peers. XXX we should implement signalling and exit more
+	 * gracefully.
+	 */
+	for (map<string, Peer*>::iterator it = peers.begin();
+	     it != peers.end(); it++) {
+		delete (*it).second;
+	}
+
+	/* Close all files, too */
+	for (vector<File*>::iterator it = files.begin();
+	     it != files.end(); it++) {
+		delete (*it);
+	}
+
+	delete hasher;
 }
 
 Metadata*
@@ -278,18 +366,6 @@ Torrent::scheduleRequests()
 
 }
 
-Torrent::~Torrent()
-{
-	/*
-	 * Nuke all our peers. XXX we should implement signalling and exit more
-	 * gracefully.
-	 */
-	for (map<string, Peer*>::iterator it = peers.begin();
-	     it != peers.end(); it++) {
-		delete (*it).second;
-	}
-}
-
 std::string
 Torrent::convertInteger(uint64_t i)
 {
@@ -319,23 +395,28 @@ Torrent::callbackCompletePiece(Peer* p, unsigned int piece)
 	cout << "Torrent::callbackCompletePiece(): piece = "; cout << piece; cout << endl;
 	havePiece[piece] = true;
 
+	/*
+	 * Ask the hasher to verify this chunk - using the callback, we figure out if
+	 * we have to refetch the piece or accept that we think it's fine.
+	 */
+	hasher->addPiece(piece);
+
 	/* Try more! */
 	scheduleRequests();
 }
 
 void
-Torrent::callbackCompleteChunk(Peer* p, unsigned int piece, unsigned int chunk, const uint8_t* data, uint32_t len)
+Torrent::callbackCompleteChunk(Peer* p, unsigned int piece, uint32_t offset, const uint8_t* data, uint32_t len)
 {
 	assert (piece < numPieces);
-	assert (chunk < pieceLen / TORRENT_CHUNK_SIZE);
+	assert (len < TORRENT_CHUNK_SIZE);
+	assert (offset % TORRENT_CHUNK_SIZE == 0);
 
-	haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + chunk] = true;
+	haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + offset / TORRENT_CHUNK_SIZE] = true;
 
-	off_t o = ((off_t)piece * (off_t)pieceLen) + ((off_t)chunk * (off_t)TORRENT_CHUNK_SIZE);
-	printf("piece %u chunk %u => %lu\n", piece, chunk, o);
-	lseek(fd, o, SEEK_SET);
-	if (write(fd, data, len) != len)
-		printf("fail\n");
+	printf("piece %u offset %u\n", piece, offset);
+
+	writeChunk(piece, offset, data, len);
 }
 
 void
@@ -378,6 +459,103 @@ Torrent::hasPiece(unsigned int piece)
 {
 	assert (piece < numPieces);
 	return havePiece[piece];
+}
+
+void
+Torrent::callbackCompleteHashing(unsigned int piece, bool result)
+{
+	printf("completed hashing of piece %u: valid=%c\n",
+	 piece, result ? 'Y' : 'N');
+}
+
+void
+Torrent::writeChunk(unsigned int piece, unsigned int offset, const uint8_t* buf, size_t length)
+{
+	assert(piece < numPieces);
+	assert(length <= TORRENT_CHUNK_SIZE);
+
+	/* Calculate the absolute position */
+	size_t absolutePos = piece * pieceLen + offset;
+
+	/* Locate the first file matching this position */
+	unsigned int fileIndex;
+	File* f = NULL;
+	for (fileIndex = 0; fileIndex < files.size(); fileIndex++)  {
+		if (absolutePos < f->getLength()) {
+			f = files[fileIndex];
+			break;
+		}
+		absolutePos -= f->getLength();
+	}
+	assert(f != NULL);
+
+	/*
+	 * Chunks are allowed to span between multiple files, so we keep on writing
+	 * stuff until we run out of stuff to write.
+	 */
+	while (length > 0) {
+		uint32_t writelen = MIN(f->getLength() - absolutePos, length);
+
+		f->write(absolutePos, buf, writelen);
+
+		if (writelen != length) {
+			/* Couldn't write the entire chunk; go use the next file */
+			fileIndex++; assert(fileIndex < files.size());
+			f = files[fileIndex];
+			absolutePos = 0;
+		} else {
+			absolutePos += writelen;
+		}
+		buf += writelen; length -= writelen;
+	}
+}
+
+void
+Torrent::readChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size_t length)
+{
+	assert(piece < numPieces);
+
+	/* Calculate the absolute position */
+	size_t absolutePos = piece * pieceLen + offset;
+
+	/* Locate the first file matching this position */
+	unsigned int fileIndex;
+	File* f = NULL;
+	for (fileIndex = 0; fileIndex < files.size(); fileIndex++)  {
+		if (absolutePos < f->getLength()) {
+			f = files[fileIndex];
+			break;
+		}
+		absolutePos -= f->getLength();
+	}
+	assert(f != NULL);
+
+	/*
+	 * Chunks are allowed to span between multiple files, so we keep on reading
+	 * stuff until we run out of stuff to read.
+	 */
+	while (length > 0) {
+		uint32_t readlen = MIN(f->getLength() - absolutePos, length);
+
+		f->read(absolutePos, buf, readlen);
+
+		if (readlen != length) {
+			/* Couldn't read the entire chunk; go use the next file */
+			fileIndex++; assert(fileIndex < files.size());
+			f = files[fileIndex];
+			absolutePos = 0;
+		} else {
+			absolutePos += readlen;
+		}
+		buf += readlen; length -= readlen;
+	}
+}
+
+std::string
+Torrent::getPieceHash(unsigned int piece)
+{
+	assert(piece < numPieces);
+	return pieceHash[piece];
 }
 
 /* vim:set ts=2 sw=2: */

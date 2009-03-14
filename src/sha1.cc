@@ -1,13 +1,21 @@
+#include <assert.h>
 #include <iostream>
 #include <stdint.h>
 #include "sha1.h"
 
 using namespace std;
 
-HashSHA1::HashSHA1(std::istream& s)
-	: is(s), hash("")
+HashSHA1::HashSHA1()
+	: hash("")
 {
 	SHA1_Init(&ctx); 
+}
+
+void
+HashSHA1::process(const void* buf, size_t size)
+{
+	assert(hash == "");
+	SHA1_Update(&ctx, buf, size);
 }
 
 std::string
@@ -15,14 +23,6 @@ HashSHA1::getHash()
 {
 	if (hash != "")
 		return hash;
-
-	/* Read the stream chunk-by-chunk and feed them to the SHA1 code */
-	char* buf = new char[getChunkSize()];
-	while (!is.eof()) {
-		is.read(buf, getChunkSize());
-		SHA1_Update(&ctx, buf, is.gcount());
-	}
-	delete[] buf;
 
 	/* Retrieve the hash */
 	unsigned char md[SHA_DIGEST_LENGTH + 1];

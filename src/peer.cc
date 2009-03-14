@@ -379,10 +379,10 @@ Peer::msgPiece(const uint8_t* msg, uint32_t len)
 	if (numOutstandingRequests > 0)
 		numOutstandingRequests--;
 
-	if (len != TORRENT_CHUNK_SIZE || begin % TORRENT_CHUNK_SIZE != 0) {
+	if (len > TORRENT_CHUNK_SIZE || begin % TORRENT_CHUNK_SIZE != 0) {
 		/* Not what we hoped for... */
 		cout << "piece fail: ";
-		if (len < TORRENT_CHUNK_SIZE)
+		if (len > TORRENT_CHUNK_SIZE)
 			cout << "length ";
 		if (begin % TORRENT_CHUNK_SIZE != 0)
 			cout << "begin";
@@ -390,8 +390,7 @@ Peer::msgPiece(const uint8_t* msg, uint32_t len)
 		sendPieceRequest();
 		return false;
 	}
-	torrent->callbackCompleteChunk(this, index, begin / TORRENT_CHUNK_SIZE,
-		data, len);
+	torrent->callbackCompleteChunk(this, index, begin, data, len);
 
 	/* Thanks! Try to get more! */
 	sendPieceRequest();
