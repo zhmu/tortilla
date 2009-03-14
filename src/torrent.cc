@@ -295,7 +295,6 @@ Torrent::go()
 				delete (*it).second;
 				continue;
 			}
-printf("got %u bytes\n", len);
 
 			/* Hand the data off to the application */
 			if ((*it).second->receive(buf, len) == true) {
