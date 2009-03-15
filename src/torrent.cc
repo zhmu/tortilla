@@ -518,7 +518,6 @@ Torrent::callbackCompletePiece(Peer* p, unsigned int piece)
 {
 	assert (piece < numPieces);
 
-	cout << "Torrent::callbackCompletePiece(): piece = "; cout << piece; cout << endl;
 	havePiece[piece] = true;
 
 	/*

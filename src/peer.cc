@@ -276,8 +276,6 @@ Peer::receive(const uint8_t* data, uint32_t data_len)
 bool
 Peer::msgChoke()
 {
-	cout << peerID + ": " + "choke" << endl;
-
 	am_choked = true;
 
 #if 1
@@ -291,8 +289,6 @@ Peer::msgChoke()
 bool
 Peer::msgUnchoke()
 {
-	cout << peerID + ": " + "unchoke" << endl;
-
 	/*
 	 * We are unchoked! This means we can request pieces from this peer; so send
 	 * the first few.
@@ -326,8 +322,6 @@ Peer::msgHave(const uint8_t* msg, uint32_t len)
 bool
 Peer::msgBitfield(const uint8_t* msg, uint32_t len)
 {
-	cout << peerID + ": " + "bitfield" << endl;
-
 	/*
 	 * This message indicates the peer wants to inform us about the pieces it
 	 * has. First of all, ensure the number of pieces it reports match up with
@@ -365,7 +359,6 @@ Peer::msgRequest(const uint8_t* msg, uint32_t len)
 bool
 Peer::msgPiece(const uint8_t* msg, uint32_t len)
 {
-	cout << peerID + ": " + "piece" << endl;
 	if (len < 9)
 		return true;
 
@@ -373,10 +366,6 @@ Peer::msgPiece(const uint8_t* msg, uint32_t len)
 	uint32_t begin = READ_UINT32(msg, 4);
 	const uint8_t* data = (msg + 8);
 	len -= 8;
-	cout << "got index "; cout << index;
-	cout << " begin "; cout << begin;
-	cout << " len "; cout << len;
-	cout << endl;
 
 	if (numOutstandingRequests > 0)
 		numOutstandingRequests--;
@@ -412,8 +401,6 @@ Peer::claimInterest()
 	/* If we are already interested, don't bother expressing this again */
 	if (am_interested)
 		return;
-
-	cout << peerID + ": " + "claimed interest" << endl;
 
 	sendMessage(PEER_MSGID_INTERESTED, NULL, 0);
 	am_interested = true;
