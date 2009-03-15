@@ -17,6 +17,7 @@
 #define TORRENT_PEER_MAX_REQUESTS 5
 
 class Peer;
+class Overseer;
 class Hasher;
 
 /*! \brief Implements a single, independant torrent
@@ -24,19 +25,27 @@ class Hasher;
  *
  */
 class Torrent {
+friend void* torrent_thread(void* ptr);
 friend class Peer;
 friend class Hasher;
 public:
 	/*! \brief Constructs a new torrent object
+	 *  \param o Overseer to use
 	 *  \param md Metadata to use
 	 */
-	Torrent(Metadata* md);
+	Torrent(Overseer* o, Metadata* md);
 
 	//! \brief Destructs the torrent object
 	~Torrent();
 
-	//! \brief Go, speedracer, go!
-	void go();
+	//! \brief Starts the torrent thread
+	void start();
+
+	//! \brief Stops the torrent thread
+	void stop();
+
+	//! \brief Is the torrent started?
+	inline bool isStarted() {  return haveThread; }
 
 	//! \brief Fetch the info hash
 	const uint8_t* getInfoHash() { return infoHash; }
@@ -90,6 +99,12 @@ protected:
 
 	//! \brief Called if the torrent download is complete
 	void callbackCompleteTorrent();
+
+	/*! \brief Go, speedracer, go -- handles the torrent activites
+	 *
+ 	 *  This generally resides in an own thread.
+	 */
+	void go();
 
 private:
 	/*! \brief Contact the tracker
@@ -211,6 +226,18 @@ private:
 
 	//! \brief Stores the files in the torrent
 	std::vector<File*> files;
+
+	//! \brief Overseer object
+	Overseer* overseer;
+
+	//! \brief Torrent thread
+	pthread_t thread;
+
+	//! \brief Have we created a torrent thread?
+	bool haveThread;
+
+	//! \brief Are we terminating?
+	bool terminating;
 };
 
 #endif /* __TORRENT_H__ */

@@ -20,9 +20,10 @@ using namespace std;
 #define MIN(a,b) \
 	(((a) < (b)) ? (a) : (b))
 
-Torrent::Torrent(Metadata* md)
+Torrent::Torrent(Overseer* o, Metadata* md)
 {
-	downloaded = 0; uploaded = 0; left = 0;
+	overseer = o; downloaded = 0; uploaded = 0; left = 0;
+	haveThread = false; terminating = false;
 
 	/* XXX these two variables should be passed from upper hand some day */
 	port = 0; peerID = "123456789abcdef01234";
@@ -231,19 +232,29 @@ Torrent::Torrent(Metadata* md)
 
 Torrent::~Torrent()
 {
+	/* If we have a thread, gracefully ask it to die */
+	if (haveThread)
+		stop();
+
 	/*
 	 * Nuke all our peers. XXX we should implement signalling and exit more
 	 * gracefully.
 	 */
-	for (map<string, Peer*>::iterator it = peers.begin();
-	     it != peers.end(); it++) {
+	while (true) {
+		map<string, Peer*>::iterator it = peers.begin();
+		if (it == peers.end())
+			break;
 		delete (*it).second;
+		peers.erase(it);
 	}
 
 	/* Close all files, too */
-	for (vector<File*>::iterator it = files.begin();
-	     it != files.end(); it++) {
+	while (true) {
+		vector<File*>::iterator it = files.begin();
+		if (it == files.end())
+			break;
 		delete (*it);
+		files.erase(it);
 	}
 
 	delete hasher;
@@ -332,7 +343,7 @@ Torrent::go()
 {
 	handleTracker();
 
-	while (true) {
+	while (!terminating) {
 		fd_set fds;
 
 		/* Construct our file descriptor set */
@@ -699,6 +710,33 @@ Torrent::scheduleHashing(unsigned int piece)
 
 	hasher->addPiece(piece);
 	hashingPiece[piece] = true;
+}
+
+void*
+torrent_thread(void* ptr)
+{
+	((Torrent*)ptr)->go();
+	return NULL;
+}
+
+void
+Torrent::start()
+{
+	assert(!haveThread);
+
+	pthread_create(&thread, NULL, torrent_thread, this);
+	haveThread = true;
+}
+
+void
+Torrent::stop()
+{
+	assert(haveThread);
+
+	terminating = true;
+	pthread_join(thread, NULL);
+
+	haveThread = false;
 }
 
 /* vim:set ts=2 sw=2: */

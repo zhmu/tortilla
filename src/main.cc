@@ -2,14 +2,17 @@
 #include <fstream>
 #include <sstream>
 #include <err.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include "metadata.h"
 #include "sha1.h"
-#include "http.h"
+#include "overseer.h"
 #include "torrent.h"
 
 using namespace std;
+
+Overseer o;
 
 std::string
 constructPeerID()
@@ -19,6 +22,12 @@ constructPeerID()
 		result += "1";
 	}
 	return result;
+}
+
+void
+sigint(int s)
+{
+	o.terminate();
 }
 
 int
@@ -33,10 +42,10 @@ main(int argc, char** argv)
 	is.open(argv[1], ios::binary);
 
 	Metadata md(is);
+	o.addTorrent(new Torrent(&o, &md));
 
-	Torrent t(&md);
-
-	t.go();
+	signal(SIGINT, sigint);
+	o.run();
 
 	return 0;
 }
