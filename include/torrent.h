@@ -69,6 +69,9 @@ public:
 	 */
 	const uint8_t* getPieceHash(unsigned int piece);
 
+	/*! \brief Returns the number of pieces for a given chunk */
+	unsigned int calculateChunksInPiece(unsigned int piece);
+
 protected:
 	/*! \brief Called by a peer if pieces are added to the map */
 	void callbackPiecesAdded(Peer* p, std::vector<unsigned int>& pieces);
@@ -84,6 +87,9 @@ protected:
 
 	/*! \brief Called by the hasher if piece hashing results are in */
 	void callbackCompleteHashing(unsigned int piece, bool result);
+
+	//! \brief Called if the torrent download is complete
+	void callbackCompleteTorrent();
 
 private:
 	/*! \brief Contact the tracker

@@ -166,34 +166,64 @@ Torrent::Torrent(Metadata* md)
 	 * XXX we should be able to dump / restore such state information
 	 */
 	unsigned int piecenum = 0;
-	int leftoverPiece = 0; /* 0 = none, 1 = complete, 2 = incomplete */
+	unsigned int leftoverLength = 0;
+	bool previousFileReopened;
 	for (unsigned int i = 0; i < files.size(); i++) {
 		File* f = files[i];
+		size_t fileLength = f->getLength();
 
-		if (leftoverPiece > 0) {
-			havePiece[piecenum] = (leftoverPiece == 1 && f->haveReopened());
-			if (f->haveReopened())
+		if (leftoverLength > 0) {
+			/*
+		 	 * The previous file ended at a non-piece barrier. This means we
+			 * have to use the previous file information to figure out whether
+		 	 * this piece is completed.
+			 */
+			if (leftoverLength + fileLength < pieceLen) {
+				/* This file won't complete the piece */
+				leftoverLength += fileLength;
+				previousFileReopened = previousFileReopened && f->haveReopened();
+				continue;
+			}
+
+			/* This file is big enough to process the previous missing pieces */
+			havePiece[piecenum] = previousFileReopened && f->haveReopened();
+			if (havePiece[piecenum])
 				hasher->addPiece(piecenum);
 			piecenum++;
+
+			/* No longer leftover, but subtract the data of this file we used */
+			fileLength -= pieceLen - leftoverLength;
+			leftoverLength = 0;
 		}
 
-		/* Compute total number of pieces, and whether we have a final, partial piece */
-		unsigned int piecesInFile = f->getLength() / pieceLen;
-		bool partialFinalPiece = (f->getLength() % pieceLen) > 0;
-		for (unsigned int j = 0; j < piecesInFile; j++) {
+		/*
+		 * We are at a piece length barrier now, so we can just handle the
+		 * full pieces in order here.
+		 */
+		while (fileLength > pieceLen) {
 			havePiece[piecenum] = f->haveReopened();
 			if (f->haveReopened())
 				hasher->addPiece(piecenum);
 			piecenum++;
+			fileLength -= pieceLen;
 		}
-		leftoverPiece = partialFinalPiece ? (f->haveReopened() ? 1 : 2) : 0;
+
+		/* If the file ends at a non-piece barrier, continue in the next run */
+		leftoverLength += fileLength;
+		previousFileReopened = f->haveReopened();
 	}
-	if (leftoverPiece > 0) {
-		havePiece[piecenum] = (leftoverPiece == 1);
+
+	/* If the final file has leftover pieces, add an extra full piece to cope */
+	if (leftoverLength > 0) {
+		havePiece[piecenum] = previousFileReopened;
 		if (havePiece[piecenum])
 			hasher->addPiece(piecenum);
 		piecenum++;
 	}
+
+	/*
+	 * We must have processed as many pieces as there are in the file.
+	 */
 	assert(piecenum == numPieces);
 }
 
@@ -430,7 +460,13 @@ Torrent::getMissingChunk(unsigned int piece)
 {
 	assert (piece < numPieces);
 
-	for (int j = 0; j < pieceLen / TORRENT_CHUNK_SIZE; j++)
+	unsigned int numChunks;
+	if (piece == numPieces - 1) {
+		numChunks = (total_size % pieceLen) / TORRENT_CHUNK_SIZE;
+	} else {
+		numChunks = pieceLen / TORRENT_CHUNK_SIZE;
+	}
+	for (int j = 0; j < calculateChunksInPiece(piece); j++)
 		if (!haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j] &&
 		    !haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j])
 			return j;
@@ -456,6 +492,20 @@ Torrent::callbackCompletePiece(Peer* p, unsigned int piece)
 	scheduleRequests();
 }
 
+unsigned int
+Torrent::calculateChunksInPiece(unsigned int piece)
+{
+	assert(piece < numPieces);
+
+	if (piece < numPieces - 1)
+		return pieceLen / TORRENT_CHUNK_SIZE;
+
+	unsigned int chunks = (total_size % pieceLen) / TORRENT_CHUNK_SIZE;
+	if (total_size % TORRENT_CHUNK_SIZE)
+		chunks++;
+	return chunks;
+}
+
 void
 Torrent::callbackCompleteChunk(Peer* p, unsigned int piece, uint32_t offset, const uint8_t* data, uint32_t len)
 {
@@ -464,13 +514,10 @@ Torrent::callbackCompleteChunk(Peer* p, unsigned int piece, uint32_t offset, con
 	assert (offset % TORRENT_CHUNK_SIZE == 0);
 
 	haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + offset / TORRENT_CHUNK_SIZE] = true;
-
-	printf("piece %u offset %u\n", piece, offset);
-
 	writeChunk(piece, offset, data, len);
 
 	/* See if we have all chunks; if so, the piece is in */
-	for (unsigned int i = 0; i < pieceLen / TORRENT_CHUNK_SIZE; i++)
+	for (unsigned int i = 0; i < calculateChunksInPiece(piece); i++)
 		if (!haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + i])
 			return;
 
@@ -525,6 +572,13 @@ Torrent::callbackCompleteHashing(unsigned int piece, bool result)
 {
 	printf("completed hashing of piece %u: valid=%c\n",
 	 piece, result ? 'Y' : 'N');
+
+	/* If we have all pieces, rejoice */
+	for (unsigned int i = 0; i < numPieces; i++)
+		if (!havePiece[i])
+			return;
+
+	callbackCompleteTorrent();
 }
 
 void
@@ -544,7 +598,7 @@ Torrent::writeChunk(unsigned int piece, unsigned int offset, const uint8_t* buf,
 			f = files[fileIndex];
 			break;
 		}
-		absolutePos -= f->getLength();
+		absolutePos -= files[fileIndex]->getLength();
 	}
 	assert(f != NULL);
 
@@ -585,7 +639,7 @@ Torrent::readChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size_t
 			f = files[fileIndex];
 			break;
 		}
-		absolutePos -= f->getLength();
+		absolutePos -= files[fileIndex]->getLength();
 	}
 	assert(f != NULL);
 
@@ -615,6 +669,12 @@ Torrent::getPieceHash(unsigned int piece)
 {
 	assert(piece < numPieces);
 	return (pieceHash + (piece * TORRENT_HASH_LEN));
+}
+
+void
+Torrent::callbackCompleteTorrent()
+{
+	printf(">>> torrent is complete!\n");
 }
 
 /* vim:set ts=2 sw=2: */

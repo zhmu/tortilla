@@ -489,13 +489,14 @@ Peer::sendPieceRequest()
 		assert(torrent->havePiece[piece] == false);
 
 		/*
-		 * If this is the final piece, we should not ask for a whole chunk. Some
+		 * If this is the final chunk, we should not ask for a whole chunk. Some
 		 * clients (rtorrent) seem to pad the request, but mainline, transmission
 		 * and probably dozens more aren't so nice (and we should not request
 		 * phantom data anyway)
 		 */
 		uint32_t request_length;
-		if (piece == torrent->getNumPieces() - 1) {
+		if (piece == torrent->getNumPieces() - 1 &&
+	 	    (missingChunk + 1) * TORRENT_CHUNK_SIZE  > torrent->getTotalSize() % torrent->getPieceLength()) {
 			request_length = torrent->getTotalSize() % TORRENT_CHUNK_SIZE;
 		} else {
 			request_length = TORRENT_CHUNK_SIZE;
