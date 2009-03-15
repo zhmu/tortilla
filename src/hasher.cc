@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <string.h>
 #include "hasher.h"
 #include "sha1.h"
 
@@ -63,19 +64,30 @@ Hasher::run() {
 			 * it unnecessarily long, as we can happily hash
 			 * without it...
 			 */
-			unsigned int todo = torrent->getPieceLength();
+			unsigned int todo;
+			if (piecenum == torrent->getNumPieces() - 1) {
+				todo = torrent->getTotalSize() % torrent->getPieceLength();
+			} else {
+				todo = torrent->getPieceLength();
+			}
 
 			HashSHA1 h;
-			for (unsigned int n = 0;
-			     n < torrent->getPieceLength() / HASHER_CHUNK_SIZE;
-			     n++) {
+			for (unsigned int n = 0; /* true */; n++) {
 				uint8_t chunk[HASHER_CHUNK_SIZE];
-				torrent->readChunk(piecenum, n * HASHER_CHUNK_SIZE, chunk, HASHER_CHUNK_SIZE);
-				h.process(chunk, HASHER_CHUNK_SIZE);
+				uint32_t chunk_len = todo < HASHER_CHUNK_SIZE ? todo : HASHER_CHUNK_SIZE;
+				if (chunk_len == 0)
+					break;
+				torrent->readChunk(piecenum, n * HASHER_CHUNK_SIZE, chunk, chunk_len);
+				h.process(chunk, chunk_len);
+				todo -= chunk_len;
 			}
-			string ourhash = h.getHash();
-			string wanthash = torrent->getPieceHash(piecenum);
-			torrent->callbackCompleteHashing(piecenum, ourhash == wanthash);
+			bool ok = memcmp(h.getHash(), torrent->getPieceHash(piecenum), TORRENT_HASH_LEN) == 0;
+			if (!ok) {
+				printf("hashing FAIL of piece %u\n", piecenum);
+				printf("want hash = %s\n", h.getHashAsASCII(torrent->getPieceHash(piecenum)).c_str());
+				printf("our  hash = %s\n", h.getHashAsASCII(h.getHash()).c_str());
+			}
+			torrent->callbackCompleteHashing(piecenum, ok);
 
 			pthread_mutex_lock(&mtx);
 		}

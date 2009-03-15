@@ -31,6 +31,9 @@ public:
 	//! \brief Retrieve the file length
 	size_t getLength() { return length; }
 
+	//! \brief Have we opened a preexisting file?
+	bool haveReopened() { return reopened; }
+
 private:
 	//! \brief Length of the file
 	size_t length;
@@ -40,6 +43,9 @@ private:
 
 	//! \brief File descriptor used for reading
 	int readFD;
+
+	//! \brief Have we re-opened a previous file?
+	bool reopened;
 };
 
 #endif /*  __FILE_H__ */

@@ -4,6 +4,7 @@
 #include <iostream>
 #include <sstream>
 #include <stdint.h>
+#include <string.h>
 #include <sys/select.h>
 #include <sys/socket.h>
 #include "exceptions.h"
@@ -52,10 +53,8 @@ Torrent::Torrent(Metadata* md)
 	/* Construct the hash of pieces, to ease individual access */
 	pieceLen = miPieceLength->getInteger();
 	numPieces = miPieces->getString().size() / TORRENT_HASH_LEN;
-	pieceHash.reserve(numPieces);
-	for (int i = 0; i < numPieces; i++) {
-		pieceHash.push_back(miPieces->getString().substr(i * TORRENT_HASH_LEN, TORRENT_HASH_LEN));
-	}
+	pieceHash = new uint8_t[numPieces * TORRENT_HASH_LEN];
+	memcpy(pieceHash, miPieces->getString().c_str(), numPieces * TORRENT_HASH_LEN);
 
 	/* For now, assume we have no pieces and requested none */
 	havePiece.reserve(numPieces);
@@ -100,7 +99,7 @@ Torrent::Torrent(Metadata* md)
 		throw TorrentException("info dictionary doesn't contain a name!");
 
 	/* XXX check name for badness */
-	uint64_t total_size = 0;
+	total_size = 0;
 	MetaList* mlFiles = dynamic_cast<MetaList*>((*info)["files"]);
 	if (mlFiles != NULL) {
 		for (list<MetaField*>::iterator it = mlFiles->getList().begin();
@@ -153,10 +152,49 @@ Torrent::Torrent(Metadata* md)
 	/* ...and SHA1 that so we get our info hash */
 	HashSHA1 sha1;
 	sha1.process(sb.str().c_str(), sb.str().size());
- 	infoHash = sha1.getHash();
+ 	memcpy(infoHash, sha1.getHash(), sizeof(infoHash));
 
 	/* Summon the hashing thread */
 	hasher = new Hasher(this);
+
+	/*
+	 * If one or more files were pre-existing (this means they existed and
+	 * have the correct length), we already have the pieces. Since we have
+	 * no away of knowing whether the full file was retrieved or just a
+	 * portion, hash away!
+	 *
+	 * XXX we should be able to dump / restore such state information
+	 */
+	unsigned int piecenum = 0;
+	int leftoverPiece = 0; /* 0 = none, 1 = complete, 2 = incomplete */
+	for (unsigned int i = 0; i < files.size(); i++) {
+		File* f = files[i];
+
+		if (leftoverPiece > 0) {
+			havePiece[piecenum] = (leftoverPiece == 1 && f->haveReopened());
+			if (f->haveReopened())
+				hasher->addPiece(piecenum);
+			piecenum++;
+		}
+
+		/* Compute total number of pieces, and whether we have a final, partial piece */
+		unsigned int piecesInFile = f->getLength() / pieceLen;
+		bool partialFinalPiece = (f->getLength() % pieceLen) > 0;
+		for (unsigned int j = 0; j < piecesInFile; j++) {
+			havePiece[piecenum] = f->haveReopened();
+			if (f->haveReopened())
+				hasher->addPiece(piecenum);
+			piecenum++;
+		}
+		leftoverPiece = partialFinalPiece ? (f->haveReopened() ? 1 : 2) : 0;
+	}
+	if (leftoverPiece > 0) {
+		havePiece[piecenum] = (leftoverPiece == 1);
+		if (havePiece[piecenum])
+			hasher->addPiece(piecenum);
+		piecenum++;
+	}
+	assert(piecenum == numPieces);
 }
 
 Torrent::~Torrent()
@@ -185,7 +223,8 @@ Torrent::contactTracker(std::string event)
 	map<string, string> m;
 
 	/* Construct the tracker request, and off it goes */
-	m["info_hash"] = infoHash;
+	string h((const char*)infoHash, sizeof(infoHash));
+	m["info_hash"] = h;
 	m["peer_id"] = peerID;
 	if (event != "")
 		m["event"] = event;
@@ -246,7 +285,7 @@ Torrent::handleTracker()
 			try {
 				Peer* p = new Peer(this, peerID, msPeerID->getString(), msHost->getString(), msPort->getInteger());
 				peers[msPeerID->getString()] = p;
-				printf("got peer %p\n", p);
+				printf("got peer %p at %s:%u\n", p, msHost->getString().c_str(), msPort->getInteger());
 			} catch (ConnectionException e) {
 				cerr << "skipping peer: "; cerr << e.what(); cerr << endl;
 			}
@@ -277,35 +316,48 @@ Torrent::go()
 		int n = select(maxfd + 1, &fds, (fd_set*)NULL, (fd_set*)NULL, NULL);
 
 		/* Wade through all peers, handle any data to service */
-		for (map<string, Peer*>::iterator it = peers.begin();
-		     it != peers.end(); it++) {
-			int fd = (*it).second->getFD();
-			if (!FD_ISSET(fd, &fds))
-				continue;
+		bool looping = true;
+		while (looping) {
+			looping = false;
 
 			/*
-			 * There is data here.
+			 * The reason for this nested loop is, that calling peers.erase()
+			 * will invalidate all iterators for peers. However, if a connection
+		 	 * was lost, other connections may need servicing so we must restart
+	 	 	 * the loop.
 			 */
-			uint8_t buf[65536 /* XXX */];
-			ssize_t len = ::recv(fd, buf, sizeof(buf), 0);
-			if (len <= 0) {
-				/* socket lost */
-				cerr << "connection lost" << endl;
-				peers.erase(it);
-				delete (*it).second;
-				continue;
-			}
+			for (map<string, Peer*>::iterator it = peers.begin();
+					 it != peers.end(); it++) {
+				int fd = (*it).second->getFD();
+				if (!FD_ISSET(fd, &fds))
+					continue;
 
-			/* Hand the data off to the application */
-			if ((*it).second->receive(buf, len) == true) {
 				/*
-				* Need to server the connection - we decide to nuke the connection, and
-				* leave the dirty work to the destructor.
-				*/
-				peers.erase(it);
-				delete (*it).second;
-				printf("need to hang up connection!\n");
-				continue;
+				 * There is data here.
+				 */
+				uint8_t buf[65536 /* XXX */];
+				ssize_t len = ::recv(fd, buf, sizeof(buf), 0);
+				if (len <= 0) {
+					/* socket lost */
+					cerr << "connection lost" << endl;
+					peers.erase(it);
+					delete (*it).second;
+					looping = true;
+					break;
+				}
+
+				/* Hand the data off to the application */
+				if ((*it).second->receive(buf, len) == true) {
+					/*
+					* Need to server the connection - we decide to nuke the connection, and
+					* leave the dirty work to the destructor.
+					*/
+					peers.erase(it);
+					delete (*it).second;
+					printf("need to hang up connection!\n");
+					looping = true;
+					break;
+				}
 			}
 		}
 	}
@@ -408,7 +460,7 @@ void
 Torrent::callbackCompleteChunk(Peer* p, unsigned int piece, uint32_t offset, const uint8_t* data, uint32_t len)
 {
 	assert (piece < numPieces);
-	assert (len < TORRENT_CHUNK_SIZE);
+	assert (len <= TORRENT_CHUNK_SIZE);
 	assert (offset % TORRENT_CHUNK_SIZE == 0);
 
 	haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + offset / TORRENT_CHUNK_SIZE] = true;
@@ -416,6 +468,14 @@ Torrent::callbackCompleteChunk(Peer* p, unsigned int piece, uint32_t offset, con
 	printf("piece %u offset %u\n", piece, offset);
 
 	writeChunk(piece, offset, data, len);
+
+	/* See if we have all chunks; if so, the piece is in */
+	for (unsigned int i = 0; i < pieceLen / TORRENT_CHUNK_SIZE; i++)
+		if (!haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + i])
+			return;
+
+	/* Yay! */
+	callbackCompletePiece(p, piece);
 }
 
 void
@@ -480,7 +540,7 @@ Torrent::writeChunk(unsigned int piece, unsigned int offset, const uint8_t* buf,
 	unsigned int fileIndex;
 	File* f = NULL;
 	for (fileIndex = 0; fileIndex < files.size(); fileIndex++)  {
-		if (absolutePos < f->getLength()) {
+		if (absolutePos < files[fileIndex]->getLength()) {
 			f = files[fileIndex];
 			break;
 		}
@@ -521,7 +581,7 @@ Torrent::readChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size_t
 	unsigned int fileIndex;
 	File* f = NULL;
 	for (fileIndex = 0; fileIndex < files.size(); fileIndex++)  {
-		if (absolutePos < f->getLength()) {
+		if (absolutePos < files[fileIndex]->getLength()) {
 			f = files[fileIndex];
 			break;
 		}
@@ -550,11 +610,11 @@ Torrent::readChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size_t
 	}
 }
 
-std::string
+const uint8_t*
 Torrent::getPieceHash(unsigned int piece)
 {
 	assert(piece < numPieces);
-	return pieceHash[piece];
+	return (pieceHash + (piece * TORRENT_HASH_LEN));
 }
 
 /* vim:set ts=2 sw=2: */

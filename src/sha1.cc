@@ -6,7 +6,7 @@
 using namespace std;
 
 HashSHA1::HashSHA1()
-	: hash("")
+	: computed(false)
 {
 	SHA1_Init(&ctx); 
 }
@@ -14,37 +14,30 @@ HashSHA1::HashSHA1()
 void
 HashSHA1::process(const void* buf, size_t size)
 {
-	assert(hash == "");
+	assert(!computed);
 	SHA1_Update(&ctx, buf, size);
 }
 
-std::string
+const uint8_t*
 HashSHA1::getHash()
 {
-	if (hash != "")
+	if (computed)
 		return hash;
 
 	/* Retrieve the hash */
-	unsigned char md[SHA_DIGEST_LENGTH + 1];
-	md[SHA_DIGEST_LENGTH] = '\0';
-	SHA1_Final(md, &ctx);
-
-	hash = string((const char*)md);
+	SHA1_Final(hash, &ctx);
+	computed = true;
 	return hash;
 }
 
 std::string
-HashSHA1::getHashAsASCII()
+HashSHA1::getHashAsASCII(const uint8_t* hash)
 {
 	string result = "";
 
-	string hash = getHash();
-	for (string::iterator it = hash.begin();
-	     it != hash.end(); it++) {
-		uint8_t b = (uint8_t)*it;
-		for (int i = 1; i >= 0; i--)
-			result += "0123456789abcdef"[(b >> i * 4) & 0xf];
-	}
+	for (int i = 0; i < SHA_DIGEST_LENGTH; i++)
+		for (int j = 1; j >= 0; j--)
+			result += "0123456789abcdef"[(hash[i] >> j * 4) & 0xf];
 	return result;
 }
 

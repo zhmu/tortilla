@@ -19,10 +19,12 @@ public:
 	 *
 	 *  The hash will be calculated here if needed.
 	 */
-	std::string getHash();
+	const uint8_t* getHash();
 
-	//! \brief Retrieves the hash as an ASCII string
-	std::string getHashAsASCII();
+	/*! \brief Retrieves a hash as an ASCII string
+	 *  \param hash Hash to convert
+	 */
+	std::string getHashAsASCII(const uint8_t* hash);
 
 	//! \brief Retrieves the chunk size used to calculate the hash
 	size_t getChunkSize() { return 1024; }
@@ -31,8 +33,11 @@ private:
 	//! \brief OpenSSL SHA contex
 	SHA_CTX ctx;
 
+	//! \brief Have we computed the hash
+	bool computed;
+
 	//! \brief Computed hash, if any
-	std::string hash;
+	uint8_t hash[SHA_DIGEST_LENGTH];
 };
 
 #endif /* __SHA1_H__ */

@@ -39,7 +39,7 @@ public:
 	void go();
 
 	//! \brief Fetch the info hash
-	std::string getInfoHash() { return infoHash; }
+	const uint8_t* getInfoHash() { return infoHash; }
 
 	//! \brief Retrieve the number of pieces
 	unsigned int getNumPieces() { return numPieces; }
@@ -59,12 +59,15 @@ public:
 	//! \brief Do we have a piece?
 	bool hasPiece(unsigned int piece);
 
+	//! \brief How much data is in this torrent?
+	const uint64_t getTotalSize() { return total_size; }
+
 	void dump();
 
 	/*! \brief Retrieve the hash of a piece
 	 *  \param piece Piece number to use
 	 */
-	std::string getPieceHash(unsigned int piece);
+	const uint8_t* getPieceHash(unsigned int piece);
 
 protected:
 	/*! \brief Called by a peer if pieces are added to the map */
@@ -132,7 +135,7 @@ private:
 	 *
 	 *  This is only cached for efficiency reasons.
 	 */
-	std::string infoHash;
+	uint8_t infoHash[TORRENT_HASH_LEN];
 
 	/*! \brief Number of pieces in the torrent */
 	unsigned int numPieces;
@@ -140,11 +143,14 @@ private:
 	/*! \brief Piece chunk length */
 	unsigned int pieceLen;
 
+	/*! \brief Total size of the torrent, in bytes */
+	uint64_t total_size;
+
 	//! \brief Announce URL of the tracker
 	std::string announceURL;
 
 	/*! \brief Contains the hash values for each piece */
-	std::vector<std::string> pieceHash;
+	uint8_t* pieceHash;
 
 	/*! \brief Which pieces do we have?
 	 *

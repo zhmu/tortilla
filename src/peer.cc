@@ -47,7 +47,8 @@ Peer::Peer(Torrent* t, std::string my_id, std::string peer_id, std::string peer_
 	ch = 0;
 	for (int i = 0; i < 8; i++)
 		handshake.append((const char*)&ch, 1);
-	handshake += torrent->getInfoHash();
+	string h((const char*)torrent->getInfoHash(), TORRENT_HASH_LEN);
+	handshake += h;
 	handshake += my_id;
 
 	/* Hi! */
@@ -109,7 +110,7 @@ Peer::receive(const uint8_t* data, uint32_t data_len)
 			if (memcmp((data + 1), PEER_PSTR, pstrlen))
 				return true;
 			/* XXX ignore 8 feature bytes for now */
-			if (memcmp((uint8_t*)(data + 1 + pstrlen + 8), torrent->getInfoHash().c_str(), TORRENT_HASH_LEN))
+			if (memcmp((uint8_t*)(data + 1 + pstrlen + 8), torrent->getInfoHash(), TORRENT_HASH_LEN))
 				return true;
 
 			/*
@@ -480,9 +481,6 @@ Peer::sendPieceRequest()
 			/* We have the entire chunk - nuke it from the list */
 			requestedPieces.pop_front();
 
-			/* Inform the torrent, may be more to schedule */
-			torrent->callbackCompletePiece(this, piece);
-
 			/* Try the next chunk */
 			continue;
 		}
@@ -490,11 +488,24 @@ Peer::sendPieceRequest()
 		/* If we have there piece here, we fail! */
 		assert(torrent->havePiece[piece] == false);
 
+		/*
+		 * If this is the final piece, we should not ask for a whole chunk. Some
+		 * clients (rtorrent) seem to pad the request, but mainline, transmission
+		 * and probably dozens more aren't so nice (and we should not request
+		 * phantom data anyway)
+		 */
+		uint32_t request_length;
+		if (piece == torrent->getNumPieces() - 1) {
+			request_length = torrent->getTotalSize() % TORRENT_CHUNK_SIZE;
+		} else {
+			request_length = TORRENT_CHUNK_SIZE;
+		}
+
 		/* Fetch boy, fetch */
 		uint8_t msg[12];
 		WRITE_UINT32(msg, 0, piece);
 		WRITE_UINT32(msg, 4, missingChunk * TORRENT_CHUNK_SIZE);
-		WRITE_UINT32(msg, 8, TORRENT_CHUNK_SIZE);
+		WRITE_UINT32(msg, 8, request_length);
 		torrent->setChunkRequested(piece, missingChunk, true);
 		sendMessage(PEER_MSGID_REQUEST, msg, 12);
 
