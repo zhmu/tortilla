@@ -772,8 +772,23 @@ void
 Torrent::updateBandwidth()
 {
 	pthread_mutex_lock(&mtx_peers);
-	/* XXX do stuff */
+
+	rx_rate = 0; tx_rate = 0;
+	for (map<string, Peer*>::iterator it = peers.begin();
+	     it != peers.end(); it++) {
+		Peer* p = (*it).second;
+		uint32_t rx, tx;
+		p->getRateCounters(&rx, &tx);
+		rx_rate += rx; tx_rate += tx;
+	}
+
 	pthread_mutex_unlock(&mtx_peers);
+}
+
+void
+Torrent::getRateCounters(uint32_t* rx, uint32_t* tx)
+{
+	*rx = rx_rate; *tx = tx_rate;
 }
 
 /* vim:set ts=2 sw=2: */

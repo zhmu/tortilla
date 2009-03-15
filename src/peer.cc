@@ -52,7 +52,7 @@ Peer::Peer(Torrent* t, std::string my_id, std::string peer_id, std::string peer_
 	handshake += my_id;
 
 	/* Hi! */
-	connection->write(handshake.c_str(), handshake.size());
+	send((const uint8_t*)handshake.c_str(), handshake.size());
 }
 
 #define DATA_LEFT \
@@ -64,6 +64,7 @@ bool
 Peer::receive(const uint8_t* data, uint32_t data_len)
 {
 	assert (data_len > 0);
+	rx_bytes += data_len;
 
 	/*
 	 * First of all, check how much data we can still place into the buffer. If we run
@@ -436,9 +437,9 @@ Peer::sendMessage(uint8_t msg, const uint8_t* buf, size_t len)
 	hdr[4] = msg;
 
 	/* Write them both */
-	connection->write(hdr, 5);
+	send(hdr, 5);
 	if (len > 0)
-		connection->write(buf, len);
+		send(buf, len);
 }
 
 bool
@@ -518,6 +519,21 @@ void
 Peer::dump()
 {
 	cerr << "outstanding requests: "; cerr << numOutstandingRequests; cerr << endl;
+}
+
+void
+Peer::send(const uint8_t* data, size_t len)
+{
+	/* Off it goes, to the other side... */
+	connection->write((const char*)data, len);
+	tx_bytes += len;
+}
+
+void
+Peer::getRateCounters(uint32_t* rx, uint32_t* tx)
+{
+	*rx = rx_bytes; *tx = tx_bytes;
+	rx_bytes = 0; tx_bytes = 0;
 }
 
 #undef WRITE_UINT32

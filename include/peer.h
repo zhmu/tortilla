@@ -76,6 +76,12 @@ public:
 	//! \brief Check if the peer has a specific piece
 	bool hasPiece(unsigned int num);
 
+	/*! \brief Retrieve receive/transmit rates and reset the counters
+	 *  \param rx Received bytes
+	 *  \param tx Transmitted bytes
+	 */
+	void getRateCounters(uint32_t* rx, uint32_t* tx);
+
 	void dump();
 
 protected:
@@ -120,6 +126,12 @@ private:
 	//! \brief Send request for a piece, if any
 	void sendPieceRequest();
 
+	/*! \brief Sends data to peer
+	 *  \param data Data to send
+	 *  \param len Length of the data, in bytes
+	 */
+	void send(const uint8_t* data, size_t len);
+
 	//! \brief Are we choked?
 	bool am_choked;
 
@@ -158,6 +170,12 @@ private:
 
 	//! \brief Number of bytes in the command buffer
 	uint32_t command_buffer_readpos, command_buffer_writepos;
+
+	//! \brief Amount of data recieved during the last cycle
+	uint32_t rx_bytes;
+
+	//! \brief Amount of data sent during the last cycle
+	uint32_t tx_bytes;
 };
 
 #endif /* __PEER_H__ */

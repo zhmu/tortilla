@@ -64,7 +64,17 @@ Overseer::run()
 		tv.tv_sec = 1; tv.tv_usec = 0;
 		select (0, NULL, NULL, NULL, &tv);
 
-		/* XXX display torrent status */
+		/* XXX some basic info for now... */
+		pthread_mutex_lock(&mtx_torrents);
+		for (map<string, Torrent*>::iterator it = torrents.begin();
+				 it != torrents.end(); it++) {
+			Torrent* t = it->second;
+			uint32_t rx, tx;
+			t->getRateCounters(&rx, &tx);
+			printf("torrent: rx %u bytes/sec, tx %u bytes/sec\n",
+			 rx, tx);
+		}
+		pthread_mutex_unlock(&mtx_torrents);
 	}
 }
 

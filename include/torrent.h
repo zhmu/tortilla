@@ -110,6 +110,12 @@ protected:
 	//! \brief Called periodically to update bandwidth use
 	void updateBandwidth();
 
+	/*! \brief Retrieves the receive/transmit rates
+	 *  \param rx Receive rate, in bytes/second
+	 *  \param tx Transmit rate, in bytes/second
+	 */
+	void getRateCounters(uint32_t* rx, uint32_t* tx);
+
 private:
 	/*! \brief Contact the tracker
 	 *  \param event Event to report to the tracker, if any
@@ -245,6 +251,12 @@ private:
 
 	//! \brief Mutex protecting the peers list
 	pthread_mutex_t mtx_peers;
+
+	//! \brief Receive rate, in bytes
+	uint32_t rx_rate;
+
+	//! \brief Transmit rate, in bytes
+	uint32_t tx_rate;
 };
 
 #endif /* __TORRENT_H__ */
