@@ -585,7 +585,7 @@ Torrent::dump()
 		if (i % 10 == 0) printf(" ");
 
 		if (havePiece[i]) {
-			printf("%c", hashingPiece[i] ? "?" : "#");
+			printf("%c", hashingPiece[i] ? '?' : '#');
 		} else {
 			int numQueued = 0;
 			for (unsigned int j = 0; j < (pieceLen / TORRENT_CHUNK_SIZE); j++) {
@@ -731,8 +731,14 @@ Torrent::scheduleHashing(unsigned int piece)
 	assert(piece < numPieces);
 	assert(!hashingPiece[piece]);
 
-	hasher->addPiece(piece);
+	/*
+	 * Mark the piece as being hashed before we actually add it; since the
+	 * hasher is in a seperate thread, there is a small chance it completes
+	 * before this thread continues, which means we clear the 'hashing' flag,
+	 * resulting in a torrent that will never be flagged as completed...
+	 */
 	hashingPiece[piece] = true;
+	hasher->addPiece(piece);
 }
 
 void*
