@@ -123,6 +123,9 @@ private:
 	//! \brief Ask for new pieces from each peer
 	void scheduleRequests();
 
+	//! \brief Request hashing of a piece
+	void scheduleHashing(unsigned int piece);
+
 	/*! \brief Convert an integer to a string
 	 *  \param i Integer to use
 	 */
@@ -183,6 +186,9 @@ private:
 
 	//! \brief Which pieces have we requested?
 	std::vector<Peer*> requestedPiece;
+
+	//! \brief Which pieces are being hashed?
+	std::vector<bool> hashingPiece;
 
 	/*! \brief Stores the cardinality of each piece
 	 *

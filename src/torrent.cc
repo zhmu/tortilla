@@ -56,13 +56,15 @@ Torrent::Torrent(Metadata* md)
 	pieceHash = new uint8_t[numPieces * TORRENT_HASH_LEN];
 	memcpy(pieceHash, miPieces->getString().c_str(), numPieces * TORRENT_HASH_LEN);
 
-	/* For now, assume we have no pieces and requested none */
+	/* For now, assume we have no pieces, requested none and are hashing none */
 	havePiece.reserve(numPieces);
 	requestedPiece.reserve(numPieces);
+	hashingPiece.reserve(numPieces);
 	pieceCardinality.reserve(numPieces);
 	for (int i = 0; i < numPieces; i++) {
 		havePiece.push_back(false);
 		requestedPiece.push_back(NULL);
+		hashingPiece.push_back(false);
 		pieceCardinality.push_back(0);
 	}
 
@@ -188,7 +190,7 @@ Torrent::Torrent(Metadata* md)
 			/* This file is big enough to process the previous missing pieces */
 			havePiece[piecenum] = previousFileReopened && f->haveReopened();
 			if (havePiece[piecenum])
-				hasher->addPiece(piecenum);
+				scheduleHashing(piecenum);
 			piecenum++;
 
 			/* No longer leftover, but subtract the data of this file we used */
@@ -203,7 +205,7 @@ Torrent::Torrent(Metadata* md)
 		while (fileLength > pieceLen) {
 			havePiece[piecenum] = f->haveReopened();
 			if (f->haveReopened())
-				hasher->addPiece(piecenum);
+				scheduleHashing(piecenum);
 			piecenum++;
 			fileLength -= pieceLen;
 		}
@@ -217,7 +219,7 @@ Torrent::Torrent(Metadata* md)
 	if (leftoverLength > 0) {
 		havePiece[piecenum] = previousFileReopened;
 		if (havePiece[piecenum])
-			hasher->addPiece(piecenum);
+			scheduleHashing(piecenum);
 		piecenum++;
 	}
 
@@ -486,7 +488,7 @@ Torrent::callbackCompletePiece(Peer* p, unsigned int piece)
 	 * Ask the hasher to verify this chunk - using the callback, we figure out if
 	 * we have to refetch the piece or accept that we think it's fine.
 	 */
-	hasher->addPiece(piece);
+	scheduleHashing(piece);
 
 	/* Try more! */
 	scheduleRequests();
@@ -546,7 +548,7 @@ Torrent::dump()
 		if (i % 10 == 0) printf(" ");
 
 		if (havePiece[i]) {
-			printf("#");
+			printf("%c", hashingPiece[i] ? "?" : "#");
 		} else {
 			int numQueued = 0;
 			for (unsigned int j = 0; j < (pieceLen / TORRENT_CHUNK_SIZE); j++) {
@@ -573,9 +575,21 @@ Torrent::callbackCompleteHashing(unsigned int piece, bool result)
 	printf("completed hashing of piece %u: valid=%c\n",
 	 piece, result ? 'Y' : 'N');
 
+	hashingPiece[piece] = false;
+	if (!result) {
+		/*
+		 * We got a corrupted piece! Mark it as not-available and attempt to
+		 * request it again from someone else. XXX we should identify and ban
+		 * seeders that give is bad content
+		 */
+		havePiece[piece] = false;
+		scheduleRequests();
+		return;
+	}
+
 	/* If we have all pieces, rejoice */
 	for (unsigned int i = 0; i < numPieces; i++)
-		if (!havePiece[i])
+		if (!havePiece[i] || hashingPiece[i])
 			return;
 
 	callbackCompleteTorrent();
@@ -675,6 +689,16 @@ void
 Torrent::callbackCompleteTorrent()
 {
 	printf(">>> torrent is complete!\n");
+}
+
+void
+Torrent::scheduleHashing(unsigned int piece)
+{
+	assert(piece < numPieces);
+	assert(!hashingPiece[piece]);
+
+	hasher->addPiece(piece);
+	hashingPiece[piece] = true;
 }
 
 /* vim:set ts=2 sw=2: */
