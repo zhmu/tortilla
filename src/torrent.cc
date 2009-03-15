@@ -424,7 +424,6 @@ Torrent::go()
 					peers.erase(it);
 					pthread_mutex_unlock(&mtx_peers);
 					delete (*it).second;
-					printf("need to hang up connection!\n");
 					looping = true;
 					break;
 				}
@@ -483,7 +482,6 @@ Torrent::scheduleRequests()
 			p->claimInterest();
 			p->requestPiece(i);
 			requestedPiece[i] = p;
-			printf("queing request vor piece%i\n", i);
 		}
 	}
 }
@@ -611,15 +609,12 @@ Torrent::hasPiece(unsigned int piece)
 void
 Torrent::callbackCompleteHashing(unsigned int piece, bool result)
 {
-	printf("completed hashing of piece %u: valid=%c\n",
-	 piece, result ? 'Y' : 'N');
-
 	hashingPiece[piece] = false;
 	if (!result) {
 		/*
 		 * We got a corrupted piece! Mark it as not-available and attempt to
 		 * request it again from someone else. XXX we should identify and ban
-		 * seeders that give is bad content
+		 * seeders that provide us with bad content.
 		 */
 		havePiece[piece] = false;
 		scheduleRequests();
