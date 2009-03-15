@@ -55,6 +55,19 @@ Peer::Peer(Torrent* t, std::string my_id, std::string peer_id, std::string peer_
 	send((const uint8_t*)handshake.c_str(), handshake.size());
 }
 
+Peer::~Peer()
+{
+	vector<unsigned int> lostPieces;
+
+	/* We need to deregister all of our pieces */
+	for (int i = 0; i < torrent->getNumPieces(); i++)
+		if (havePiece[i])
+			lostPieces.push_back(i);
+	torrent->callbackPiecesRemoved(this, lostPieces);
+
+	/* XXX handle deregistering of outstanding requests */
+}
+
 #define DATA_LEFT \
 		((command_buffer_readpos < command_buffer_writepos) ? \
 			(command_buffer_writepos - command_buffer_readpos) : \
@@ -341,7 +354,8 @@ Peer::msgBitfield(const uint8_t* msg, uint32_t len)
 	vector<unsigned int> newPieces;
 	for (unsigned int i = 0; i < numPieces; i++) {
 		havePiece[i] = msg[i / 8] & (1 << (7 - (i % 8)));
-		newPieces.push_back(i);
+		if (havePiece[i])
+			newPieces.push_back(i);
 	}
 
 	/* Inform the torrent class of all added pieces */

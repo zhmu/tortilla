@@ -156,6 +156,12 @@ private:
 	 */
 	std::string convertInteger(uint64_t i);
 
+	/*! \brief Finds a peer to download a piece from
+	 *  \param piece Piece to download
+	 *  \return Peer that has the piece, or NULL if no peers have it
+	 */
+	Peer* findPeerForPiece(uint32_t piece);
+
 	//! \brief Amount of bytes uploaded / downloaded / left
 	uint32_t uploaded, downloaded, left;
 

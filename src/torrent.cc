@@ -3,6 +3,7 @@
 #include <fcntl.h>
 #include <iostream>
 #include <pthread.h>
+#include <stdlib.h>
 #include <sstream>
 #include <stdint.h>
 #include <string.h>
@@ -464,18 +465,10 @@ Torrent::scheduleRequests()
 	for (unsigned int i = 0; i < numPieces && !terminating; i++) {
 		if (!havePiece[i] && requestedPiece[i] == NULL && pieceCardinality[i] > 0) {
 			/*
-			 * This piece is of interest! Pick a peer; this is O(|peers|) every time,
-			 * but we assume |peers| < 10 so this will be fine for now XXX
+			 * This piece is of interest! Pick a peer, and if possible, give it the
+		 	 * request.
 			 */
-			Peer* p = NULL;
-			pthread_mutex_lock(&mtx_peers);
-			for (std::map<std::string, Peer*>::iterator peerit = peers.begin();
-			     peerit != peers.end(); peerit++)
-				if (peerit->second->hasPiece(i)) {
-					p = peerit->second; break;
-				}
-			pthread_mutex_unlock(&mtx_peers);
-
+			Peer* p = findPeerForPiece(i);
 			assert(p != NULL);
 			if (p->getNumRequests() >= TORRENT_PEER_MAX_REQUESTS)
 				continue;
@@ -788,6 +781,30 @@ void
 Torrent::getRateCounters(uint32_t* rx, uint32_t* tx)
 {
 	*rx = rx_rate; *tx = tx_rate;
+}
+
+Peer*
+Torrent::findPeerForPiece(uint32_t piece)
+{
+	/*
+	 * Pick a random peer that has this piece and go. This is O(|peers|)), but we
+	 * will will limit the number of peers eventually so this is fine XXX
+	 */
+	unsigned int peer_num = rand() % pieceCardinality[piece];
+
+	Peer* p = NULL;
+	pthread_mutex_lock(&mtx_peers);
+	for (std::map<std::string, Peer*>::iterator it = peers.begin();
+	     it != peers.end(); it++) {
+		if (!it->second->hasPiece(piece))
+			continue;
+		if (peer_num-- == 0) {
+			p = it->second;
+			break;
+		}
+	}
+	pthread_mutex_unlock(&mtx_peers);
+	return p;
 }
 
 /* vim:set ts=2 sw=2: */

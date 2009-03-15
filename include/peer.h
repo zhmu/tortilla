@@ -43,6 +43,9 @@ public:
 	 */
 	Peer(Torrent* t, std::string my_id, std::string peer_id, std::string peer_host, uint16_t peer_port);
 
+	//! \brief Destructs the peer
+	~Peer();
+
 	//! \brief Retrieve the file descriptor associated with this peer
 	inline int getFD() { return connection->getFD(); }
 
