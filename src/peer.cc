@@ -64,8 +64,7 @@ Peer::~Peer()
 		if (havePiece[i])
 			lostPieces.push_back(i);
 	torrent->callbackPiecesRemoved(this, lostPieces);
-
-	/* XXX handle deregistering of outstanding requests */
+	torrent->callbackPeerGone(this);
 }
 
 #define DATA_LEFT \

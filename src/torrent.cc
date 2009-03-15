@@ -807,4 +807,27 @@ Torrent::findPeerForPiece(uint32_t piece)
 	return p;
 }
 
+void
+Torrent::callbackPeerGone(Peer* p)
+{
+	/*
+	 * Deregister any requested pieces by this peer. This is safe to call without
+	 * locking since the select(2) call notifies us of any changes and thus,
+	 * nothing can change while we are nuking requests...
+	 */
+	bool unregisteredPieces = false;
+	for (unsigned int i = 0; i < requestedPiece.size(); i++) {
+		if (requestedPiece[i] != p)
+			continue;
+    		requestedPiece[i] = NULL;
+		unregisteredPieces = true;
+	}
+
+	if (!unregisteredPieces)
+		return;
+
+	/* We removed pieces; try to schedule requests to fill the void */
+	scheduleRequests();
+}
+
 /* vim:set ts=2 sw=2: */

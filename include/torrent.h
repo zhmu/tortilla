@@ -101,6 +101,9 @@ protected:
 	//! \brief Called if the torrent download is complete
 	void callbackCompleteTorrent();
 
+	//! \brief Called by a peer just before it is gone
+	void callbackPeerGone(Peer* p);
+
 	/*! \brief Go, speedracer, go -- handles the torrent activites
 	 *
  	 *  This generally resides in an own thread.
