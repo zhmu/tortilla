@@ -28,6 +28,7 @@ class Torrent {
 friend void* torrent_thread(void* ptr);
 friend class Peer;
 friend class Hasher;
+friend class Overseer;
 public:
 	/*! \brief Constructs a new torrent object
 	 *  \param o Overseer to use
@@ -105,6 +106,9 @@ protected:
  	 *  This generally resides in an own thread.
 	 */
 	void go();
+
+	//! \brief Called periodically to update bandwidth use
+	void updateBandwidth();
 
 private:
 	/*! \brief Contact the tracker
@@ -238,6 +242,9 @@ private:
 
 	//! \brief Are we terminating?
 	bool terminating;
+
+	//! \brief Mutex protecting the peers list
+	pthread_mutex_t mtx_peers;
 };
 
 #endif /* __TORRENT_H__ */

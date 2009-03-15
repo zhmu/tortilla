@@ -8,6 +8,7 @@
 /*! \brief Responsible for overseeing all torrents
  */
 class Overseer {
+friend void* bandwidth_thread(void* ptr);
 friend class Torrent;
 public:
 	//! \brief Constructs a new overseer
@@ -26,6 +27,8 @@ public:
 	void terminate();
 
 protected:
+	//! \brief Seperate thread handling bandwidth monitoring
+	void bandwidthThread();
 
 private:
 	//! \brief Info hash to torrent mappings
@@ -33,6 +36,12 @@ private:
 
 	//! \brief are we terminating?
 	bool terminating;
+
+	//! \brief Bandwdith monitor thread
+	pthread_t thread_bandwidth_monitor;
+
+	//! \brief Mutex used to protect the torrents list
+	pthread_mutex_t mtx_torrents;
 };
 
 #endif /* __OVERSEER_H__ */

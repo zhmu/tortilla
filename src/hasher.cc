@@ -47,14 +47,14 @@ Hasher::addPiece(unsigned int num)
 
 void
 Hasher::run() {
-	while(true) {
+	while(!terminating) {
 		/* Wait until some event arrives */
 		pthread_cond_wait(&cv, &mtx);
 		if (terminating)
 			break;
 
 		assert(!hashQueue.empty());
-		while (!hashQueue.empty()) {
+		while (!hashQueue.empty() && !terminating) {
 			unsigned int piecenum = hashQueue.front();
 			hashQueue.pop();
 			pthread_mutex_unlock(&mtx);

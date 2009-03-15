@@ -1,6 +1,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <assert.h>
+#include <errno.h>
 #include <fcntl.h>
 #include "exceptions.h"
 #include "file.h"
@@ -59,7 +60,11 @@ File::write(size_t offset, const void* buf, size_t len)
 	assert(offset + len <= length);
 
 	lseek(writeFD, offset, SEEK_SET);
-	if (::write(writeFD, buf, len) != len)
+	/*
+	 * Don't consider short writes a failure if the call was interrupted;
+	 * this happens if the user hits ^C to exit.
+	 */
+	if (::write(writeFD, buf, len) != len && errno != EINTR)
 		throw FileException("short write");
 }
 
@@ -69,7 +74,11 @@ File::read(size_t offset, void* buf, size_t len)
 	assert(offset + len <= length);
 
 	lseek(readFD, offset, SEEK_SET);
-	if (::read(readFD, buf, len) != len)
+	/*
+	 * Don't consider short writes a failure if the call was interrupted;
+	 * this happens if the user hits ^C to exit.
+	 */
+	if (::read(readFD, buf, len) != len && errno != EINTR)
 		throw FileException("short read");
 }
 

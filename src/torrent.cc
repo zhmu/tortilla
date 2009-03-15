@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <fcntl.h>
 #include <iostream>
+#include <pthread.h>
 #include <sstream>
 #include <stdint.h>
 #include <string.h>
@@ -24,6 +25,8 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 {
 	overseer = o; downloaded = 0; uploaded = 0; left = 0;
 	haveThread = false; terminating = false;
+
+	pthread_mutex_init(&mtx_peers, NULL);
 
 	/* XXX these two variables should be passed from upper hand some day */
 	port = 0; peerID = "123456789abcdef01234";
@@ -240,6 +243,7 @@ Torrent::~Torrent()
 	 * Nuke all our peers. XXX we should implement signalling and exit more
 	 * gracefully.
 	 */
+	pthread_mutex_lock(&mtx_peers);
 	while (true) {
 		map<string, Peer*>::iterator it = peers.begin();
 		if (it == peers.end())
@@ -247,6 +251,13 @@ Torrent::~Torrent()
 		delete (*it).second;
 		peers.erase(it);
 	}
+	pthread_mutex_unlock(&mtx_peers);
+
+	/*
+	 * Need to get rid of the hasher first, as it'll crash and burn if we suddenly
+	 * nuke the files.
+	 */
+	delete hasher;
 
 	/* Close all files, too */
 	while (true) {
@@ -256,8 +267,6 @@ Torrent::~Torrent()
 		delete (*it);
 		files.erase(it);
 	}
-
-	delete hasher;
 }
 
 Metadata*
@@ -327,7 +336,9 @@ Torrent::handleTracker()
 		
 			try {
 				Peer* p = new Peer(this, peerID, msPeerID->getString(), msHost->getString(), msPort->getInteger());
+				pthread_mutex_lock(&mtx_peers);
 				peers[msPeerID->getString()] = p;
+				pthread_mutex_unlock(&mtx_peers);
 				printf("got peer %p at %s:%u\n", p, msHost->getString().c_str(), msPort->getInteger());
 			} catch (ConnectionException e) {
 				cerr << "skipping peer: "; cerr << e.what(); cerr << endl;
@@ -349,14 +360,26 @@ Torrent::go()
 		/* Construct our file descriptor set */
 		int maxfd = -1;
 		FD_ZERO(&fds);
+		pthread_mutex_lock(&mtx_peers);
 		for (map<string, Peer*>::iterator it = peers.begin();
 		     it != peers.end(); it++) {
 			int fd = (*it).second->getFD();
 			if (maxfd < fd) maxfd = fd;
 			FD_SET(fd, &fds);
 		}
+		pthread_mutex_unlock(&mtx_peers);
 
-		int n = select(maxfd + 1, &fds, (fd_set*)NULL, (fd_set*)NULL, NULL);
+		/*
+		 * Sleep for at most 0.5 seconds while waiting for a response; this is to
+		 * ensure we won't wait too long while shutting down.
+		 *
+		 * Note that, for busy torrenta, this 0.5 second loop will never be reached.
+		 */
+		struct timeval tv;
+		tv.tv_sec = 0; tv.tv_usec = 5000;
+		int n = select(maxfd + 1, &fds, (fd_set*)NULL, (fd_set*)NULL, &tv);
+		if (n == 0)
+			continue;
 
 		/* Wade through all peers, handle any data to service */
 		bool looping = true;
@@ -383,7 +406,9 @@ Torrent::go()
 				if (len <= 0) {
 					/* socket lost */
 					cerr << "connection lost" << endl;
+					pthread_mutex_lock(&mtx_peers);
 					peers.erase(it);
+					pthread_mutex_unlock(&mtx_peers);
 					delete (*it).second;
 					looping = true;
 					break;
@@ -395,7 +420,9 @@ Torrent::go()
 					* Need to server the connection - we decide to nuke the connection, and
 					* leave the dirty work to the destructor.
 					*/
+					pthread_mutex_lock(&mtx_peers);
 					peers.erase(it);
+					pthread_mutex_unlock(&mtx_peers);
 					delete (*it).second;
 					printf("need to hang up connection!\n");
 					looping = true;
@@ -435,18 +462,20 @@ Torrent::scheduleRequests()
 	/*
 	 * XXX this algorithm should schedule a piece more randomly
 	 */
-	for (unsigned int i = 0; i < numPieces; i++) {
+	for (unsigned int i = 0; i < numPieces && !terminating; i++) {
 		if (!havePiece[i] && requestedPiece[i] == NULL && pieceCardinality[i] > 0) {
 			/*
 			 * This piece is of interest! Pick a peer; this is O(|peers|) every time,
 			 * but we assume |peers| < 10 so this will be fine for now XXX
 			 */
 			Peer* p = NULL;
+			pthread_mutex_lock(&mtx_peers);
 			for (std::map<std::string, Peer*>::iterator peerit = peers.begin();
 			     peerit != peers.end(); peerit++)
 				if (peerit->second->hasPiece(i)) {
 					p = peerit->second; break;
 				}
+			pthread_mutex_unlock(&mtx_peers);
 
 			assert(p != NULL);
 			if (p->getNumRequests() >= TORRENT_PEER_MAX_REQUESTS)
@@ -457,7 +486,6 @@ Torrent::scheduleRequests()
 			printf("queing request vor piece%i\n", i);
 		}
 	}
-
 }
 
 std::string
@@ -737,6 +765,14 @@ Torrent::stop()
 	pthread_join(thread, NULL);
 
 	haveThread = false;
+}
+
+void
+Torrent::updateBandwidth()
+{
+	pthread_mutex_lock(&mtx_peers);
+	/* XXX do stuff */
+	pthread_mutex_unlock(&mtx_peers);
 }
 
 /* vim:set ts=2 sw=2: */
