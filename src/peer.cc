@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <string.h>
 #include "connection.h"
+#include "overseer.h"
 #include "peer.h"
 #include "torrent.h"
 
@@ -21,9 +22,10 @@ using namespace std;
 	           (((ptr)[(offs) + 2]) <<  8) | \
 	           (((ptr)[(offs) + 3])      ))
 
-Peer::Peer(Torrent* t, std::string my_id, std::string peer_id, std::string peer_host, uint16_t peer_port)
+void
+Peer::__init(Torrent* t)
 {
-	torrent = t; am_choked = true; am_interested = false; handshaking = true;
+	torrent = t; am_choked = true; am_interested = false;
 	peer_choked = true; peer_interested = false; numOutstandingRequests = 0;
 	command_buffer_readpos = 0; command_buffer_writepos = 0;
 	peerID = peerID;
@@ -33,26 +35,28 @@ Peer::Peer(Torrent* t, std::string my_id, std::string peer_id, std::string peer_
 	for (int i = 0; i < t->getNumPieces(); i++)
 		havePiece.push_back(false);
 
-	connection = new Connection(peer_host, peer_port);
+}
 
-	/*
-	 * Construct the handshake: length, protocolid, capabilities, info hash
-	 *                          our id
-	 */
-	string handshake;
-	unsigned char ch;
-	ch = strlen(PEER_PSTR);
-	handshake.append((const char*)&ch, 1);
-	handshake += PEER_PSTR;
-	ch = 0;
-	for (int i = 0; i < 8; i++)
-		handshake.append((const char*)&ch, 1);
-	string h((const char*)torrent->getInfoHash(), TORRENT_HASH_LEN);
-	handshake += h;
-	handshake += my_id;
+Peer::Peer(Torrent* t, std::string peer_id, std::string peer_host, uint16_t peer_port)
+{
+	__init(t); /* ugly */
 
-	/* Hi! */
-	send((const uint8_t*)handshake.c_str(), handshake.size());
+
+	/* Send our handshake and wait for the other party to complete the procedure */
+	sendHandshake();
+	handshaking = true;
+}
+
+Peer::Peer(Torrent* t, std::string peer_id, Connection* c)
+{
+	__init(t); /* ugly */
+	connection = c;
+
+	/* This connection is incoming, so all we need to do if send our handshake */
+	sendHandshake();
+	handshaking = false;
+
+	/* XXX should present the peer with our pieces, if we have any */
 }
 
 Peer::~Peer()
@@ -534,6 +538,30 @@ Peer::getRateCounters(uint32_t* rx, uint32_t* tx)
 {
 	*rx = rx_bytes; *tx = tx_bytes;
 	rx_bytes = 0; tx_bytes = 0;
+}
+
+void
+Peer::sendHandshake()
+{
+	/*
+	 * Construct the handshake: length, protocolid, capabilities, info hash
+	 *                          our id
+	 */
+	string handshake;
+	unsigned char ch;
+	ch = strlen(PEER_PSTR);
+	handshake.append((const char*)&ch, 1);
+	handshake += PEER_PSTR;
+	ch = 0;
+	for (int i = 0; i < 8; i++)
+		handshake.append((const char*)&ch, 1);
+	string h((const char*)torrent->getInfoHash(), TORRENT_HASH_LEN);
+	string my_id((const char*)torrent->getPeerID(), TORRENT_PEERID_LEN);
+	handshake += h;
+	handshake += my_id;
+
+	/* Hi! */
+	send((const uint8_t*)handshake.c_str(), handshake.size());
 }
 
 #undef WRITE_UINT32

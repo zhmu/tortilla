@@ -12,7 +12,7 @@
 
 using namespace std;
 
-Overseer o;
+Overseer o(12345 /* XXX don't hardcode this! */);
 
 std::string
 constructPeerID()

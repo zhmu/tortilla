@@ -13,6 +13,7 @@
 #include "file.h"
 #include "hasher.h"
 #include "http.h"
+#include "overseer.h"
 #include "peer.h"
 #include "sha1.h"
 #include "torrent.h"
@@ -28,9 +29,6 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 	haveThread = false; terminating = false;
 
 	pthread_mutex_init(&mtx_peers, NULL);
-
-	/* XXX these two variables should be passed from upper hand some day */
-	port = 0; peerID = "123456789abcdef01234";
 
 	/*
 	 * Ensure the 'info' and 'announce' metadata fields exist; we can't do much
@@ -277,6 +275,7 @@ Torrent::contactTracker(std::string event)
 
 	/* Construct the tracker request, and off it goes */
 	string h((const char*)infoHash, sizeof(infoHash));
+	string peerID((const char*)overseer->getPeerID(), TORRENT_PEERID_LEN);
 	m["info_hash"] = h;
 	m["peer_id"] = peerID;
 	if (event != "")
@@ -284,7 +283,7 @@ Torrent::contactTracker(std::string event)
 	m["downloaded"] = convertInteger(downloaded);
 	m["uploaded"] = convertInteger(uploaded);
 	m["left"] = convertInteger(left);
-	m["port"] = convertInteger(port);
+	m["port"] = convertInteger(overseer->getListeningPort());
 	string result = HTTP::get(announceURL, m);
 
 	/* Parse the result as metadata (which it should be) */
@@ -336,7 +335,7 @@ Torrent::handleTracker()
 				continue;
 		
 			try {
-				Peer* p = new Peer(this, peerID, msPeerID->getString(), msHost->getString(), msPort->getInteger());
+				Peer* p = new Peer(this, msPeerID->getString(), msHost->getString(), msPort->getInteger());
 				pthread_mutex_lock(&mtx_peers);
 				peers[msPeerID->getString()] = p;
 				pthread_mutex_unlock(&mtx_peers);
@@ -828,6 +827,24 @@ Torrent::callbackPeerGone(Peer* p)
 
 	/* We removed pieces; try to schedule requests to fill the void */
 	scheduleRequests();
+}
+
+const uint8_t*
+Torrent::getPeerID()
+{
+	return overseer->getPeerID();
+}
+
+void
+Torrent::addIncomingPeer(Connection* c, std::string peerid, uint8_t* reserved)
+{
+	/* XXX do something with the reserved bytes */
+
+	Peer* p = new Peer(this, peerid, c);
+
+	pthread_mutex_lock(&mtx_peers);
+	peers[peerid] = p;
+	pthread_mutex_unlock(&mtx_peers);
 }
 
 /* vim:set ts=2 sw=2: */
