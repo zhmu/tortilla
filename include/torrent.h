@@ -16,6 +16,10 @@
 //! \brief Maximum number of requested pieces per client
 #define TORRENT_PEER_MAX_REQUESTS 5
 
+//! \brief Length of a peer ID
+#define TORRENT_PEERID_LEN 20
+
+class Connection;
 class Peer;
 class Overseer;
 class Hasher;
@@ -81,6 +85,19 @@ public:
 
 	/*! \brief Returns the number of pieces for a given chunk */
 	unsigned int calculateChunksInPiece(unsigned int piece);
+
+	/*! \brief Retrieve the torrent's peer ID */
+	const uint8_t* getPeerID();
+
+	/*! \brief Add an incoming connection to us as peer
+	 *  \param c Connection the peer is using
+	 *  \param peerid Peer ID
+	 *  \param reserved Reserved features bytes
+	 */
+	void addIncomingPeer(Connection* c, std::string peerid, uint8_t* reserved);
+
+	//! \brief Is this torrent currently hashing?
+	bool isHashing();
 
 protected:
 	/*! \brief Called by a peer if pieces are added to the map */
@@ -167,12 +184,6 @@ private:
 
 	//! \brief Amount of bytes uploaded / downloaded / left
 	uint32_t uploaded, downloaded, left;
-
-	//! \brief TCP port for incoming connections
-	uint16_t port;
-
-	//! \brief Peer ID used
-	std::string peerID;
 
 	/*! \brief Hash of the 'info' dictionary in the metadata
 	 *
@@ -266,6 +277,9 @@ private:
 
 	//! \brief Transmit rate, in bytes
 	uint32_t tx_rate;
+
+	//! \brief Is the torrent complete?
+	bool complete;
 };
 
 #endif /* __TORRENT_H__ */

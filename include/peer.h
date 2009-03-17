@@ -34,14 +34,20 @@ class Torrent;
  */
 class Peer {
 public:	
-	/*! \brief Constructs a new peer object
+	/*! \brief Constructs a new peer object for an outgoing connection
 	 *  \param t Torrent the peer is connected to
-	 *  \param my_id Our own peer ID
 	 *  \param peer_id ID of the peer we are connecting to
 	 *  \param peer_host Hostname/IP of the peer
 	 *  \param peer_port Port of the peer
 	 */
-	Peer(Torrent* t, std::string my_id, std::string peer_id, std::string peer_host, uint16_t peer_port);
+	Peer(Torrent* t, std::string peer_id, std::string peer_host, uint16_t peer_port);
+
+	/*! \brief Constructs a new peer object for an incoming connection
+	 *  \param t Torrent the peer is connected to
+	 *  \param peer_id Peer ID of the peer
+	 *  \param c Connection used
+	 */
+	Peer(Torrent* t, std::string peer_id, Connection* c);
 
 	//! \brief Destructs the peer
 	~Peer();
@@ -122,7 +128,24 @@ protected:
 	 */
 	void sendMessage(uint8_t msg, const uint8_t* data, size_t len);
 
+	//! \brief Send our handshake to the peer
+	void sendHandshake();
+
+	/*! \brief Send our bitfield of available pieces to the peer
+	 *
+	 *  This function does nothing if no pieces are available.
+	 */
+	void sendBitfield();
+
 private:
+	/*! \brief Initializes basic peer parameters based on a torrent
+	 *  \param t Torrent the peer is connected to
+	 *
+	 *  This is designed to be called from the constructor, since C++
+	 *  doesn't seem to compeletely support delegated constructors yet.
+	 */
+	void __init(Torrent* t);
+
 	//! \brief Construct a request
 	std::string constructRequest(uint32_t index, uint32_t begin, uint32_t length);
 
