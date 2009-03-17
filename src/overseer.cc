@@ -95,8 +95,10 @@ Overseer::run()
 			Torrent* t = it->second;
 			uint32_t rx, tx;
 			t->getRateCounters(&rx, &tx);
+#if 0
 			printf("torrent: rx %u bytes/sec, tx %u bytes/sec\n",
 			 rx, tx);
+#endif
 		}
 		pthread_mutex_unlock(&mtx_torrents);
 	}
@@ -212,6 +214,29 @@ Overseer::listenerThread()
 
 		/* We accept! We have no choice! */
 		t->addIncomingPeer(c, peer, reserved);
+	}
+}
+
+void
+Overseer::waitHashingComplete()
+{
+	while (1) {
+
+		pthread_mutex_lock(&mtx_torrents);
+		int num_hashing = 0;
+		for (map<string, Torrent*>::iterator it = torrents.begin();
+		     it != torrents.end(); it++) {
+			Torrent* t = it->second;
+			if (t->isHashing())
+				num_hashing++;
+		}
+		pthread_mutex_unlock(&mtx_torrents);
+
+		if (!num_hashing)
+			break;
+
+		printf("Overseer: waiting for %u torrent(s) to finish hashing\n", num_hashing);
+		sleep(1);
 	}
 }
 

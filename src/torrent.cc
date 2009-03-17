@@ -26,7 +26,7 @@ using namespace std;
 Torrent::Torrent(Overseer* o, Metadata* md)
 {
 	overseer = o; downloaded = 0; uploaded = 0; left = 0;
-	haveThread = false; terminating = false;
+	haveThread = false; terminating = false; complete = false;
 
 	pthread_mutex_init(&mtx_peers, NULL);
 
@@ -309,7 +309,7 @@ Torrent::contactTracker(std::string event)
 void
 Torrent::handleTracker()
 {
-	Metadata* md = contactTracker();
+	Metadata* md = contactTracker("started");
 
 	MetaList* peerslist = dynamic_cast<MetaList*>((*md->getDictionary())["peers"]);
 	if (peerslist != NULL) {
@@ -617,6 +617,8 @@ Torrent::callbackCompleteHashing(unsigned int piece, bool result)
 		if (!havePiece[i] || hashingPiece[i])
 			return;
 
+	/* Yeah! */
+	complete = true;
 	callbackCompleteTorrent();
 }
 
@@ -845,6 +847,16 @@ Torrent::addIncomingPeer(Connection* c, std::string peerid, uint8_t* reserved)
 	pthread_mutex_lock(&mtx_peers);
 	peers[peerid] = p;
 	pthread_mutex_unlock(&mtx_peers);
+}
+
+bool
+Torrent::isHashing()
+{
+	for (unsigned int i = 0; i < numPieces; i++)
+		if (hashingPiece[i])
+			return true;
+
+	return false;
 }
 
 /* vim:set ts=2 sw=2: */

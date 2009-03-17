@@ -14,16 +14,6 @@ using namespace std;
 
 Overseer o(12345 /* XXX don't hardcode this! */);
 
-std::string
-constructPeerID()
-{
-	string result = "";
-	for(int i = 0; i < 20; i++) {
-		result += "1";
-	}
-	return result;
-}
-
 void
 sigint(int s)
 {
@@ -45,6 +35,7 @@ main(int argc, char** argv)
 	o.addTorrent(new Torrent(&o, &md));
 
 	signal(SIGINT, sigint);
+	o.waitHashingComplete();
 	o.run();
 
 	return 0;

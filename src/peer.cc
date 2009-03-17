@@ -40,11 +40,12 @@ Peer::__init(Torrent* t)
 Peer::Peer(Torrent* t, std::string peer_id, std::string peer_host, uint16_t peer_port)
 {
 	__init(t); /* ugly */
-
+	connection = new Connection(peer_host, peer_port);
 
 	/* Send our handshake and wait for the other party to complete the procedure */
 	sendHandshake();
 	handshaking = true;
+	sendBitfield();
 }
 
 Peer::Peer(Torrent* t, std::string peer_id, Connection* c)
@@ -55,8 +56,7 @@ Peer::Peer(Torrent* t, std::string peer_id, Connection* c)
 	/* This connection is incoming, so all we need to do if send our handshake */
 	sendHandshake();
 	handshaking = false;
-
-	/* XXX should present the peer with our pieces, if we have any */
+	sendBitfield();
 }
 
 Peer::~Peer()
@@ -562,6 +562,36 @@ Peer::sendHandshake()
 
 	/* Hi! */
 	send((const uint8_t*)handshake.c_str(), handshake.size());
+}
+
+
+void
+Peer::sendBitfield()
+{
+	unsigned int numPieces = torrent->getNumPieces();
+	unsigned int bitfieldLen = numPieces / 8;
+	if (numPieces % 8)
+		bitfieldLen++;
+
+	/*
+	 * Construct a bitfield mask for the other peer: bit 7 represents
+	 * piece n, bit 6 piece n + 1 etc.
+	 */
+	unsigned int numAvailable = 0;
+	uint8_t* bitfield = new uint8_t[bitfieldLen];
+	memset(bitfield, 0, bitfieldLen);
+	for (unsigned int i = 0; i < numPieces; i++) {
+		if (torrent->hasPiece(i)) {
+			bitfield[i / 8] |= 1 << (7 - (i % 8));
+			numAvailable++;
+		}
+	}
+
+	/* Only send something if there is something to report */
+	if (numAvailable > 0) {
+		sendMessage(PEER_MSGID_BITFIELD, bitfield, bitfieldLen);
+	}
+	delete[] bitfield;
 }
 
 #undef WRITE_UINT32
