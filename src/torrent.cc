@@ -614,6 +614,9 @@ Torrent::callbackCompleteHashing(unsigned int piece, bool result)
 		return;
 	}
 
+	/* At least someone has this piece... we! */
+	pieceCardinality[piece]++;
+
 	/* If we have all pieces, rejoice */
 	for (unsigned int i = 0; i < numPieces; i++)
 		if (!havePiece[i] || hashingPiece[i])
