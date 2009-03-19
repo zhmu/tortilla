@@ -318,6 +318,14 @@ bool
 Peer::msgInterested()
 {
 	cout << peerID + ": " + "interested" << endl;
+
+	peer_interested = true;
+
+	/* XXX */
+	if (peer_choked) {
+		sendMessage(PEER_MSGID_UNCHOKE, NULL, 0);
+		peer_choked = false;
+	}
 	return false;
 }
 
@@ -325,13 +333,22 @@ bool
 Peer::msgNotInterested()
 {
 	cout << peerID + ": " + "notinterested" << endl;
+
+	peer_interested = false;
 	return false;
 }
 
 bool
 Peer::msgHave(const uint8_t* msg, uint32_t len)
 {
-	cout << peerID + ": " + "have" << endl;
+	if (len < 4)
+		return true;
+
+	uint32_t index = READ_UINT32(msg, 0);
+	if (index >= torrent->getNumPieces())
+		return true;
+
+	havePiece[index] = true;
 	return false;
 }
 
@@ -369,7 +386,13 @@ Peer::msgBitfield(const uint8_t* msg, uint32_t len)
 bool
 Peer::msgRequest(const uint8_t* msg, uint32_t len)
 {
-	cout << peerID + ": " + "request" << endl;
+	if (len < 12)
+		return true;
+
+	uint32_t index = READ_UINT32(msg, 0);
+	uint32_t begin = READ_UINT32(msg, 4);
+	uint32_t length = READ_UINT32(msg, 8);
+	torrent->queueUploadRequest(this, index, begin, length);
 	return false;
 }
 
@@ -409,7 +432,16 @@ bool
 Peer::msgCancel(const uint8_t* msg, uint32_t len)
 {
 	cout << peerID + ": " + "cancel" << endl;
-	return false;
+
+	if (len < 12)
+		return true;
+
+	uint32_t index = READ_UINT32(msg, 0);
+	uint32_t begin = READ_UINT32(msg, 4);
+	uint32_t length = READ_UINT32(msg, 8);
+	
+	printf("got cancel: index=%u, begin=%u, len=%u\n", index, begin, length);	
+	torrent->dequeueUploadRequest(this, index, begin, length);
 }
 
 void
@@ -592,6 +624,17 @@ Peer::sendBitfield()
 		sendMessage(PEER_MSGID_BITFIELD, bitfield, bitfieldLen);
 	}
 	delete[] bitfield;
+}
+
+void
+Peer::processUploadRequest(UploadRequest* request)
+{
+	uint8_t* chunk = new uint8_t[request->getLength() + 8];
+	WRITE_UINT32(chunk, 0, request->getPiece());
+	WRITE_UINT32(chunk, 4, request->getOffset());
+	torrent->readChunk(request->getPiece(), request->getOffset(), (chunk + 8), request->getLength());
+	sendMessage(PEER_MSGID_PIECE, chunk, request->getLength() + 8);
+	delete[] chunk;
 }
 
 #undef WRITE_UINT32

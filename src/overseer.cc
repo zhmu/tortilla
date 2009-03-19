@@ -35,6 +35,7 @@ Overseer::Overseer(unsigned int portnum)
 	for (int i = 7; i < TORRENT_PEERID_LEN; i++)
 		peerid[i] = 'x'; /* XXX use random bytes */
 
+	uploader = new Uploader();
 	incoming = new Connection(port);
 
 	pthread_mutex_init(&mtx_torrents, NULL);
@@ -45,6 +46,12 @@ Overseer::Overseer(unsigned int portnum)
 Overseer::~Overseer()
 {
 	terminating = true;
+
+	/*
+	 * Remove the uploader first; we don't want it to die because all its peers
+	 * are dying
+	 */
+	delete uploader;
 
 	while (true) {
 		map<string, Torrent*>::iterator it = torrents.begin();
@@ -95,10 +102,8 @@ Overseer::run()
 			Torrent* t = it->second;
 			uint32_t rx, tx;
 			t->getRateCounters(&rx, &tx);
-#if 0
 			printf("torrent: rx %u bytes/sec, tx %u bytes/sec\n",
 			 rx, tx);
-#endif
 		}
 		pthread_mutex_unlock(&mtx_torrents);
 	}
@@ -238,6 +243,24 @@ Overseer::waitHashingComplete()
 		printf("Overseer: waiting for %u torrent(s) to finish hashing\n", num_hashing);
 		sleep(1);
 	}
+}
+
+void
+Overseer::queueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len)
+{
+	uploader->enqueue(p, piece, begin, len);
+}
+
+void
+Overseer::dequeueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len)
+{
+	uploader->dequeue(p, piece, begin, len);
+}
+
+void
+Overseer::dequeuePeer(Peer* p)
+{
+	uploader->removeRequestsFromPeer(p);
 }
 
 /* vim:set ts=2 sw=2: */

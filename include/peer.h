@@ -8,6 +8,7 @@
 #define __PEER_H__
 
 class Torrent;
+class UploadRequest;
 
 #define PEER_MAX_OUTSTANDING_REQUESTS	5
 
@@ -90,6 +91,9 @@ public:
 	 *  \param tx Transmitted bytes
 	 */
 	void getRateCounters(uint32_t* rx, uint32_t* tx);
+
+	//! \brief Processes an upload request
+	void processUploadRequest(UploadRequest* request);
 
 	void dump();
 

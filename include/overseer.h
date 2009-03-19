@@ -2,6 +2,7 @@
 #include <string>
 #include "connection.h"
 #include "torrent.h"
+#include "uploader.h"
 
 #ifndef __OVERSEER_H__
 #define __OVERSEER_H__
@@ -46,6 +47,15 @@ protected:
 	//! \brief Seperate thread handling incoming connections
 	void listenerThread();
 
+	//! \brief Queue a peer upload request
+	void queueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len);
+
+	//! \brief Cancels a peer upload request
+	void dequeueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len);
+
+	//! \brief Dequeues all requests for a peer
+	void dequeuePeer(Peer* p);
+
 private:
 	//! \brief Info hash to torrent mappings
 	std::map<std::string, Torrent*> torrents;
@@ -67,6 +77,9 @@ private:
 
 	//! \brief Incoming connections
 	Connection* incoming;
+
+	//! \brief Uploader used for all torrents
+	Uploader* uploader;
 
 	//! \brief Incoming listener thread
 	pthread_t thread_listener;

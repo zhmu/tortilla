@@ -136,6 +136,20 @@ protected:
 	 */
 	void getRateCounters(uint32_t* rx, uint32_t* tx);
 
+	//! \brief Queue a peer upload request
+	void queueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len);
+
+	//! \brief Dequeue a peer upload request
+	void dequeueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len);
+
+	/*! \brief Retrieves a piece from the output files
+	 *  \param piece Piece number to read
+	 *  \param offset Byte offset within piece
+	 *  \param buf Buffer containing data to read to
+	 *  \param length Length of the chunk
+	 */
+	void readChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size_t length);
+
 private:
 	/*! \brief Contact the tracker
 	 *  \param event Event to report to the tracker, if any
@@ -153,14 +167,6 @@ private:
 	 *  \param length Length of the chunk
 	 */
 	void writeChunk(unsigned int piece, unsigned int offset, const uint8_t* buf, size_t length);
-
-	/*! \brief Retrieves a piece from the output files
-	 *  \param piece Piece number to read
-	 *  \param offset Byte offset within piece
-	 *  \param buf Buffer containing data to read to
-	 *  \param length Length of the chunk
-	 */
-	void readChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size_t length);
 
 	//! \brief Handle periodic update to the tracker
 	void handleTracker();
@@ -271,6 +277,9 @@ private:
 
 	//! \brief Mutex protecting the peers list
 	pthread_mutex_t mtx_peers;
+
+	//! \brief Mutex protecting the outgoing queue
+	pthread_mutex_t mtx_outgoing;
 
 	//! \brief Receive rate, in bytes
 	uint32_t rx_rate;

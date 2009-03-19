@@ -405,11 +405,13 @@ Torrent::go()
 				ssize_t len = ::recv(fd, buf, sizeof(buf), 0);
 				if (len <= 0) {
 					/* socket lost */
+					Peer* p = (*it).second;
 					cerr << "connection lost" << endl;
+					overseer->dequeuePeer(p);
 					pthread_mutex_lock(&mtx_peers);
 					peers.erase(it);
 					pthread_mutex_unlock(&mtx_peers);
-					delete (*it).second;
+					delete p;
 					looping = true;
 					break;
 				}
@@ -857,6 +859,20 @@ Torrent::isHashing()
 			return true;
 
 	return false;
+}
+
+void
+Torrent::queueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len)
+{
+	assert(piece < numPieces);
+	overseer->queueUploadRequest(p, piece, begin, len);
+}
+
+void
+Torrent::dequeueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len)
+{
+	assert(piece < numPieces);
+	overseer->dequeueUploadRequest(p, piece, begin, len);
 }
 
 /* vim:set ts=2 sw=2: */
