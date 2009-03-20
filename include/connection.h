@@ -1,3 +1,5 @@
+#include <sys/types.h>
+#include <sys/socket.h>
 #include <string>
 
 #ifndef __CONNECTION_H__
