@@ -108,6 +108,12 @@ public:
 	//! \brief Retrieve how many bytes have been downloaded
 	uint64_t getBytesDownloaded() { return downloaded; }
 
+	/*! \brief Retrieves the receive/transmit rates
+	 *  \param rx Receive rate, in bytes/second
+	 *  \param tx Transmit rate, in bytes/second
+	 */
+	void getRateCounters(uint32_t* rx, uint32_t* tx);
+
 protected:
 	/*! \brief Called by a peer if pieces are added to the map */
 	void callbackPiecesAdded(Peer* p, std::vector<unsigned int>& pieces);
@@ -139,11 +145,6 @@ protected:
 	//! \brief Called periodically to update bandwidth use
 	void updateBandwidth();
 
-	/*! \brief Retrieves the receive/transmit rates
-	 *  \param rx Receive rate, in bytes/second
-	 *  \param tx Transmit rate, in bytes/second
-	 */
-	void getRateCounters(uint32_t* rx, uint32_t* tx);
 
 	//! \brief Queue a peer upload request
 	void queueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len);

@@ -26,7 +26,10 @@ public:
 	void addTorrent(Torrent* t);
 
 	//! \brief Go, and oversee!
-	void run();
+	void start();
+
+	//! \brief Stop
+	void stop();
 
 	//! \brief Request termination
 	void terminate();
@@ -39,6 +42,12 @@ public:
 
 	//! \brief Waits until all torrents have completed hashing
 	void waitHashingComplete();
+
+	//! \brief Are we terminating?
+	bool isTerminating() { return terminating; }
+
+	//! \brief Retrieve a list of torrents
+	std::list<Torrent*> getTorrents();
 
 protected:
 	//! \brief Seperate thread handling bandwidth monitoring

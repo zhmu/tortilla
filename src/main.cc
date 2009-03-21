@@ -21,6 +21,25 @@ sigint(int s)
 	overseer->terminate();
 }
 
+std::string
+formatNumber(uint64_t n) {
+	char tmp[64 /* XXX */ ];
+
+#define FORMAT_NUMBER(i, range,spec) \
+	if ((i) >= (range)) { \
+		snprintf(tmp, sizeof(tmp), "%.2f %s", \
+		 ((float)(i) / (float)(range)), spec); \
+		return string(tmp); \
+	}
+
+	FORMAT_NUMBER(n, 1024 * 1024 * 1024, "GB");
+	FORMAT_NUMBER(n, 1024 * 1024,        "MB");
+	FORMAT_NUMBER(n, 1024,               "KB");
+
+	snprintf(tmp, sizeof(tmp), "%lu bytes", n);
+	return string(tmp);
+}
+
 int
 main(int argc, char** argv)
 {
@@ -42,7 +61,32 @@ main(int argc, char** argv)
 
 	signal(SIGINT, sigint);
 	overseer->waitHashingComplete();
-	overseer->run();
+
+	overseer->start();
+	while (!overseer->isTerminating()) {
+		/*
+		 * Wait for 1 second.
+		 */
+		struct timeval tv;
+		tv.tv_sec = 1; tv.tv_usec = 0;
+		select (0, NULL, NULL, NULL, &tv);
+
+		/* XXX some basic info for now... */
+		list<Torrent*> torrents = overseer->getTorrents();
+		for (list<Torrent*>::iterator it = torrents.begin();
+				 it != torrents.end(); it++) {
+			Torrent* t = *it;
+			uint32_t rx, tx;
+			t->getRateCounters(&rx, &tx);
+			printf("torrent: rx %s/sec, tx %s/sec,  %.02f%% complete (%s up, %s down)\n",
+			 formatNumber(rx).c_str(), formatNumber(tx).c_str(),
+			 ((float)(t->getTotalSize() - t->getBytesLeft()) / (float)t->getTotalSize()) * 100.0f,
+			 formatNumber(t->getBytesUploaded()).c_str(),
+			 formatNumber(t->getBytesDownloaded()).c_str());
+		}
+
+	}
+	overseer->stop();
 
 	delete overseer;
 	return 0;

@@ -77,7 +77,7 @@ Overseer::addTorrent(Torrent* t)
 }
 
 void
-Overseer::run()
+Overseer::start()
 {
 	/* Launch all torrents */
 	pthread_mutex_lock(&mtx_torrents);
@@ -87,31 +87,12 @@ Overseer::run()
 		it->second->start();
 	}
 	pthread_mutex_unlock(&mtx_torrents);
-
-	while (!terminating) {
-		/*
-		 * Wait for 1 second.
-		 */
-		struct timeval tv;
-		tv.tv_sec = 1; tv.tv_usec = 0;
-		select (0, NULL, NULL, NULL, &tv);
-
-		/* XXX some basic info for now... */
-		pthread_mutex_lock(&mtx_torrents);
-		for (map<string, Torrent*>::iterator it = torrents.begin();
-				 it != torrents.end(); it++) {
-			Torrent* t = it->second;
-			uint32_t rx, tx;
-			t->getRateCounters(&rx, &tx);
-			printf("torrent: rx %u bytes/sec, tx %u bytes/sec,  %.02f%% complete (%u uploaded, %u downloaded)\n",
-			 rx, tx,
-			 ((float)(t->getTotalSize() - t->getBytesLeft()) / (float)t->getTotalSize()) * 100.0f,
-			 t->getBytesUploaded(), t->getBytesDownloaded());
-		}
-		pthread_mutex_unlock(&mtx_torrents);
-	}
 }
 
+void
+Overseer::stop()
+{
+}
 void
 Overseer::terminate()
 {
@@ -264,6 +245,21 @@ void
 Overseer::dequeuePeer(Peer* p)
 {
 	uploader->removeRequestsFromPeer(p);
+}
+
+list<Torrent*>
+Overseer::getTorrents()
+{
+	list<Torrent*> l;
+
+	pthread_mutex_lock(&mtx_torrents);
+	for (map<string, Torrent*>::iterator it = torrents.begin();
+			 it != torrents.end(); it++) {
+		l.push_back(it->second);
+	}
+	pthread_mutex_unlock(&mtx_torrents);
+
+	return l;
 }
 
 /* vim:set ts=2 sw=2: */
