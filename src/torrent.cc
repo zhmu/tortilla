@@ -64,7 +64,7 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 	requestedPiece.reserve(numPieces);
 	hashingPiece.reserve(numPieces);
 	pieceCardinality.reserve(numPieces);
-	for (int i = 0; i < numPieces; i++) {
+	for (unsigned int i = 0; i < numPieces; i++) {
 		havePiece.push_back(false);
 		requestedPiece.push_back(NULL);
 		hashingPiece.push_back(false);
@@ -80,8 +80,8 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 	int numChunks = pieceLen;
 	haveChunk.reserve(numChunks);
 	haveRequestedChunk.reserve(numChunks);
-	for (int i = 0; i < numPieces; i++) {
-		for (int j = 0; j < pieceLen / TORRENT_CHUNK_SIZE; j++) {
+	for (unsigned int i = 0; i < numPieces; i++) {
+		for (unsigned int j = 0; j < pieceLen / TORRENT_CHUNK_SIZE; j++) {
 			haveChunk.push_back(havePiece[i]);
 			haveRequestedChunk.push_back(false);
 		}
@@ -345,7 +345,7 @@ Torrent::handleTracker()
 				pthread_mutex_lock(&mtx_peers);
 				peers[msPeerID->getString()] = p;
 				pthread_mutex_unlock(&mtx_peers);
-				printf("got peer %p at %s:%u\n", p, msHost->getString().c_str(), msPort->getInteger());
+				printf("got peer %p at %s:%lu\n", p, msHost->getString().c_str(), msPort->getInteger());
 			} catch (ConnectionException e) {
 				cerr << "skipping peer: "; cerr << e.what(); cerr << endl;
 			}
@@ -505,7 +505,7 @@ Torrent::getMissingChunk(unsigned int piece)
 	} else {
 		numChunks = pieceLen / TORRENT_CHUNK_SIZE;
 	}
-	for (int j = 0; j < calculateChunksInPiece(piece); j++)
+	for (unsigned int j = 0; j < calculateChunksInPiece(piece); j++)
 		if (!haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j] &&
 		    !haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j])
 			return j;
@@ -580,7 +580,7 @@ Torrent::dump()
 	for (unsigned int i = 0; i < numPieces; i++) {
 		if (i % 50 == 0) {
 				printf("\n");
-				printf ("% 4u:", i);
+				printf ("%4u:", i);
 		}
 		if (i % 10 == 0) printf(" ");
 

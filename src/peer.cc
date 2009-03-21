@@ -32,7 +32,7 @@ Peer::__init(Torrent* t)
 
 	/* Assume the peer doesn't have any pieces */
 	havePiece.reserve(t->getNumPieces());
-	for (int i = 0; i < t->getNumPieces(); i++)
+	for (unsigned int i = 0; i < t->getNumPieces(); i++)
 		havePiece.push_back(false);
 
 }
@@ -64,7 +64,7 @@ Peer::~Peer()
 	vector<unsigned int> lostPieces;
 
 	/* We need to deregister all of our pieces */
-	for (int i = 0; i < torrent->getNumPieces(); i++)
+	for (unsigned int i = 0; i < torrent->getNumPieces(); i++)
 		if (havePiece[i])
 			lostPieces.push_back(i);
 	torrent->callbackPiecesRemoved(this, lostPieces);
@@ -442,6 +442,7 @@ Peer::msgCancel(const uint8_t* msg, uint32_t len)
 	
 	printf("got cancel: index=%u, begin=%u, len=%u\n", index, begin, length);	
 	torrent->dequeueUploadRequest(this, index, begin, length);
+	return false;
 }
 
 void
@@ -533,7 +534,7 @@ Peer::sendPieceRequest()
 		 */
 		uint32_t request_length;
 		if (piece == torrent->getNumPieces() - 1 &&
-	 	    (missingChunk + 1) * TORRENT_CHUNK_SIZE  > torrent->getTotalSize() % torrent->getPieceLength()) {
+	 	    (uint32_t)(missingChunk + 1) * TORRENT_CHUNK_SIZE  > torrent->getTotalSize() % torrent->getPieceLength()) {
 			request_length = torrent->getTotalSize() % TORRENT_CHUNK_SIZE;
 		} else {
 			request_length = TORRENT_CHUNK_SIZE;

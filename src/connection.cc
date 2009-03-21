@@ -71,7 +71,7 @@ Connection::Connection(int s, struct sockaddr* soa, socklen_t slen)
 void
 Connection::write(const void* buf, size_t len)
 {
-	if (::write(fd, buf, len) != len)
+	if ((size_t)::write(fd, buf, len) != len)
 		cerr << "warning: short write" << endl;
 }
 

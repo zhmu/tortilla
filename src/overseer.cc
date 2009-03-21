@@ -84,7 +84,7 @@ Overseer::start()
 	for (map<string, Torrent*>::iterator it = torrents.begin();
 	     it != torrents.end(); it++) {
 		Torrent* t = it->second;
-		it->second->start();
+		t->start();
 	}
 	pthread_mutex_unlock(&mtx_torrents);
 }

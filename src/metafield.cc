@@ -39,6 +39,7 @@ std::ostream& operator<<(std::ostream& os, const StringFieldMap& sfm)
 	MetaString ms(sfm.key);
 	os << ms;
 	os << *sfm.value;
+	return os;
 }
 
 void MetaDictionary::stream(ostream& os) const

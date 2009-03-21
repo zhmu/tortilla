@@ -64,7 +64,7 @@ File::write(size_t offset, const void* buf, size_t len)
 	 * Don't consider short writes a failure if the call was interrupted;
 	 * this happens if the user hits ^C to exit.
 	 */
-	if (::write(writeFD, buf, len) != len && errno != EINTR)
+	if ((size_t)::write(writeFD, buf, len) != len && errno != EINTR)
 		throw FileException("short write");
 }
 
@@ -78,7 +78,7 @@ File::read(size_t offset, void* buf, size_t len)
 	 * Don't consider short writes a failure if the call was interrupted;
 	 * this happens if the user hits ^C to exit.
 	 */
-	if (::read(readFD, buf, len) != len && errno != EINTR)
+	if ((size_t)::read(readFD, buf, len) != len && errno != EINTR)
 		throw FileException("short read");
 }
 
