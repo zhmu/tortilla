@@ -145,6 +145,11 @@ protected:
 	//! \brief Called periodically to update bandwidth use
 	void updateBandwidth();
 
+	/*! \brief Called approximately every 1 second
+	 *
+	 *  This should implement choking/unchoking of peers.
+	 */
+	void heartbeat();
 
 	//! \brief Queue a peer upload request
 	void queueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len);

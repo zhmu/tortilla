@@ -12,6 +12,7 @@
 class Overseer {
 friend void* bandwidth_thread(void* ptr);
 friend void* listener_thread(void* ptr);
+friend void* heartbeat_thread(void* ptr);
 friend class Torrent;
 public:
 	/*! \brief Constructs a new overseer
@@ -56,6 +57,9 @@ protected:
 	//! \brief Seperate thread handling incoming connections
 	void listenerThread();
 
+	//! \brief Seperate thread handling torrent silicon heartbeat
+	void heartbeatThread();
+
 	//! \brief Queue a peer upload request
 	void queueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len);
 
@@ -92,6 +96,9 @@ private:
 
 	//! \brief Incoming listener thread
 	pthread_t thread_listener;
+
+	//! \brief Heartbeat thread
+	pthread_t thread_heartbeat;
 };
 
 #endif /* __OVERSEER_H__ */

@@ -7,19 +7,17 @@
 
 using namespace std;
 
-void*
-bandwidth_thread(void* ptr)
-{
-	((Overseer*)ptr)->bandwidthThread();
-	return NULL;
+#define OVERSEER_THREAD(x) \
+void* \
+x ## _thread(void* ptr) \
+{ \
+	((Overseer*)ptr)->x ## Thread(); \
+	return NULL; \
 }
 
-void*
-listener_thread(void* ptr)
-{
-	((Overseer*)ptr)->listenerThread();
-	return NULL;
-}
+OVERSEER_THREAD(bandwidth);
+OVERSEER_THREAD(listener);
+OVERSEER_THREAD(heartbeat);
 
 Overseer::Overseer(unsigned int portnum)
 {
@@ -42,6 +40,7 @@ Overseer::Overseer(unsigned int portnum)
 	pthread_mutex_init(&mtx_torrents, NULL);
 	pthread_create(&thread_bandwidth_monitor, NULL, bandwidth_thread, this);
 	pthread_create(&thread_listener, NULL, listener_thread, this);
+	pthread_create(&thread_heartbeat, NULL, heartbeat_thread, this);
 }
 
 Overseer::~Overseer()
@@ -54,6 +53,11 @@ Overseer::~Overseer()
 	 */
 	delete uploader;
 
+	/* Remove all helper threads */
+	pthread_join(thread_bandwidth_monitor, NULL);
+	pthread_join(thread_listener, NULL);
+	pthread_join(thread_heartbeat, NULL);
+
 	while (true) {
 		map<string, Torrent*>::iterator it = torrents.begin();
 		if (it == torrents.end())
@@ -61,9 +65,6 @@ Overseer::~Overseer()
 		delete it->second;
 		torrents.erase(it);
 	}
-
-	pthread_join(thread_bandwidth_monitor, NULL);
-	pthread_join(thread_listener, NULL);
 	pthread_mutex_destroy(&mtx_torrents);
 }
 
@@ -260,6 +261,31 @@ Overseer::getTorrents()
 	pthread_mutex_unlock(&mtx_torrents);
 
 	return l;
+}
+
+void
+Overseer::heartbeatThread()
+{
+	while (!terminating) {
+		/* Wait for a second */
+		struct timeval tv;
+		tv.tv_sec = 1; tv.tv_usec = 0;
+		select(0, NULL, NULL, NULL, &tv);
+
+		/*
+		 * Tell all torrents to heartbeat. The reason this is done in a seperate
+		 * thread is because the heartbeat may stall.
+		 */
+		pthread_mutex_lock(&mtx_torrents);
+		for (map<string, Torrent*>::iterator it = torrents.begin();
+				 it != torrents.end(); it++) {
+			Torrent* t = it->second;
+			pthread_mutex_unlock(&mtx_torrents);
+			t->heartbeat();
+			pthread_mutex_lock(&mtx_torrents);
+		}
+		pthread_mutex_unlock(&mtx_torrents);
+	}
 }
 
 /* vim:set ts=2 sw=2: */

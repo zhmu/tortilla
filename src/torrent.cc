@@ -897,4 +897,9 @@ Torrent::incrementUploadedBytes(uint64_t amount)
 	uploaded += amount;
 }
 
+void
+Torrent::heartbeat()
+{
+}
+
 /* vim:set ts=2 sw=2: */
