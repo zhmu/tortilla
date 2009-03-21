@@ -93,6 +93,9 @@ Peer::receive(const uint8_t* data, uint32_t data_len)
 		return true;
 	}
 
+	/* Immediately reset the snubbed counter */
+	snubbedLeftoverCounter = PEER_SNUBBED_SECONDS;
+
 	/*
 	 * Need to store the peer's data now. First of all, try to use the chunk from
 	 * write_pos ... buffer_size.
@@ -399,9 +402,6 @@ Peer::msgPiece(const uint8_t* msg, uint32_t len)
 	if (len < 9)
 		return true;
 
-	/* Immediately reset the snubbed counter */
-	snubbedLeftoverCounter = PEER_SNUBBED_SECONDS;
-
 	uint32_t index = READ_UINT32(msg, 0);
 	uint32_t begin = READ_UINT32(msg, 4);
 	const uint8_t* data = (msg + 8);
@@ -657,11 +657,19 @@ Peer::compareByUpload(Peer* a, Peer* b)
 void
 Peer::unchoke()
 {
-	printf("unchoke! yeah!\n");
-	assert (peer_choked == true);
+	assert (peer_choked);
 
 	sendMessage(PEER_MSGID_UNCHOKE, NULL, 0);
 	peer_choked = false;
+}
+
+void
+Peer::choke()
+{
+	assert (!peer_choked);
+
+	sendMessage(PEER_MSGID_CHOKE, NULL, 0);
+	peer_choked = true;
 }
 
 #undef WRITE_UINT32

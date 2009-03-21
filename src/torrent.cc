@@ -984,6 +984,8 @@ Torrent::heartbeat()
 void
 Torrent::handleUnchokingAlgorithm()
 {
+	vector<Peer*> newUnchokes;
+
 	/*
 	 * The algorithm used here is the Choke Algorithm as described in:
 	 *
@@ -1001,8 +1003,7 @@ Torrent::handleUnchokingAlgorithm()
 	 *    peer'.
 	 */
 	if (unchokingRound == 0) {
-		optimisticUnchokedPeer = pickRandomPeer(1, 1);
-		printf("chose optimistic peer: %p\n", optimisticUnchokedPeer);
+		optimisticUnchokedPeer = pickRandomPeer(1, 1, newUnchokes);
 	}
 
 	/*
@@ -1023,7 +1024,6 @@ Torrent::handleUnchokingAlgorithm()
 	/* Given this list of peers, sort them by upload rate */
 	sort(uiPeers.begin(), uiPeers.end(), Peer::compareByUpload);
 
-
 	/*
 	 * 3) The three fastest peers are unchoked
 	 *
@@ -1031,18 +1031,18 @@ Torrent::handleUnchokingAlgorithm()
 	 */
 	bool unchokedOUP = false;
 	for (unsigned int i = 0; i < MIN(3, uiPeers.size()); i++) {
-		uiPeers[i]->unchoke();
+		newUnchokes.push_back(uiPeers[i]);
 		if (uiPeers[i] == optimisticUnchokedPeer)
 			unchokedOUP = true;
 	}
 
 	/*
-	 * (4) If the optimistic unchoked is not port of the peers we just unchoked,
+	 * (4) If the optimistic unchoked is not part of the peers we just unchoked,
 	 *     unchoke it and we are done.
 	 */
 	if (!unchokedOUP) {
 		if (optimisticUnchokedPeer != NULL) {
-			optimisticUnchokedPeer->unchoke();
+			newUnchokes.push_back(optimisticUnchokedPeer);
 			optimisticUnchokedPeer = NULL;
 		}
 	} else {
@@ -1051,11 +1051,12 @@ Torrent::handleUnchokingAlgorithm()
 		 *     (it was), we need to pick a new choked peer at random.
 		 */
 		while (true) {
-			optimisticUnchokedPeer = pickRandomPeer(1, -1);
+			optimisticUnchokedPeer = pickRandomPeer(1, -1, newUnchokes);
 			if (optimisticUnchokedPeer == NULL)
 				break;
 
-			/* Note that steps 5a/5b always unchoke the peer,  so we do that here*/
+			/* Note that steps 5a/5b always unchoke the peer,  so we do that here */
+			newUnchokes.push_back(optimisticUnchokedPeer);
 
 			/* (5a) If this peer is interested, it is unchoked and the round is complete */
 			if (optimisticUnchokedPeer->isPeerInterested())
@@ -1065,16 +1066,48 @@ Torrent::handleUnchokingAlgorithm()
 		}
 	}
 
+	/*
+	 * OK, newunchokes is the amount of peers we unchoke; start by choking
+	 * not in it.
+	 */
+	pthread_mutex_lock(&mtx_peers);
+	vector<Peer*> newChokes;
+	for (map<string, Peer*>::iterator it = peers.begin();
+	     it != peers.end(); it++) {
+		Peer* p = (*it).second;
+		if (p->isPeerChoked())
+			continue;
+		if (find(newUnchokes.begin(), newUnchokes.end(), p) != newUnchokes.end())
+			continue;
+		newChokes.push_back(p);
+	}
+	pthread_mutex_unlock(&mtx_peers);
+
+	printf("choking algo DONE, to choke: %u, to unchoke: %u\n",
+		(int)newChokes.size(),
+		(int)newUnchokes.size());
+
+	for (vector<Peer*>::iterator it = newChokes.begin();
+	     it != newChokes.end(); it++)
+		(*it)->choke();
+	for (vector<Peer*>::iterator it = newUnchokes.begin();
+	     it != newUnchokes.end(); it++){
+		/* Only unchoke if the peer was choked */
+		Peer* p = *it;
+		if (!p->isPeerChoked())
+			continue;
+		p->unchoke();
+	}
+
 	lastChokingAlgorithm = time(NULL);
-printf("updated lca time\n");
 }
 
 Peer*
-Torrent::pickRandomPeer(int choked, int interested)
+Torrent::pickRandomPeer(int choked, int interested, std::vector<Peer*>& skiplist)
 {
 	std::vector<Peer*> sufficingPeers;
 
-	/* Note that this implementation is O(|peers|) */
+	/* Note that this implementation is O(|peers| |skiplist|) */
 	pthread_mutex_lock(&mtx_peers);
 	for (map<string, Peer*>::iterator it = peers.begin();
 	     it != peers.end(); it++) {
@@ -1082,6 +1115,8 @@ Torrent::pickRandomPeer(int choked, int interested)
 		if (choked >= 0 && p->isPeerChoked() != (choked != 0))
 			continue;
 		if (interested >= 0 && p->isPeerInterested() != (interested != 0))
+			continue;
+		if (find(skiplist.begin(), skiplist.end(), p) != skiplist.end())
 			continue;
 		sufficingPeers.push_back(p);
 	}
@@ -1098,8 +1133,9 @@ Torrent::pickRandomPeer(int choked, int interested)
 void
 Torrent::callbackPeerChangedInterest(Peer* p)
 {
-	/* We need to rerun the unchoking algorithm! */
-	handleUnchokingAlgorithm();
+	/* We need to rerun the unchoking algorithm if the peer was unchoked */
+	if (!p->isPeerChoked())
+		handleUnchokingAlgorithm();
 }
 
 /* vim:set ts=2 sw=2: */

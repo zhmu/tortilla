@@ -113,6 +113,9 @@ public:
 	//! \brief Compares two peers based on upload rate
 	static bool compareByUpload(Peer* a, Peer* b);
 
+	//! \brief Called if the peer should be choked
+	void choke();
+
 	//! \brief Called if the peer should be unchoked
 	void unchoke();
 

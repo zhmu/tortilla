@@ -221,11 +221,12 @@ private:
 	void handleUnchokingAlgorithm();
 
 	/*! \brief Picks a random peer
+	 *  \param skiplist Peers not to consider
 	 *  \return A peer, or NULL if nothing matches the criterium
 	 *
 	 *  A value of -1 is don't care, 0 is false and 1 is true.
 	 */
-	Peer* pickRandomPeer(int choked, int interested);
+	Peer* pickRandomPeer(int choked, int interested, std::vector<Peer*>& skiplist);
 
 	//! \brief Amount of bytes uploaded / downloaded / left
 	uint64_t uploaded, downloaded, left;
