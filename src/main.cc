@@ -5,6 +5,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
 #include "metadata.h"
 #include "sha1.h"
 #include "overseer.h"
@@ -12,17 +13,19 @@
 
 using namespace std;
 
-Overseer o(12345 /* XXX don't hardcode this! */);
+Overseer* overseer = NULL;
 
 void
 sigint(int s)
 {
-	o.terminate();
+	overseer->terminate();
 }
 
 int
 main(int argc, char** argv)
 {
+	srand(time(NULL));
+
 	if (argc != 2) {
 		fprintf(stderr, "usage: tortilla file.torrent\n");
 		return EXIT_FAILURE;
@@ -30,14 +33,18 @@ main(int argc, char** argv)
 
 	ifstream is;
 	is.open(argv[1], ios::binary);
-
 	Metadata md(is);
-	o.addTorrent(new Torrent(&o, &md));
+
+	/* XXX handle it if the connection burns */
+	overseer = new Overseer(1024 + rand() % 10000);
+
+	overseer->addTorrent(new Torrent(overseer, &md));
 
 	signal(SIGINT, sigint);
-	o.waitHashingComplete();
-	o.run();
+	overseer->waitHashingComplete();
+	overseer->run();
 
+	delete overseer;
 	return 0;
 }
 

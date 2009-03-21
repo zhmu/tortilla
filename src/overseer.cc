@@ -1,4 +1,5 @@
 #include <sys/select.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include "overseer.h"
@@ -33,7 +34,7 @@ Overseer::Overseer(unsigned int portnum)
 	for (int i = 0; i < 4; i++)
 		peerid[3 + i] = '0'; /* XXX version */
 	for (int i = 7; i < TORRENT_PEERID_LEN; i++)
-		peerid[i] = 'x'; /* XXX use random bytes */
+		peerid[i] = rand() % 26 + 'a';
 
 	uploader = new Uploader();
 	incoming = new Connection(port);
@@ -102,8 +103,10 @@ Overseer::run()
 			Torrent* t = it->second;
 			uint32_t rx, tx;
 			t->getRateCounters(&rx, &tx);
-			printf("torrent: rx %u bytes/sec, tx %u bytes/sec\n",
-			 rx, tx);
+			printf("torrent: rx %u bytes/sec, tx %u bytes/sec,  %.02f%% complete (%u uploaded, %u downloaded)\n",
+			 rx, tx,
+			 ((float)(t->getTotalSize() - t->getBytesLeft()) / (float)t->getTotalSize()) * 100.0f,
+			 t->getBytesUploaded(), t->getBytesDownloaded());
 		}
 		pthread_mutex_unlock(&mtx_torrents);
 	}

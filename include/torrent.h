@@ -99,6 +99,15 @@ public:
 	//! \brief Is this torrent currently hashing?
 	bool isHashing();
 
+	//! \brief Retrieve how many bytes are left
+	uint64_t getBytesLeft() { return left; }
+
+	//! \brief Retrieve how many bytes have been uploaded
+	uint64_t getBytesUploaded() { return uploaded; }
+
+	//! \brief Retrieve how many bytes have been downloaded
+	uint64_t getBytesDownloaded() { return downloaded; }
+
 protected:
 	/*! \brief Called by a peer if pieces are added to the map */
 	void callbackPiecesAdded(Peer* p, std::vector<unsigned int>& pieces);
@@ -150,6 +159,9 @@ protected:
 	 */
 	void readChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size_t length);
 
+	//! \brief Increment the uploaded byte counter
+	void incrementUploadedBytes(uint64_t amount);
+
 private:
 	/*! \brief Contact the tracker
 	 *  \param event Event to report to the tracker, if any
@@ -189,7 +201,7 @@ private:
 	Peer* findPeerForPiece(uint32_t piece);
 
 	//! \brief Amount of bytes uploaded / downloaded / left
-	uint32_t uploaded, downloaded, left;
+	uint64_t uploaded, downloaded, left;
 
 	/*! \brief Hash of the 'info' dictionary in the metadata
 	 *

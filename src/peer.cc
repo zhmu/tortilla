@@ -634,6 +634,7 @@ Peer::processUploadRequest(UploadRequest* request)
 	WRITE_UINT32(chunk, 4, request->getOffset());
 	torrent->readChunk(request->getPiece(), request->getOffset(), (chunk + 8), request->getLength());
 	sendMessage(PEER_MSGID_PIECE, chunk, request->getLength() + 8);
+	torrent->incrementUploadedBytes(request->getLength());
 	delete[] chunk;
 }
 

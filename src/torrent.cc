@@ -230,6 +230,12 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 	 * We must have processed as many pieces as there are in the file.
 	 */
 	assert(piecenum == numPieces);
+
+	/*
+	 * Start out by assuming we have to download everything; the hashing
+	 * callback will adjust this number as needed.
+	 */
+	left = total_size;
 }
 
 Torrent::~Torrent()
@@ -547,6 +553,7 @@ Torrent::callbackCompleteChunk(Peer* p, unsigned int piece, uint32_t offset, con
 
 	haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + offset / TORRENT_CHUNK_SIZE] = true;
 	writeChunk(piece, offset, data, len);
+	downloaded += len;
 
 	/* See if we have all chunks; if so, the piece is in */
 	for (unsigned int i = 0; i < calculateChunksInPiece(piece); i++)
@@ -616,6 +623,12 @@ Torrent::callbackCompleteHashing(unsigned int piece, bool result)
 
 	/* At least someone has this piece... we! */
 	pieceCardinality[piece]++;
+	if (piece == numPieces - 1) {
+		left -= getTotalSize() % pieceLen > 0 ?
+		        getTotalSize() % pieceLen : pieceLen;
+	} else {
+		left -= pieceLen;
+	}
 
 	/* If we have all pieces, rejoice */
 	for (unsigned int i = 0; i < numPieces; i++)
@@ -876,6 +889,12 @@ Torrent::dequeueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t 
 {
 	assert(piece < numPieces);
 	overseer->dequeueUploadRequest(p, piece, begin, len);
+}
+
+void
+Torrent::incrementUploadedBytes(uint64_t amount)
+{
+	uploaded += amount;
 }
 
 /* vim:set ts=2 sw=2: */
