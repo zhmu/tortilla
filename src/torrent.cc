@@ -9,6 +9,7 @@
 #include <string.h>
 #include <sys/select.h>
 #include <sys/socket.h>
+#include <time.h>
 #include "exceptions.h"
 #include "file.h"
 #include "hasher.h"
@@ -245,6 +246,17 @@ Torrent::~Torrent()
 		stop();
 
 	/*
+	 * Inform the tracker that we are going away. We care not
+	 * about any errors; we are leaving anyway.
+	 */
+	try {
+		Metadata* md = contactTracker("stopped");
+		delete md;
+	} catch (TortillaException e) {
+		/* ... */
+	}
+
+	/*
 	 * Nuke all our peers. XXX we should implement signalling and exit more
 	 * gracefully.
 	 */
@@ -290,6 +302,17 @@ Torrent::contactTracker(std::string event)
 	m["uploaded"] = convertInteger(uploaded);
 	m["left"] = convertInteger(left);
 	m["port"] = convertInteger(overseer->getListeningPort());
+	/* If we are a seeder, we care not about any new peers */
+	if (complete) {
+		m["numwant"] = convertInteger(0);
+	} else {
+		/* Otherwise, try to grab as many peers as we need to fill our list */
+		pthread_mutex_lock(&mtx_peers);
+		uint32_t numPeers = peers.size();
+		pthread_mutex_unlock(&mtx_peers);
+		m["numwant"] = convertInteger(TORRENT_DESIRED_PEERS - numPeers);
+	}
+	lastTrackerContact = time(NULL);
 	string result = HTTP::get(announceURL, m);
 
 	/* Parse the result as metadata (which it should be) */
@@ -313,15 +336,30 @@ Torrent::contactTracker(std::string event)
 }
 
 void
-Torrent::handleTracker()
+Torrent::handleTracker(string event)
 {
-	Metadata* md = contactTracker("started");
+	Metadata* md = contactTracker(event);
+	if (md == NULL)
+		return;
+
+	/*
+	 * Fetch the tracker interval times. The maximum interval must be present.
+	 */
+	MetaInteger* msInterval = dynamic_cast<MetaInteger*>((*md->getDictionary())["interval"]);
+	if (msInterval == NULL)
+		throw new TorrentException("tracker didn't report interval");
+	tracker_interval = msInterval->getInteger();
+	MetaInteger* msMinInterval = dynamic_cast<MetaInteger*>((*md->getDictionary())["min interval"]);
+	if (msMinInterval != NULL)
+		tracker_min_interval = msMinInterval->getInteger();
+	else
+		tracker_min_interval = 0;
 
 	MetaList* peerslist = dynamic_cast<MetaList*>((*md->getDictionary())["peers"]);
 	if (peerslist != NULL) {
 		/*
 		 * The tracker has provided us with (possibly new) peers. Add them to the
-		 * list. XXX we should limit this to ensure we don't get overflowed.
+		 * list if applicable.
 		 */
 		for (list<MetaField*>::iterator it = peerslist->getList().begin();
 		    it != peerslist->getList().end(); it++) {
@@ -339,6 +377,16 @@ Torrent::handleTracker()
 			/* If we already know this peer ID, ignore it */
 			if (peers.find(msPeerID->getString()) != peers.end())
 				continue;
+
+			/*
+			 * This peer looks fine. However, ensure we don't add too many peers to
+			 * the list; this hurts the network.
+			 */
+			pthread_mutex_lock(&mtx_peers);
+			uint32_t numPeers = peers.size();
+			pthread_mutex_unlock(&mtx_peers);
+			if (numPeers >= TORRENT_DESIRED_PEERS)
+				break;
 		
 			try {
 				Peer* p = new Peer(this, msPeerID->getString(), msHost->getString(), msPort->getInteger());
@@ -358,7 +406,7 @@ Torrent::handleTracker()
 void
 Torrent::go()
 {
-	handleTracker();
+	handleTracker("started");
 
 	while (!terminating) {
 		fd_set fds;
@@ -734,6 +782,7 @@ void
 Torrent::callbackCompleteTorrent()
 {
 	printf(">>> torrent is complete!\n");
+	complete = true;
 }
 
 void
@@ -900,6 +949,25 @@ Torrent::incrementUploadedBytes(uint64_t amount)
 void
 Torrent::heartbeat()
 {
+	/* Don't bother doing anything if we aren't fully launched */
+	if (!haveThread)
+		return;
+
+	time_t now = time(NULL);
+
+	/*
+	 * If we need to chat with the tracker, do so. Note that we use the minimum interval
+	 * if we are in dire need of peers, and the maximum interval otherwise.
+	 */
+	int interval = tracker_interval;
+	if (!complete && tracker_min_interval > 0)
+		interval = tracker_min_interval;
+	if (now >= lastTrackerContact + interval) {
+		/* The time is now */
+		handleTracker();
+	}
+
+	/* XXX choke/unchoking */
 }
 
 /* vim:set ts=2 sw=2: */

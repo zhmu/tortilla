@@ -19,6 +19,9 @@
 //! \brief Length of a peer ID
 #define TORRENT_PEERID_LEN 20
 
+//! \brief Desired number of peers per torrent
+#define TORRENT_DESIRED_PEERS 30
+
 class Connection;
 class Peer;
 class Overseer;
@@ -170,13 +173,13 @@ protected:
 
 private:
 	/*! \brief Contact the tracker
-	 *  \param event Event to report to the tracker, if any
+	 *  \param event Event to report to the tracker
 	 *  \returns Metadata returned by the tracker
 	 *
 	 *  The caller is responsible for delete-ing the metadata once
 	 *  they are done with it.
 	 */
-	Metadata* contactTracker(std::string event = "");
+	Metadata* contactTracker(std::string event);
 
 	/*! \brief Writes a chunk to our output files
 	 *  \param piece Piece number to write
@@ -186,8 +189,10 @@ private:
 	 */
 	void writeChunk(unsigned int piece, unsigned int offset, const uint8_t* buf, size_t length);
 
-	//! \brief Handle periodic update to the tracker
-	void handleTracker();
+	/*! \brief Handle periodic update to the tracker
+	 *  \param event Event to report to the tracker, if any
+	 */
+	void handleTracker(std::string event = "");
 
 	//! \brief Ask for new pieces from each peer
 	void scheduleRequests();
@@ -307,6 +312,18 @@ private:
 
 	//! \brief Is the torrent complete?
 	bool complete;
+
+	/*! \brief Last tracker contact interval
+	 *
+	 *  Failed communication is also considered contact.
+	 */
+	time_t lastTrackerContact;
+
+	//! \brief Interval in which the tracker must be contacted
+	uint32_t tracker_interval;
+
+	//! \brief Minimum interval in which the tracker can be contacted
+	uint32_t tracker_min_interval;
 };
 
 #endif /* __TORRENT_H__ */
