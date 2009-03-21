@@ -82,11 +82,6 @@ Hasher::run() {
 				todo -= chunk_len;
 			}
 			bool ok = memcmp(h.getHash(), torrent->getPieceHash(piecenum), TORRENT_HASH_LEN) == 0;
-			if (!ok) {
-				printf("hashing FAIL of piece %u\n", piecenum);
-				printf("want hash = %s\n", h.getHashAsASCII(torrent->getPieceHash(piecenum)).c_str());
-				printf("our  hash = %s\n", h.getHashAsASCII(h.getHash()).c_str());
-			}
 			torrent->callbackCompleteHashing(piecenum, ok);
 
 			pthread_mutex_lock(&mtx);
