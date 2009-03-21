@@ -381,6 +381,10 @@ Torrent::handleTracker(string event)
 			if (peers.find(msPeerID->getString()) != peers.end())
 				continue;
 
+			/* Don't connect with ourselves *shrug* */
+			if (!memcmp((const char*)overseer->getPeerID(), msPeerID->getString().c_str(), TORRENT_PEERID_LEN))
+				continue;
+
 			/*
 			 * This peer looks fine. However, ensure we don't add too many peers to
 			 * the list; this hurts the network.
