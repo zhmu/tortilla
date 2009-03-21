@@ -12,6 +12,9 @@ class UploadRequest;
 
 #define PEER_MAX_OUTSTANDING_REQUESTS	5
 
+//! \brief Amount of seconds that must pass before we snub a peer
+#define PEER_SNUBBED_SECONDS 30
+
 /*! \brief Length of the buffer used to cache incomplete commands
  *
  *  This should be 2 * max command length.
@@ -86,14 +89,32 @@ public:
 	//! \brief Check if the peer has a specific piece
 	bool hasPiece(unsigned int num);
 
-	/*! \brief Retrieve receive/transmit rates and reset the counters
-	 *  \param rx Received bytes
-	 *  \param tx Transmitted bytes
-	 */
-	void getRateCounters(uint32_t* rx, uint32_t* tx);
+	//! \brief Retrieve receive rate, in bytes/second
+	uint32_t getRxRate() { return rx_bytes; }
+
+	//! \brief Retrieve transmit rate, in bytes/second
+	uint32_t getTxRate() { return tx_bytes; }
 
 	//! \brief Processes an upload request
 	void processUploadRequest(UploadRequest* request);
+
+	//! \brief Must be called every second
+	void timer();
+
+	//! \brief Is this peer snubbed?
+	bool isPeerSnubbed();
+
+	//! \brief Is this peer interested?
+	bool isPeerInterested() { return peer_interested; }
+
+	//! \brief Is this peer choked?
+	bool isPeerChoked() { return peer_choked; }
+
+	//! \brief Compares two peers based on upload rate
+	static bool compareByUpload(Peer* a, Peer* b);
+
+	//! \brief Called if the peer should be unchoked
+	void unchoke();
 
 	void dump();
 
@@ -206,6 +227,13 @@ private:
 
 	//! \brief Amount of data sent during the last cycle
 	uint32_t tx_bytes;
+
+	/*! \brief Amount of seconds this peer has left before it's snubbed.
+	 *
+	 *  A snubbed peer is a peer that hasn't sent any block
+	 *  in the last 30 seconds.
+	 */
+	unsigned int snubbedLeftoverCounter;
 };
 
 #endif /* __PEER_H__ */

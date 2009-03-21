@@ -1,4 +1,5 @@
 #include <sys/types.h>
+#include <algorithm>
 #include <assert.h>
 #include <fcntl.h>
 #include <iostream>
@@ -28,6 +29,8 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 {
 	overseer = o; downloaded = 0; uploaded = 0; left = 0;
 	haveThread = false; terminating = false; complete = false;
+	lastChokingAlgorithm = 0; unchokingRound = 0;
+	optimisticUnchokedPeer = NULL;
 
 	pthread_mutex_init(&mtx_peers, NULL);
 
@@ -783,6 +786,8 @@ Torrent::callbackCompleteTorrent()
 {
 	printf(">>> torrent is complete!\n");
 	complete = true;
+
+	/* XXX we should kick all peers that have 100% of the file */
 }
 
 void
@@ -833,13 +838,15 @@ Torrent::updateBandwidth()
 {
 	pthread_mutex_lock(&mtx_peers);
 
+	/* XXX we use this to update the snubbed status too! */
+
 	rx_rate = 0; tx_rate = 0;
 	for (map<string, Peer*>::iterator it = peers.begin();
 	     it != peers.end(); it++) {
 		Peer* p = (*it).second;
-		uint32_t rx, tx;
-		p->getRateCounters(&rx, &tx);
-		rx_rate += rx; tx_rate += tx;
+		rx_rate += p->getRxRate(); tx_rate += p->getTxRate();
+
+		p->timer();
 	}
 
 	pthread_mutex_unlock(&mtx_peers);
@@ -953,8 +960,6 @@ Torrent::heartbeat()
 	if (!haveThread)
 		return;
 
-	time_t now = time(NULL);
-
 	/*
 	 * If we need to chat with the tracker, do so. Note that we use the minimum interval
 	 * if we are in dire need of peers, and the maximum interval otherwise.
@@ -962,12 +967,135 @@ Torrent::heartbeat()
 	int interval = tracker_interval;
 	if (!complete && tracker_min_interval > 0)
 		interval = tracker_min_interval;
-	if (now >= lastTrackerContact + interval) {
+	if (time(NULL) >= lastTrackerContact + interval) {
 		/* The time is now */
 		handleTracker();
 	}
 
-	/* XXX choke/unchoking */
+	if (time(NULL) >= lastChokingAlgorithm + TORRENT_DELTA_CHOKING_ALGO) {
+		handleUnchokingAlgorithm();
+	}
+}
+
+void
+Torrent::handleUnchokingAlgorithm()
+{
+	/*
+	 * The algorithm used here is the Choke Algorithm as described in:
+	 *
+	 * Arnaud Legout, Guillaume Urvoy-Keller, Pietro Michiardi.
+	 * Understanding BitTorrent: An Experimental Perspective, INRIA 2005.
+	 * (Obtained from http://hal.inria.fr/inria-00000156/en, v3 2005-11-10)
+	 */
+
+	/* New round, but >3 rounds doesn't matter so we round them */
+	unchokingRound = (unchokingRound + 1) % 3;
+
+	/*
+	 * 1) Every three rounds, chose a random peer that is unchoked and
+	 *    interested.  The algorithm calls this peer the 'optimistic unchoked
+	 *    peer'.
+	 */
+	if (unchokingRound == 0) {
+		optimisticUnchokedPeer = pickRandomPeer(1, 1);
+		printf("chose optimistic peer: %p\n", optimisticUnchokedPeer);
+	}
+
+	/*
+	 * 2) Order peers that are interested and have sent at least one
+	 *    block in the last 30 seconds (i.e. peers that are not snubbed)
+	 */
+	pthread_mutex_lock(&mtx_peers);
+	vector<Peer*> uiPeers;
+	for (map<string, Peer*>::iterator it = peers.begin();
+	     it != peers.end(); it++) {
+		Peer* p = (*it).second;
+		if (p->isPeerSnubbed() || !p->isPeerInterested())
+			continue;
+		uiPeers.push_back(p);
+	}
+	pthread_mutex_unlock(&mtx_peers);
+
+	/* Given this list of peers, sort them by upload rate */
+	sort(uiPeers.begin(), uiPeers.end(), Peer::compareByUpload);
+
+
+	/*
+	 * 3) The three fastest peers are unchoked
+	 *
+	 * Note that we already check for the necessary condition for steps 4+ here!
+	 */
+	bool unchokedOUP = false;
+	for (unsigned int i = 0; i < MIN(3, uiPeers.size()); i++) {
+		uiPeers[i]->unchoke();
+		if (uiPeers[i] == optimisticUnchokedPeer)
+			unchokedOUP = true;
+	}
+
+	/*
+	 * (4) If the optimistic unchoked is not port of the peers we just unchoked,
+	 *     unchoke it and we are done.
+	 */
+	if (!unchokedOUP) {
+		if (optimisticUnchokedPeer != NULL) {
+			optimisticUnchokedPeer->unchoke();
+			optimisticUnchokedPeer = NULL;
+		}
+	} else {
+		/*
+		 * (5) If the planned optimistic unchoke peer was part of the unchoked peers
+		 *     (it was), we need to pick a new choked peer at random.
+		 */
+		while (true) {
+			optimisticUnchokedPeer = pickRandomPeer(1, -1);
+			if (optimisticUnchokedPeer == NULL)
+				break;
+
+			/* Note that steps 5a/5b always unchoke the peer,  so we do that here*/
+
+			/* (5a) If this peer is interested, it is unchoked and the round is complete */
+			if (optimisticUnchokedPeer->isPeerInterested())
+				break;
+
+			/* (5b) If this peer is not interested, it is unchoked and another peer is chosen */
+		}
+	}
+
+	lastChokingAlgorithm = time(NULL);
+printf("updated lca time\n");
+}
+
+Peer*
+Torrent::pickRandomPeer(int choked, int interested)
+{
+	std::vector<Peer*> sufficingPeers;
+
+	/* Note that this implementation is O(|peers|) */
+	pthread_mutex_lock(&mtx_peers);
+	for (map<string, Peer*>::iterator it = peers.begin();
+	     it != peers.end(); it++) {
+		Peer* p = (*it).second;
+		if (choked >= 0 && p->isPeerChoked() != (choked != 0))
+			continue;
+		if (interested >= 0 && p->isPeerInterested() != (interested != 0))
+			continue;
+		sufficingPeers.push_back(p);
+	}
+	pthread_mutex_unlock(&mtx_peers);
+
+	/* If the set is empty, nothing matched our criteria */
+	if (sufficingPeers.size() == 0)
+		return NULL;
+
+	/* Return someone */
+	return sufficingPeers[rand() % sufficingPeers.size()];
+}
+
+void
+Torrent::callbackPeerChangedInterest(Peer* p)
+{
+	/* We need to rerun the unchoking algorithm! */
+	handleUnchokingAlgorithm();
 }
 
 /* vim:set ts=2 sw=2: */

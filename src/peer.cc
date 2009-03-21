@@ -28,6 +28,7 @@ Peer::__init(Torrent* t)
 	torrent = t; am_choked = true; am_interested = false;
 	peer_choked = true; peer_interested = false; numOutstandingRequests = 0;
 	command_buffer_readpos = 0; command_buffer_writepos = 0;
+	snubbedLeftoverCounter = 0;
 	peerID = peerID;
 
 	/* Assume the peer doesn't have any pieces */
@@ -320,12 +321,7 @@ Peer::msgInterested()
 	cout << peerID + ": " + "interested" << endl;
 
 	peer_interested = true;
-
-	/* XXX */
-	if (peer_choked) {
-		sendMessage(PEER_MSGID_UNCHOKE, NULL, 0);
-		peer_choked = false;
-	}
+	torrent->callbackPeerChangedInterest(this);
 	return false;
 }
 
@@ -335,6 +331,7 @@ Peer::msgNotInterested()
 	cout << peerID + ": " + "notinterested" << endl;
 
 	peer_interested = false;
+	torrent->callbackPeerChangedInterest(this);
 	return false;
 }
 
@@ -401,6 +398,9 @@ Peer::msgPiece(const uint8_t* msg, uint32_t len)
 {
 	if (len < 9)
 		return true;
+
+	/* Immediately reset the snubbed counter */
+	snubbedLeftoverCounter = PEER_SNUBBED_SECONDS;
 
 	uint32_t index = READ_UINT32(msg, 0);
 	uint32_t begin = READ_UINT32(msg, 4);
@@ -567,13 +567,6 @@ Peer::send(const uint8_t* data, size_t len)
 }
 
 void
-Peer::getRateCounters(uint32_t* rx, uint32_t* tx)
-{
-	*rx = rx_bytes; *tx = tx_bytes;
-	rx_bytes = 0; tx_bytes = 0;
-}
-
-void
 Peer::sendHandshake()
 {
 	/*
@@ -637,6 +630,38 @@ Peer::processUploadRequest(UploadRequest* request)
 	sendMessage(PEER_MSGID_PIECE, chunk, request->getLength() + 8);
 	torrent->incrementUploadedBytes(request->getLength());
 	delete[] chunk;
+}
+
+void
+Peer::timer() {
+	/* Reset the peer's received/transmitter counters */
+	rx_bytes = 0; tx_bytes = 0;
+
+	/* Decay the snubbed counter; if it reached zero, the peer is snubbed */
+	if (snubbedLeftoverCounter > 0)
+		snubbedLeftoverCounter--;
+}
+
+bool
+Peer::isPeerSnubbed()
+{
+	return (snubbedLeftoverCounter == 0);
+}
+	
+bool
+Peer::compareByUpload(Peer* a, Peer* b)
+{
+	return a->getRxRate() > b->getRxRate();
+}
+
+void
+Peer::unchoke()
+{
+	printf("unchoke! yeah!\n");
+	assert (peer_choked == true);
+
+	sendMessage(PEER_MSGID_UNCHOKE, NULL, 0);
+	peer_choked = false;
 }
 
 #undef WRITE_UINT32

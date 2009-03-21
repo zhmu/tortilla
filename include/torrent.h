@@ -22,6 +22,9 @@
 //! \brief Desired number of peers per torrent
 #define TORRENT_DESIRED_PEERS 30
 
+//! \brief Delta in seconds between running (un)choking algorithm
+#define TORRENT_DELTA_CHOKING_ALGO 10
+
 class Connection;
 class Peer;
 class Overseer;
@@ -139,6 +142,9 @@ protected:
 	//! \brief Called by a peer just before it is gone
 	void callbackPeerGone(Peer* p);
 
+	//! \brief Called by a peer if it changes interest
+	void callbackPeerChangedInterest(Peer* p);
+
 	/*! \brief Go, speedracer, go -- handles the torrent activites
 	 *
  	 *  This generally resides in an own thread.
@@ -210,6 +216,16 @@ private:
 	 *  \return Peer that has the piece, or NULL if no peers have it
 	 */
 	Peer* findPeerForPiece(uint32_t piece);
+
+	//! \brief Runs the optimistic unchoking algorithm
+	void handleUnchokingAlgorithm();
+
+	/*! \brief Picks a random peer
+	 *  \return A peer, or NULL if nothing matches the criterium
+	 *
+	 *  A value of -1 is don't care, 0 is false and 1 is true.
+	 */
+	Peer* pickRandomPeer(int choked, int interested);
 
 	//! \brief Amount of bytes uploaded / downloaded / left
 	uint64_t uploaded, downloaded, left;
@@ -324,6 +340,15 @@ private:
 
 	//! \brief Minimum interval in which the tracker can be contacted
 	uint32_t tracker_min_interval;
+
+	//! \brief Last (un)choking algorithm interval
+	time_t lastChokingAlgorithm;
+
+	//! \brief Current unchoking round
+	int unchokingRound;
+
+	//! \brief Algorithm's 'optimistic unchoked peer'
+	Peer* optimisticUnchokedPeer;
 };
 
 #endif /* __TORRENT_H__ */
