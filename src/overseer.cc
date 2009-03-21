@@ -209,8 +209,8 @@ Overseer::listenerThread()
 void
 Overseer::waitHashingComplete()
 {
-	while (1) {
-
+	while (!terminating) {
+		/* Count the number of active hashers */
 		pthread_mutex_lock(&mtx_torrents);
 		int num_hashing = 0;
 		for (map<string, Torrent*>::iterator it = torrents.begin();
