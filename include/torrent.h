@@ -32,7 +32,9 @@ class Hasher;
 
 /*! \brief Implements a single, independant torrent
  *
- *
+ *  Since we have multiple threads at work here, variables are marked:
+ *  [R]   for read only variables, that will never change.
+ *  [M=x] variable protected by mutex x
  */
 class Torrent {
 friend void* torrent_thread(void* ptr);
@@ -177,6 +179,15 @@ protected:
 	//! \brief Increment the uploaded byte counter
 	void incrementUploadedBytes(uint64_t amount);
 
+	/*! \brief Handle status update to peers
+	 *
+	 *  This function will inform peers that do not have any pieces we 
+	 *  want that we lost interest in them. If we are a seeder, we
+	 *  ditch anyone who is also a seeder to give leechers a better
+	 *  chance of getting a seeder (we don't need the slot anyway)
+	 */
+	void processCurrentPeers();
+
 private:
 	/*! \brief Contact the tracker
 	 *  \param event Event to report to the tracker
@@ -229,35 +240,35 @@ private:
 	Peer* pickRandomPeer(int choked, int interested, std::vector<Peer*>& skiplist);
 
 	//! \brief Amount of bytes uploaded / downloaded / left
-	uint64_t uploaded, downloaded, left;
+	uint64_t /* [M=data] */ uploaded, downloaded, left;
 
 	/*! \brief Hash of the 'info' dictionary in the metadata
 	 *
 	 *  This is only cached for efficiency reasons.
 	 */
-	uint8_t infoHash[TORRENT_HASH_LEN];
+	uint8_t /* [R] */ infoHash[TORRENT_HASH_LEN];
 
 	/*! \brief Number of pieces in the torrent */
-	unsigned int numPieces;
+	unsigned int /* [R] */ numPieces;
 
 	/*! \brief Piece chunk length */
-	unsigned int pieceLen;
+	unsigned int /* [R] */ pieceLen;
 
 	/*! \brief Total size of the torrent, in bytes */
-	uint64_t total_size;
+	uint64_t /* [R] */ total_size;
 
 	//! \brief Announce URL of the tracker
-	std::string announceURL;
+	std::string /* [R] */ announceURL;
 
 	/*! \brief Contains the hash values for each piece */
-	uint8_t* pieceHash;
+	uint8_t* /* [R] */ pieceHash;
 
 	/*! \brief Which pieces do we have?
 	 *
 	 *  This refers to the BitTorrent definition of pieces, i.e.
 	 *  this vector contains numPieces booleans.
 	 */
-	std::vector<bool> havePiece;
+	std::vector<bool> /* [M=data] */ havePiece;
 
 	/*! \brief Which chunks do we have?
 	 *
@@ -270,23 +281,23 @@ private:
 	 *  Note that  this vector can be used to compute havePiece, which we
 	 *  won't do for efficiency reasons.
 	 */
-	std::vector<bool> haveChunk;
+	std::vector<bool> /* [M=data] */ haveChunk;
 
 	//! \brief Which chunks are requested?
-	std::vector<bool> haveRequestedChunk;
+	std::vector<bool> /* [M=data] */ haveRequestedChunk;
 
 	//! \brief Which pieces have we requested?
-	std::vector<Peer*> requestedPiece;
+	std::vector<Peer*> /* [M=data] */ requestedPiece;
 
 	//! \brief Which pieces are being hashed?
-	std::vector<bool> hashingPiece;
+	std::vector<bool> /* [M=data] */ hashingPiece;
 
 	/*! \brief Stores the cardinality of each piece
 	 *
 	 *  The cardinality of a piece of defined as the numer of peers that
 	 *  have the piece 
 	 */
-	std::vector<unsigned int> pieceCardinality;
+	std::vector<unsigned int> /* [M=data] */ pieceCardinality;
 
 	/*! \brief List of peers
 	 *
@@ -295,16 +306,16 @@ private:
 	 *  operations, we need the entire list anyway which is O(n), so using
 	 *  a map will work out for us.
 	 */
-	std::map<std::string, Peer*> peers;
+	std::map<std::string, Peer*> /* [M=peers] */ peers;
 
 	//! \brief Hasher thread used to validate chunk integrity
-	Hasher* hasher;
+	Hasher* /* [R] */ hasher;
 
 	//! \brief Stores the files in the torrent
-	std::vector<File*> files;
+	std::vector<File*> /* [R] */ files;
 
 	//! \brief Overseer object
-	Overseer* overseer;
+	Overseer* /* [R] */ overseer;
 
 	//! \brief Torrent thread
 	pthread_t thread;
@@ -318,8 +329,8 @@ private:
 	//! \brief Mutex protecting the peers list
 	pthread_mutex_t mtx_peers;
 
-	//! \brief Mutex protecting the outgoing queue
-	pthread_mutex_t mtx_outgoing;
+	//! \brief Mutex protecting the data
+	pthread_mutex_t mtx_data;
 
 	//! \brief Receive rate, in bytes
 	uint32_t rx_rate;

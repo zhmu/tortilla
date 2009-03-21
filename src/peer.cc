@@ -28,7 +28,7 @@ Peer::__init(Torrent* t)
 	torrent = t; am_choked = true; am_interested = false;
 	peer_choked = true; peer_interested = false; numOutstandingRequests = 0;
 	command_buffer_readpos = 0; command_buffer_writepos = 0;
-	snubbedLeftoverCounter = 0;
+	snubbedLeftoverCounter = 0; numPeerPieces = 0;
 	peerID = peerID;
 
 	/* Assume the peer doesn't have any pieces */
@@ -348,7 +348,15 @@ Peer::msgHave(const uint8_t* msg, uint32_t len)
 	if (index >= torrent->getNumPieces())
 		return true;
 
-	havePiece[index] = true;
+	if (!havePiece[index]) {
+		havePiece[index] = true;
+		numPeerPieces++;
+
+		/* Update the torrent state too - this is to increment cardinality */
+		std::vector<unsigned int> pieces;
+		pieces.push_back(index);
+		torrent->callbackPiecesAdded(this, pieces);
+	}
 	return false;
 }
 
@@ -374,8 +382,10 @@ Peer::msgBitfield(const uint8_t* msg, uint32_t len)
 	vector<unsigned int> newPieces;
 	for (unsigned int i = 0; i < numPieces; i++) {
 		havePiece[i] = msg[i / 8] & (1 << (7 - (i % 8)));
-		if (havePiece[i])
+		if (havePiece[i]) {
 			newPieces.push_back(i);
+			numPeerPieces++;
+		}
 	}
 
 	/* Inform the torrent class of all added pieces */
@@ -392,6 +402,7 @@ Peer::msgRequest(const uint8_t* msg, uint32_t len)
 	uint32_t index = READ_UINT32(msg, 0);
 	uint32_t begin = READ_UINT32(msg, 4);
 	uint32_t length = READ_UINT32(msg, 8);
+	assert(length <= 16384);
 	torrent->queueUploadRequest(this, index, begin, length);
 	return false;
 }
@@ -457,6 +468,17 @@ Peer::claimInterest()
 }
 
 void
+Peer::revokeInterest()
+{
+	/* If we are already not interested, don't bother expressing this again */
+	if (!am_interested)
+		return;
+
+	sendMessage(PEER_MSGID_NOTINTERESTED, NULL, 0);
+	am_interested = false;
+}
+
+void
 Peer::requestPiece(unsigned int num)
 {
 	requestedPieces.push_back(num);
@@ -465,18 +487,16 @@ Peer::requestPiece(unsigned int num)
 void
 Peer::sendMessage(uint8_t msg, const uint8_t* buf, size_t len)
 {
-	unsigned char hdr[5];
 
 	assert(buf == NULL || len > 0);
 
-	/* Construct a length header and message */
-	WRITE_UINT32(hdr, 0, len + 1);
-	hdr[4] = msg;
-
-	/* Write them both */
-	send(hdr, 5);
-	if (len > 0)
-		send(buf, len);
+	/* XXX */
+	unsigned char* pkt = new unsigned char[len + 5];
+	WRITE_UINT32(pkt, 0, len + 1);
+	pkt[4] = msg;
+	memcpy((pkt + 5), buf, len);
+	send(pkt, len + 5);
+	delete[] pkt;
 }
 
 bool
@@ -545,6 +565,7 @@ Peer::sendPieceRequest()
 		WRITE_UINT32(msg, 0, piece);
 		WRITE_UINT32(msg, 4, missingChunk * TORRENT_CHUNK_SIZE);
 		WRITE_UINT32(msg, 8, request_length);
+		assert(request_length <= 16384);
 		torrent->setChunkRequested(piece, missingChunk, true);
 		sendMessage(PEER_MSGID_REQUEST, msg, 12);
 
@@ -670,6 +691,22 @@ Peer::choke()
 
 	sendMessage(PEER_MSGID_CHOKE, NULL, 0);
 	peer_choked = true;
+}
+
+bool
+Peer::isSeeder()
+{
+	return (numPeerPieces == torrent->getNumPieces());
+}
+
+void
+Peer::have(unsigned int piece)
+{
+	assert(piece < torrent->getNumPieces());
+
+	uint8_t msg[4];
+	WRITE_UINT32(msg, 0, piece);
+	sendMessage(PEER_MSGID_HAVE, msg, 4);
 }
 
 #undef WRITE_UINT32

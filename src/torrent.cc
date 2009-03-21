@@ -25,6 +25,9 @@ using namespace std;
 #define MIN(a,b) \
 	(((a) < (b)) ? (a) : (b))
 
+#define LOCK(x)   pthread_mutex_lock(&mtx_ ## x);
+#define UNLOCK(x) pthread_mutex_unlock(&mtx_ ## x);
+
 Torrent::Torrent(Overseer* o, Metadata* md)
 {
 	overseer = o; downloaded = 0; uploaded = 0; left = 0;
@@ -33,6 +36,7 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 	optimisticUnchokedPeer = NULL;
 
 	pthread_mutex_init(&mtx_peers, NULL);
+	pthread_mutex_init(&mtx_data, NULL);
 
 	/*
 	 * Ensure the 'info' and 'announce' metadata fields exist; we can't do much
@@ -263,7 +267,7 @@ Torrent::~Torrent()
 	 * Nuke all our peers. XXX we should implement signalling and exit more
 	 * gracefully.
 	 */
-	pthread_mutex_lock(&mtx_peers);
+	LOCK(peers);
 	while (true) {
 		map<string, Peer*>::iterator it = peers.begin();
 		if (it == peers.end())
@@ -271,7 +275,7 @@ Torrent::~Torrent()
 		delete (*it).second;
 		peers.erase(it);
 	}
-	pthread_mutex_unlock(&mtx_peers);
+	UNLOCK(peers);
 
 	/*
 	 * Need to get rid of the hasher first, as it'll crash and burn if we suddenly
@@ -297,6 +301,7 @@ Torrent::contactTracker(std::string event)
 	/* Construct the tracker request, and off it goes */
 	string h((const char*)infoHash, sizeof(infoHash));
 	string peerID((const char*)overseer->getPeerID(), TORRENT_PEERID_LEN);
+	LOCK(data);
 	m["info_hash"] = h;
 	m["peer_id"] = peerID;
 	if (event != "")
@@ -305,14 +310,15 @@ Torrent::contactTracker(std::string event)
 	m["uploaded"] = convertInteger(uploaded);
 	m["left"] = convertInteger(left);
 	m["port"] = convertInteger(overseer->getListeningPort());
-	/* If we are a seeder, we care not about any new peers */
+	UNLOCK(data);
+	/* If we are a seeder, we care not about any new peers XXX small race here */
 	if (complete) {
 		m["numwant"] = convertInteger(0);
 	} else {
 		/* Otherwise, try to grab as many peers as we need to fill our list */
-		pthread_mutex_lock(&mtx_peers);
+		LOCK(peers);
 		uint32_t numPeers = peers.size();
-		pthread_mutex_unlock(&mtx_peers);
+		UNLOCK(peers);
 		m["numwant"] = convertInteger(TORRENT_DESIRED_PEERS - numPeers);
 	}
 	lastTrackerContact = time(NULL);
@@ -389,17 +395,17 @@ Torrent::handleTracker(string event)
 			 * This peer looks fine. However, ensure we don't add too many peers to
 			 * the list; this hurts the network.
 			 */
-			pthread_mutex_lock(&mtx_peers);
+			LOCK(peers);
 			uint32_t numPeers = peers.size();
-			pthread_mutex_unlock(&mtx_peers);
+			UNLOCK(peers);
 			if (numPeers >= TORRENT_DESIRED_PEERS)
 				break;
 		
 			try {
 				Peer* p = new Peer(this, msPeerID->getString(), msHost->getString(), msPort->getInteger());
-				pthread_mutex_lock(&mtx_peers);
+				LOCK(peers);
 				peers[msPeerID->getString()] = p;
-				pthread_mutex_unlock(&mtx_peers);
+				UNLOCK(peers);
 				printf("got peer %p at %s:%lu\n", p, msHost->getString().c_str(), msPort->getInteger());
 			} catch (ConnectionException e) {
 				cerr << "skipping peer: "; cerr << e.what(); cerr << endl;
@@ -421,14 +427,14 @@ Torrent::go()
 		/* Construct our file descriptor set */
 		int maxfd = -1;
 		FD_ZERO(&fds);
-		pthread_mutex_lock(&mtx_peers);
+		LOCK(peers);
 		for (map<string, Peer*>::iterator it = peers.begin();
 		     it != peers.end(); it++) {
 			int fd = (*it).second->getFD();
 			if (maxfd < fd) maxfd = fd;
 			FD_SET(fd, &fds);
 		}
-		pthread_mutex_unlock(&mtx_peers);
+		UNLOCK(peers);
 
 		/*
 		 * Sleep for at most 0.5 seconds while waiting for a response; this is to
@@ -469,9 +475,9 @@ Torrent::go()
 					Peer* p = (*it).second;
 					cerr << "connection lost" << endl;
 					overseer->dequeuePeer(p);
-					pthread_mutex_lock(&mtx_peers);
+					LOCK(peers);
 					peers.erase(it);
-					pthread_mutex_unlock(&mtx_peers);
+					UNLOCK(peers);
 					delete p;
 					looping = true;
 					break;
@@ -483,9 +489,9 @@ Torrent::go()
 					* Need to server the connection - we decide to nuke the connection, and
 					* leave the dirty work to the destructor.
 					*/
-					pthread_mutex_lock(&mtx_peers);
+					LOCK(peers);
 					peers.erase(it);
-					pthread_mutex_unlock(&mtx_peers);
+					UNLOCK(peers);
 					delete (*it).second;
 					looping = true;
 					break;
@@ -498,11 +504,13 @@ Torrent::go()
 void
 Torrent::callbackPiecesAdded(Peer* p, vector<unsigned int>& pieces)
 {
+	LOCK(data);
 	for (vector<unsigned int>::iterator it = pieces.begin();
 	     it != pieces.end(); it++) {
 		assert(*it < numPieces);
 		pieceCardinality[*it]++;
 	}
+	UNLOCK(data);
 
 	scheduleRequests();
 }
@@ -510,12 +518,14 @@ Torrent::callbackPiecesAdded(Peer* p, vector<unsigned int>& pieces)
 void
 Torrent::callbackPiecesRemoved(Peer* p, vector<unsigned int>& pieces)
 {
+	LOCK(data);
 	for (vector<unsigned int>::iterator it = pieces.begin();
 	     it != pieces.end(); it++) {
 		assert(*it < numPieces);
 		assert(pieceCardinality[*it] > 0);
 		pieceCardinality[*it]--;
 	}
+	UNLOCK(data);
 }
 
 void
@@ -524,6 +534,7 @@ Torrent::scheduleRequests()
 	/*
 	 * XXX this algorithm should schedule a piece more randomly
 	 */
+	LOCK(data);
 	for (unsigned int i = 0; i < numPieces && !terminating; i++) {
 		if (!havePiece[i] && requestedPiece[i] == NULL && pieceCardinality[i] > 0) {
 			/*
@@ -539,6 +550,7 @@ Torrent::scheduleRequests()
 			requestedPiece[i] = p;
 		}
 	}
+	UNLOCK(data);
 }
 
 std::string
@@ -560,10 +572,15 @@ Torrent::getMissingChunk(unsigned int piece)
 	} else {
 		numChunks = pieceLen / TORRENT_CHUNK_SIZE;
 	}
+
+	LOCK(data);
 	for (unsigned int j = 0; j < calculateChunksInPiece(piece); j++)
 		if (!haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j] &&
-		    !haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j])
+		    !haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j]) {
+			UNLOCK(data);
 			return j;
+		}
+	UNLOCK(data);
 
 	return -1;
 }
@@ -573,7 +590,9 @@ Torrent::callbackCompletePiece(Peer* p, unsigned int piece)
 {
 	assert (piece < numPieces);
 
+	LOCK(data);
 	havePiece[piece] = true;
+	UNLOCK(data);
 
 	/*
 	 * Ask the hasher to verify this chunk - using the callback, we figure out if
@@ -606,14 +625,19 @@ Torrent::callbackCompleteChunk(Peer* p, unsigned int piece, uint32_t offset, con
 	assert (len <= TORRENT_CHUNK_SIZE);
 	assert (offset % TORRENT_CHUNK_SIZE == 0);
 
-	haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + offset / TORRENT_CHUNK_SIZE] = true;
 	writeChunk(piece, offset, data, len);
+
+	LOCK(data);
+	haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + offset / TORRENT_CHUNK_SIZE] = true;
 	downloaded += len;
 
 	/* See if we have all chunks; if so, the piece is in */
 	for (unsigned int i = 0; i < calculateChunksInPiece(piece); i++)
-		if (!haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + i])
+		if (!haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + i]) {
+			UNLOCK(data);
 			return;
+		}
+	UNLOCK(data);
 
 	/* Yay! */
 	callbackCompletePiece(p, piece);
@@ -625,12 +649,16 @@ Torrent::setChunkRequested(unsigned int piece, unsigned int chunk, bool requeste
 	assert (piece < numPieces);
 	assert (chunk < pieceLen / TORRENT_CHUNK_SIZE);
 
+	LOCK(data);
 	haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + chunk] = requested;
+	UNLOCK(data);
 }
 
 void
 Torrent::dump()
 {
+	LOCK(data);
+
 	printf("piece map\n");
 	for (unsigned int i = 0; i < numPieces; i++) {
 		if (i % 50 == 0) {
@@ -652,18 +680,26 @@ Torrent::dump()
 		}
 	}
 	printf("\n");
+
+	UNLOCK(data);
 }
 
 bool
 Torrent::hasPiece(unsigned int piece)
 {
 	assert (piece < numPieces);
-	return havePiece[piece];
+
+	LOCK(data);
+	bool b = havePiece[piece];
+	UNLOCK(data);
+
+	return b;
 }
 
 void
 Torrent::callbackCompleteHashing(unsigned int piece, bool result)
 {
+	LOCK(data);
 	hashingPiece[piece] = false;
 	if (!result) {
 		/*
@@ -672,6 +708,7 @@ Torrent::callbackCompleteHashing(unsigned int piece, bool result)
 		 * seeders that provide us with bad content.
 		 */
 		havePiece[piece] = false;
+		UNLOCK(data);
 		scheduleRequests();
 		return;
 	}
@@ -685,10 +722,29 @@ Torrent::callbackCompleteHashing(unsigned int piece, bool result)
 		left -= pieceLen;
 	}
 
+	/*
+	 * Inform our peers that we have this piece.
+	 */
+	LOCK(peers);
+	for (map<string, Peer*>::iterator it = peers.begin();
+	     it != peers.end(); it++) {
+		Peer* p = (*it).second;
+		p->have(piece);
+	}
+	UNLOCK(peers);
+	UNLOCK(data);
+
+	/* Try to use this as an attempt to signal disinterest in peers */
+	processCurrentPeers();
+
 	/* If we have all pieces, rejoice */
+	LOCK(data);
 	for (unsigned int i = 0; i < numPieces; i++)
-		if (!havePiece[i] || hashingPiece[i])
+		if (!havePiece[i] || hashingPiece[i]) {
+			UNLOCK(data);
 			return;
+		}
+	UNLOCK(data);
 
 	/* Yeah! */
 	complete = true;
@@ -791,14 +847,14 @@ Torrent::callbackCompleteTorrent()
 	printf(">>> torrent is complete!\n");
 	complete = true;
 
-	/* XXX we should kick all peers that have 100% of the file */
+	/* Kick anyone who is also a seeder */
+	processCurrentPeers();
 }
 
 void
 Torrent::scheduleHashing(unsigned int piece)
 {
 	assert(piece < numPieces);
-	assert(!hashingPiece[piece]);
 
 	/*
 	 * Mark the piece as being hashed before we actually add it; since the
@@ -806,7 +862,10 @@ Torrent::scheduleHashing(unsigned int piece)
 	 * before this thread continues, which means we clear the 'hashing' flag,
 	 * resulting in a torrent that will never be flagged as completed...
 	 */
+	LOCK(data);
+	assert(!hashingPiece[piece]);
 	hashingPiece[piece] = true;
+	UNLOCK(data);
 	hasher->addPiece(piece);
 }
 
@@ -840,7 +899,7 @@ Torrent::stop()
 void
 Torrent::updateBandwidth()
 {
-	pthread_mutex_lock(&mtx_peers);
+	LOCK(peers);
 
 	/* XXX we use this to update the snubbed status too! */
 
@@ -853,7 +912,7 @@ Torrent::updateBandwidth()
 		p->timer();
 	}
 
-	pthread_mutex_unlock(&mtx_peers);
+	UNLOCK(peers);
 }
 
 void
@@ -868,11 +927,14 @@ Torrent::findPeerForPiece(uint32_t piece)
 	/*
 	 * Pick a random peer that has this piece and go. This is O(|peers|)), but we
 	 * will will limit the number of peers eventually so this is fine XXX
+	 *
+	 * Note, this assumed the DATA mutex is locked!
+	 *
 	 */
-	unsigned int peer_num = rand() % pieceCardinality[piece];
 
 	Peer* p = NULL;
-	pthread_mutex_lock(&mtx_peers);
+	LOCK(peers);
+	unsigned int peer_num = rand() % pieceCardinality[piece];
 	for (std::map<std::string, Peer*>::iterator it = peers.begin();
 	     it != peers.end(); it++) {
 		if (!it->second->hasPiece(piece))
@@ -882,7 +944,7 @@ Torrent::findPeerForPiece(uint32_t piece)
 			break;
 		}
 	}
-	pthread_mutex_unlock(&mtx_peers);
+	UNLOCK(peers);
 	return p;
 }
 
@@ -905,8 +967,11 @@ Torrent::callbackPeerGone(Peer* p)
 	if (!unregisteredPieces)
 		return;
 
-	/* We removed pieces; try to schedule requests to fill the void */
+	/* We removed pieces; try to schedule requests to fill the void
+	 *
+	 * XXX don't reschedule here
 	scheduleRequests();
+	*/
 }
 
 const uint8_t*
@@ -922,18 +987,22 @@ Torrent::addIncomingPeer(Connection* c, std::string peerid, uint8_t* reserved)
 
 	Peer* p = new Peer(this, peerid, c);
 
-	pthread_mutex_lock(&mtx_peers);
+	LOCK(peers);
 	peers[peerid] = p;
-	pthread_mutex_unlock(&mtx_peers);
+	UNLOCK(peers);
 }
 
 bool
 Torrent::isHashing()
 {
+	LOCK(data);
 	for (unsigned int i = 0; i < numPieces; i++)
-		if (hashingPiece[i])
+		if (hashingPiece[i]) {
+			UNLOCK(data);
 			return true;
+		}
 
+	UNLOCK(data);
 	return false;
 }
 
@@ -954,7 +1023,9 @@ Torrent::dequeueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t 
 void
 Torrent::incrementUploadedBytes(uint64_t amount)
 {
+	LOCK(data);
 	uploaded += amount;
+	UNLOCK(data);
 }
 
 void
@@ -1010,7 +1081,7 @@ Torrent::handleUnchokingAlgorithm()
 	 * 2) Order peers that are interested and have sent at least one
 	 *    block in the last 30 seconds (i.e. peers that are not snubbed)
 	 */
-	pthread_mutex_lock(&mtx_peers);
+	LOCK(peers);
 	vector<Peer*> uiPeers;
 	for (map<string, Peer*>::iterator it = peers.begin();
 	     it != peers.end(); it++) {
@@ -1019,7 +1090,7 @@ Torrent::handleUnchokingAlgorithm()
 			continue;
 		uiPeers.push_back(p);
 	}
-	pthread_mutex_unlock(&mtx_peers);
+	UNLOCK(peers);
 
 	/* Given this list of peers, sort them by upload rate */
 	sort(uiPeers.begin(), uiPeers.end(), Peer::compareByUpload);
@@ -1070,7 +1141,7 @@ Torrent::handleUnchokingAlgorithm()
 	 * OK, newunchokes is the amount of peers we unchoke; start by choking
 	 * not in it.
 	 */
-	pthread_mutex_lock(&mtx_peers);
+	LOCK(peers);
 	vector<Peer*> newChokes;
 	for (map<string, Peer*>::iterator it = peers.begin();
 	     it != peers.end(); it++) {
@@ -1081,7 +1152,7 @@ Torrent::handleUnchokingAlgorithm()
 			continue;
 		newChokes.push_back(p);
 	}
-	pthread_mutex_unlock(&mtx_peers);
+	UNLOCK(peers);
 
 	printf("choking algo DONE, to choke: %u, to unchoke: %u\n",
 		(int)newChokes.size(),
@@ -1108,7 +1179,7 @@ Torrent::pickRandomPeer(int choked, int interested, std::vector<Peer*>& skiplist
 	std::vector<Peer*> sufficingPeers;
 
 	/* Note that this implementation is O(|peers| |skiplist|) */
-	pthread_mutex_lock(&mtx_peers);
+	LOCK(peers);
 	for (map<string, Peer*>::iterator it = peers.begin();
 	     it != peers.end(); it++) {
 		Peer* p = (*it).second;
@@ -1120,7 +1191,7 @@ Torrent::pickRandomPeer(int choked, int interested, std::vector<Peer*>& skiplist
 			continue;
 		sufficingPeers.push_back(p);
 	}
-	pthread_mutex_unlock(&mtx_peers);
+	UNLOCK(peers);
 
 	/* If the set is empty, nothing matched our criteria */
 	if (sufficingPeers.size() == 0)
@@ -1136,6 +1207,41 @@ Torrent::callbackPeerChangedInterest(Peer* p)
 	/* We need to rerun the unchoking algorithm if the peer was unchoked */
 	if (!p->isPeerChoked())
 		handleUnchokingAlgorithm();
+}
+
+void
+Torrent::processCurrentPeers()
+{
+	LOCK(data); LOCK(peers);
+
+	map<string, Peer*>::iterator it = peers.begin();
+	while (it != peers.end()) {
+		Peer* p = (*it).second;
+
+		if (complete && p->isSeeder()) {
+			/* XXX ditch peer */
+			printf("ditched seeder\n");
+			//delete p; /* XXX unsafe */
+			peers.erase(it);
+			it = peers.begin();
+			continue;
+		}
+		it++;
+
+		bool haveStuff = false;
+		for (unsigned int i = 0; i < numPieces; i++)
+			if (!havePiece[i] && p->hasPiece(i)) {
+				haveStuff = true;
+				break;
+			}
+
+		if (!haveStuff) {
+			printf("peer: revoking interest!\n");
+			p->revokeInterest();
+		}
+	}
+
+	UNLOCK(peers); UNLOCK(data);
 }
 
 /* vim:set ts=2 sw=2: */

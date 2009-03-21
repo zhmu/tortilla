@@ -110,6 +110,9 @@ public:
 	//! \brief Is this peer choked?
 	bool isPeerChoked() { return peer_choked; }
 
+	//! \brief Are we interested in this peer?
+	bool isInterested() { return am_interested; }
+
 	//! \brief Compares two peers based on upload rate
 	static bool compareByUpload(Peer* a, Peer* b);
 
@@ -118,6 +121,12 @@ public:
 
 	//! \brief Called if the peer should be unchoked
 	void unchoke();
+
+	//! \brief Inform a peer that we own a certain piece
+	void have(unsigned int piece);
+
+	//! \brief Check if the peer has all pieces
+	bool isSeeder();
 
 	void dump();
 
@@ -237,6 +246,9 @@ private:
 	 *  in the last 30 seconds.
 	 */
 	unsigned int snubbedLeftoverCounter;
+
+	//! \brief Total number of pieces this peer has
+	unsigned int numPeerPieces;
 };
 
 #endif /* __PEER_H__ */
