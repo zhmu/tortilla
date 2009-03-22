@@ -49,6 +49,7 @@ void
 Hasher::run() {
 	while(!terminating) {
 		/* Wait until some event arrives */
+		pthread_mutex_lock(&mtx);
 		pthread_cond_wait(&cv, &mtx);
 		if (terminating)
 			break;

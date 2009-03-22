@@ -93,6 +93,7 @@ void
 Uploader::process()
 {
 	while(!terminating) {
+		pthread_mutex_lock(&mtx_queue);
 		pthread_cond_wait(&cv_queue, &mtx_queue);
 		if (terminating)
 			break;
