@@ -180,7 +180,7 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 	 */
 	unsigned int piecenum = 0;
 	unsigned int leftoverLength = 0;
-	bool previousFileReopened;
+	bool previousFileReopened = false /* quench warning, can't be used */;
 	for (unsigned int i = 0; i < files.size(); i++) {
 		File* f = files[i];
 		size_t fileLength = f->getLength();
