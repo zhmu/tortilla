@@ -29,7 +29,7 @@ Peer::__init(Torrent* t)
 	peer_choked = true; peer_interested = false; numOutstandingRequests = 0;
 	command_buffer_readpos = 0; command_buffer_writepos = 0;
 	snubbedLeftoverCounter = 0; numPeerPieces = 0;
-	peerID = peerID;
+	peerID = peerID; terminating = false;
 
 	/* Assume the peer doesn't have any pieces */
 	havePiece.reserve(t->getNumPieces());
@@ -69,7 +69,6 @@ Peer::~Peer()
 		if (havePiece[i])
 			lostPieces.push_back(i);
 	torrent->callbackPiecesRemoved(this, lostPieces);
-	torrent->callbackPeerGone(this);
 }
 
 #define DATA_LEFT \
@@ -707,6 +706,12 @@ Peer::have(unsigned int piece)
 	uint8_t msg[4];
 	WRITE_UINT32(msg, 0, piece);
 	sendMessage(PEER_MSGID_HAVE, msg, 4);
+}
+
+void
+Peer::shutdown()
+{
+	terminating = true;
 }
 
 #undef WRITE_UINT32

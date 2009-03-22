@@ -272,8 +272,8 @@ Torrent::~Torrent()
 		map<string, Peer*>::iterator it = peers.begin();
 		if (it == peers.end())
 			break;
-		delete (*it).second;
 		peers.erase(it);
+		delete (*it).second;
 	}
 	UNLOCK(peers);
 
@@ -288,8 +288,8 @@ Torrent::~Torrent()
 		vector<File*>::iterator it = files.begin();
 		if (it == files.end())
 			break;
-		delete (*it);
 		files.erase(it);
+		delete (*it);
 	}
 }
 
@@ -424,6 +424,26 @@ Torrent::go()
 	while (!terminating) {
 		fd_set fds;
 
+		/*
+	 	 * Gracefully handle any peers that are going away.
+		  */
+		LOCK(peers);
+		map<string, Peer*>::iterator peerit = peers.begin();
+		while (peerit != peers.end()) {
+			Peer* p = (*peerit).second;
+			if (!p->isShuttingDown()) {
+				peerit++;
+				continue;
+			}
+
+			peers.erase(peerit);
+			callbackPeerGone(p);
+			delete p;
+
+			peerit = peers.begin();
+		}
+		UNLOCK(peers);
+
 		/* Construct our file descriptor set */
 		int maxfd = -1;
 		FD_ZERO(&fds);
@@ -440,7 +460,7 @@ Torrent::go()
 		 * Sleep for at most 0.5 seconds while waiting for a response; this is to
 		 * ensure we won't wait too long while shutting down.
 		 *
-		 * Note that, for busy torrenta, this 0.5 second loop will never be reached.
+		 * Note that, for busy torrents, this 0.5 second loop will never be reached.
 		 */
 		struct timeval tv;
 		tv.tv_sec = 0; tv.tv_usec = 5000;
@@ -448,54 +468,34 @@ Torrent::go()
 		if (n == 0)
 			continue;
 
-		/* Wade through all peers, handle any data to service */
-		bool looping = true;
-		while (looping) {
-			looping = false;
+		/*
+		 * Wade through all peers, handle any data to service. No locking is needed
+		 * here, as the only place were peers can die is the cleanup code above.
+	   */
+		for (map<string, Peer*>::iterator it = peers.begin();
+				 it != peers.end(); it++) {
+			int fd = (*it).second->getFD();
+			if (!FD_ISSET(fd, &fds))
+				continue;
+			Peer* p = (*it).second;
 
 			/*
-			 * The reason for this nested loop is, that calling peers.erase()
-			 * will invalidate all iterators for peers. However, if a connection
-		 	 * was lost, other connections may need servicing so we must restart
-	 	 	 * the loop.
+			 * There is data here.
 			 */
-			for (map<string, Peer*>::iterator it = peers.begin();
-					 it != peers.end(); it++) {
-				int fd = (*it).second->getFD();
-				if (!FD_ISSET(fd, &fds))
-					continue;
+			uint8_t buf[65536 /* XXX */];
+			ssize_t len = ::recv(fd, buf, sizeof(buf), 0);
+			if (len <= 0) {
+				/* socket lost */
+				cerr << "connection lost" << endl;
+				p->shutdown();
+				continue;
+			}
 
-				/*
-				 * There is data here.
-				 */
-				uint8_t buf[65536 /* XXX */];
-				ssize_t len = ::recv(fd, buf, sizeof(buf), 0);
-				if (len <= 0) {
-					/* socket lost */
-					Peer* p = (*it).second;
-					cerr << "connection lost" << endl;
-					overseer->dequeuePeer(p);
-					LOCK(peers);
-					peers.erase(it);
-					UNLOCK(peers);
-					delete p;
-					looping = true;
-					break;
-				}
-
-				/* Hand the data off to the application */
-				if ((*it).second->receive(buf, len) == true) {
-					/*
-					* Need to server the connection - we decide to nuke the connection, and
-					* leave the dirty work to the destructor.
-					*/
-					LOCK(peers);
-					peers.erase(it);
-					UNLOCK(peers);
-					delete (*it).second;
-					looping = true;
-					break;
-				}
+			/* Hand the data off to the application */
+			if (p->receive(buf, len) == true) {
+				/* Need to sever the connection */
+				p->shutdown();
+				continue;
 			}
 		}
 	}
@@ -962,6 +962,8 @@ Torrent::callbackPeerGone(Peer* p)
 	 * Deregister any requested pieces by this peer. This is safe to call without
 	 * locking since the select(2) call notifies us of any changes and thus,
 	 * nothing can change while we are nuking requests...
+	 *
+	 * Note that this will be called with peers locked anyway!
 	 */
 	bool unregisteredPieces = false;
 	for (unsigned int i = 0; i < requestedPiece.size(); i++) {
@@ -970,6 +972,9 @@ Torrent::callbackPeerGone(Peer* p)
     		requestedPiece[i] = NULL;
 		unregisteredPieces = true;
 	}
+
+	/* Get rid of any pieces being uploaded to this peer */
+	overseer->dequeuePeer(p);
 
 	if (!unregisteredPieces)
 		return;
@@ -1161,13 +1166,10 @@ Torrent::handleUnchokingAlgorithm()
 	}
 	UNLOCK(peers);
 
-	printf("choking algo DONE, to choke: %u, to unchoke: %u\n",
-		(int)newChokes.size(),
-		(int)newUnchokes.size());
-
 	for (vector<Peer*>::iterator it = newChokes.begin();
 	     it != newChokes.end(); it++)
 		(*it)->choke();
+
 	for (vector<Peer*>::iterator it = newUnchokes.begin();
 	     it != newUnchokes.end(); it++){
 		/* Only unchoke if the peer was choked */
@@ -1221,19 +1223,14 @@ Torrent::processCurrentPeers()
 {
 	LOCK(data); LOCK(peers);
 
-	map<string, Peer*>::iterator it = peers.begin();
-	while (it != peers.end()) {
+	for (map<string, Peer*>::iterator it = peers.begin();
+	     it != peers.end(); it++) {
 		Peer* p = (*it).second;
 
 		if (complete && p->isSeeder()) {
-			/* XXX ditch peer */
-			printf("ditched seeder\n");
-			//delete p; /* XXX unsafe */
-			peers.erase(it);
-			it = peers.begin();
+			p->shutdown();
 			continue;
 		}
-		it++;
 
 		bool haveStuff = false;
 		for (unsigned int i = 0; i < numPieces; i++)
@@ -1243,7 +1240,6 @@ Torrent::processCurrentPeers()
 			}
 
 		if (!haveStuff) {
-			printf("peer: revoking interest!\n");
 			p->revokeInterest();
 		}
 	}

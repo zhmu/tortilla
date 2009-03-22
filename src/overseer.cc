@@ -47,12 +47,6 @@ Overseer::~Overseer()
 {
 	terminating = true;
 
-	/*
-	 * Remove the uploader first; we don't want it to die because all its peers
-	 * are dying
-	 */
-	delete uploader;
-
 	/* Remove all helper threads */
 	pthread_join(thread_bandwidth_monitor, NULL);
 	pthread_join(thread_listener, NULL);
@@ -65,6 +59,9 @@ Overseer::~Overseer()
 		delete it->second;
 		torrents.erase(it);
 	}
+
+	delete uploader;
+
 	pthread_mutex_destroy(&mtx_torrents);
 }
 

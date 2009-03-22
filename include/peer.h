@@ -128,6 +128,12 @@ public:
 	//! \brief Check if the peer has all pieces
 	bool isSeeder();
 
+	//! \brief Request the peer to shutdown
+	void shutdown();
+
+	//! \brief Are we terminating?
+	bool isShuttingDown() { return terminating; }
+
 	void dump();
 
 protected:
@@ -249,6 +255,9 @@ private:
 
 	//! \brief Total number of pieces this peer has
 	unsigned int numPeerPieces;
+
+	//! \brief Is this peer terminating?
+	bool terminating;
 };
 
 #endif /* __PEER_H__ */
