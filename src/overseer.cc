@@ -162,12 +162,18 @@ Overseer::listenerThread()
 		 */
 		uint32_t handshake_len = 49 + strlen(PEER_PSTR);
 		uint8_t* handshake = new uint8_t[handshake_len];
-		if (::read(fd, handshake, handshake_len) != handshake_len) {
-			/* Ugh, not complete... XXX now what? */
-			cerr << "got incomplete handshake from peer, dropping!" << endl;
-			delete[] handshake;
-			delete c;
-			continue;
+
+		uint32_t left = handshake_len, got = 0;
+		while (left > 0) {
+			ssize_t l = ::read(fd, (handshake + got), left);
+			if (l < 0) {
+				/* Ugh, not complete... XXX now what? */
+				cerr << "got incomplete handshake from peer, dropping!" << endl;
+				delete[] handshake;
+				delete c;
+				continue;
+			}
+			left -= l;
 		}
 
 		/* So, we have a handshake; validate it */
