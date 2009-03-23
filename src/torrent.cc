@@ -33,7 +33,7 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 	overseer = o; downloaded = 0; uploaded = 0; left = 0;
 	haveThread = false; terminating = false; complete = false;
 	lastChokingAlgorithm = 0; unchokingRound = 0;
-	optimisticUnchokedPeer = NULL;
+	optimisticUnchokedPeer = NULL; tracker_key = "";
 
 	pthread_mutex_init(&mtx_peers, NULL);
 	pthread_mutex_init(&mtx_data, NULL);
@@ -310,6 +310,8 @@ Torrent::contactTracker(std::string event)
 	m["uploaded"] = convertInteger(uploaded);
 	m["left"] = convertInteger(left);
 	m["port"] = convertInteger(overseer->getListeningPort());
+	if (tracker_key != "")
+		m["key"] = tracker_key;
 	UNLOCK(data);
 	/* If we are a seeder, we care not about any new peers XXX small race here */
 	if (complete) {
@@ -363,6 +365,9 @@ Torrent::handleTracker(string event)
 		tracker_min_interval = msMinInterval->getInteger();
 	else
 		tracker_min_interval = 0;
+	MetaString* msKey = dynamic_cast<MetaString*>((*md->getDictionary())["key"]);
+	if (msKey != NULL)
+		tracker_key = msKey->getString();
 
 	MetaList* peerslist = dynamic_cast<MetaList*>((*md->getDictionary())["peers"]);
 	if (peerslist != NULL) {

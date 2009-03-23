@@ -361,6 +361,9 @@ private:
 
 	//! \brief Algorithm's 'optimistic unchoked peer'
 	Peer* optimisticUnchokedPeer;
+
+	//! \brief Key presented by the tracker
+	std::string tracker_key;
 };
 
 #endif /* __TORRENT_H__ */
