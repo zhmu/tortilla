@@ -4,8 +4,11 @@
 #include <unistd.h>
 #include "overseer.h"
 #include "peer.h"
+#include "tracer.h"
 
 using namespace std;
+
+extern std::string formatHex(const uint8_t* hex, unsigned int len);
 
 #define OVERSEER_THREAD(x) \
 void* \
@@ -120,8 +123,6 @@ Overseer::bandwidthThread()
 void
 Overseer::listenerThread()
 {
-	fd_set fds;
-
 	while (!terminating) {
 		/*
 		 * Wait for at most second for a request; this means we stall at most
@@ -130,6 +131,7 @@ Overseer::listenerThread()
 		struct timeval tv;
 		tv.tv_sec = 1; tv.tv_usec = 0;
 
+		fd_set fds;
 		int fd = incoming->getFD();
 		FD_ZERO(&fds);
 		FD_SET(fd, &fds);
@@ -144,69 +146,9 @@ Overseer::listenerThread()
 		 * 5 seconds seems reasonable.
 		 */
 		Connection* c = incoming->acceptConnection();
-		tv.tv_sec = 5; tv.tv_usec = 0;
-		fd = c->getFD();
-		FD_ZERO(&fds);
-		FD_SET(fd, &fds);
-		if (select(fd + 1, &fds, NULL, NULL, &tv) == 0 || !FD_ISSET(fd, &fds)) {
-			/* No data! So sad... */
-			delete c;
-			continue;
-		}
+		TRACE(NETWORK, "accepted: connection=%p, fd=%u", c, c->getFD());
 
-		/*
-		 * Attempt to grab the handshake in one go. XXX this will break if there
-		 * ever exists protocol 2.0...
-	 	 *
-	 	 * XXX is this really the right place to do this?
-		 */
-		uint32_t handshake_len = 49 + strlen(PEER_PSTR);
-		uint8_t* handshake = new uint8_t[handshake_len];
-
-		uint32_t left = handshake_len, got = 0;
-		while (left > 0) {
-			ssize_t l = ::read(fd, (handshake + got), left);
-			if (l < 0) {
-				/* Ugh, not complete... XXX now what? */
-				cerr << "got incomplete handshake from peer, dropping!" << endl;
-				delete[] handshake;
-				delete c;
-				continue;
-			}
-			left -= l;
-		}
-
-		/* So, we have a handshake; validate it */
-		if (handshake[0] != strlen(PEER_PSTR) ||
-			  memcmp((handshake + 1), PEER_PSTR, strlen(PEER_PSTR))) {
-			cerr << "got bad protocol version, dropping!" << endl;
-			delete[] handshake;
-			delete c;
-			continue;
-		}
-
-		/* Grab all values from the handshake and throw the handshake data away */
-		uint8_t reserved[8];
-		memcpy(reserved, (const char*)(handshake + 1 + strlen(PEER_PSTR)), 8);
-		string info((const char*)(handshake + 1 + strlen(PEER_PSTR) + 8), TORRENT_HASH_LEN);
-		string peer((const char*)(handshake + 1 + strlen(PEER_PSTR) + 8 + TORRENT_HASH_LEN), TORRENT_PEERID_LEN);
-		delete[] handshake;
-
-		/* Find the torrent that belongs to this info hash */
-		pthread_mutex_lock(&mtx_torrents);
-		Torrent* t = NULL;
-		map<string, Torrent*>::iterator it = torrents.find(info);
-		if (it != torrents.end())
-			t = it->second;
-		pthread_mutex_unlock(&mtx_torrents);
-		if (t == NULL) {
-			cerr << "got connection for unknown info hash, dropping!" << endl;
-			delete c;
-			continue;
-		}
-
-		/* We accept! We have no choice! */
-		t->addIncomingPeer(c, peer, reserved);
+		handleIncomingConnection(c);
 	}
 }
 
@@ -289,6 +231,95 @@ Overseer::heartbeatThread()
 		}
 		pthread_mutex_unlock(&mtx_torrents);
 	}
+}
+
+void
+Overseer::handleIncomingConnection(Connection* c)
+{
+	fd_set fds;
+	struct timeval tv;
+	int fd = c->getFD();
+
+	tv.tv_sec = 5; tv.tv_usec = 0;
+	FD_ZERO(&fds);
+	FD_SET(fd, &fds);
+	if (select(fd + 1, &fds, NULL, NULL, &tv) <= 0 || !FD_ISSET(fd, &fds)) {
+		/* No data! So sad... */
+		TRACE(NETWORK, "timeout waiting for handshake: connection=%p", c);
+		delete c;
+		return;
+	}
+
+	/*
+	 * Attempt to grab the handshake in one go. XXX this will break if there
+	 * ever exists protocol 2.0...
+	 *
+	 * XXX is this really the right place to do this?
+	 */
+	uint8_t handshake[2000 /* XXX */];
+
+	size_t left = 68; /* XXX */
+	size_t got = 0;
+
+	char* ptr = (char*)handshake;
+	while (left > 0) {
+		TRACE(NETWORK, "reading handshake: connection=%p, fd=%u, got=%u,left=%u", c, fd, got, left);
+		ssize_t l = ::read(fd, ptr, 1);
+		TRACE(NETWORK, "reading handshake: l=%i", l);
+		if (l <= 0) {
+			/* Ugh, not complete... XXX now what? */
+		perror("read");
+			cerr << "got incomplete handshake from peer, dropping!" << endl;
+			delete c;
+			return;
+		}
+		ptr += l; got += l; left -= l;
+	}
+
+	char msg[1024];
+	sprintf(msg, "got handshake: connection=%p, got=%lu, left=%lu, data=", c, got, left);
+	for(unsigned int z = 0; z < got; z++) {
+		char tmp[32];
+		sprintf(tmp , " %02x(%c)", handshake[z], handshake[z]);
+		strcat(msg, tmp);
+	}
+	TRACE(NETWORK, msg);
+	
+	/* So, we have a handshake; validate it */
+	if (handshake[0] != strlen(PEER_PSTR) ||
+			memcmp((handshake + 1), PEER_PSTR, strlen(PEER_PSTR))) {
+		TRACE(NETWORK, "got bad protocol version, dropping!");
+		delete c;
+		return;
+	}
+
+	/* Grab all values from the handshake and throw the handshake data away */
+	uint8_t reserved[8];
+	memcpy(reserved, (const char*)(handshake + 1 + strlen(PEER_PSTR)), 8);
+	string info((const char*)(handshake + 1 + strlen(PEER_PSTR) + 8), TORRENT_HASH_LEN);
+	string peer((const char*)(handshake + 1 + strlen(PEER_PSTR) + 8 + TORRENT_HASH_LEN), TORRENT_PEERID_LEN);
+
+	string sInfo = formatHex((uint8_t*)info.c_str(), TORRENT_HASH_LEN);
+	string sPeer = formatHex((uint8_t*)peer.c_str(), TORRENT_PEERID_LEN);
+	TRACE(NETWORK, "got handshake: infohash='%s',peer='%s'", sInfo.c_str(), sPeer.c_str());
+
+	/* Find the torrent that belongs to this info hash */
+	pthread_mutex_lock(&mtx_torrents);
+	Torrent* t = NULL;
+	map<string, Torrent*>::iterator it = torrents.find(info);
+	if (it != torrents.end())
+		t = it->second;
+	pthread_mutex_unlock(&mtx_torrents);
+	if (t == NULL) {
+		TRACE(TORRENT, "connection %p: peer '%s' requests unknown info hash '%s', dropping", c, sPeer.c_str(), sInfo.c_str());
+		delete c;
+		return;
+	}
+
+	/* We accept! We have no choice! */
+	TRACE(NETWORK, "accepted peer id '%s' (%p) for torrent hash '%s' (%p)",
+	 sPeer.c_str(), c, sInfo.c_str(), t);
+	t->addIncomingPeer(c, peer, reserved);
 }
 
 /* vim:set ts=2 sw=2: */

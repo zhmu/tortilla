@@ -69,6 +69,9 @@ protected:
 	//! \brief Dequeues all requests for a peer
 	void dequeuePeer(Peer* p);
 
+	//! \brief Handles a new incoming socket
+	void handleIncomingConnection(Connection* c);
+
 private:
 	//! \brief Info hash to torrent mappings
 	std::map<std::string, Torrent*> torrents;
