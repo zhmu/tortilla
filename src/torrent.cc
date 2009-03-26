@@ -1006,14 +1006,12 @@ Torrent::getPeerID()
 }
 
 void
-Torrent::addIncomingPeer(Connection* c, std::string peerid, uint8_t* reserved)
+Torrent::addPeer(Peer* p)
 {
-	/* XXX do something with the reserved bytes */
-
-	Peer* p = new Peer(this, peerid, c);
+	assert(p->getPeerID().size() == TORRENT_PEERID_LEN);
 
 	LOCK(peers);
-	peers[peerid] = p;
+	peers[p->getPeerID()] = p;
 	UNLOCK(peers);
 }
 

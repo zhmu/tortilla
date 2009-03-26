@@ -97,12 +97,10 @@ public:
 	/*! \brief Retrieve the torrent's peer ID */
 	const uint8_t* getPeerID();
 
-	/*! \brief Add an incoming connection to us as peer
-	 *  \param c Connection the peer is using
-	 *  \param peerid Peer ID
-	 *  \param reserved Reserved features bytes
+	/*! \brief Add an peer to us
+	 *  \param p Peer
 	 */
-	void addIncomingPeer(Connection* c, std::string peerid, uint8_t* reserved);
+	void addPeer(Peer* p);
 
 	//! \brief Is this torrent currently hashing?
 	bool isHashing();
