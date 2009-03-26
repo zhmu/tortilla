@@ -38,7 +38,7 @@ formatNumber(uint64_t n) {
 	FORMAT_NUMBER(n, 1024 * 1024,        "MB");
 	FORMAT_NUMBER(n, 1024,               "KB");
 
-	snprintf(tmp, sizeof(tmp), "%lu bytes", n);
+	snprintf(tmp, sizeof(tmp), "%llu bytes", (unsigned long long)n);
 	return string(tmp);
 }
 
