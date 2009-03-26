@@ -100,4 +100,22 @@ Connection::~Connection()
 	close(fd);
 }
 
+size_t
+Connection::read(void* buf, size_t len, bool block)
+{
+	if (!block)
+		return ::read(fd, buf, len);
+
+	/* Keep reading until we fill the buffer */
+	char* ptr = (char*)buf;
+	size_t got = 0;
+	while (got < len) {
+		ssize_t l = ::read(fd, ptr, len - got);
+		if (l <= 0)
+			return -1;
+		ptr += l; got += l;
+	}
+	return got;
+}
+
 /* vim:set ts=2 sw=2: */
