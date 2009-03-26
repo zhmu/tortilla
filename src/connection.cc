@@ -53,6 +53,10 @@ Connection::Connection(uint16_t port)
 	if (fd < 0)
 		throw ConnectionException("unable create socket");
 
+	unsigned int i = 1;
+	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &i, sizeof(i)) < 0)
+		throw ConnectionException("can't set reuseaddr socket options");
+
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(port);
@@ -60,7 +64,7 @@ Connection::Connection(uint16_t port)
 		throw ConnectionException("bind(): " + string(strerror(errno)));
 
 	if (listen(fd, 5) < 0)
-		throw ConnectionException("accept(): " + string(strerror(errno)));
+		throw ConnectionException("listen(): " + string(strerror(errno)));
 }
 
 Connection::Connection(int s, struct sockaddr* soa, socklen_t slen)
