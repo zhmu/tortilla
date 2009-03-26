@@ -728,15 +728,8 @@ Torrent::callbackCompleteHashing(unsigned int piece, bool result)
 	/* At least someone has this piece... we! */
 	pieceCardinality[piece]++;
 	if (piece == numPieces - 1) {
-printf("final piece: left was %llu\n", (unsigned long long) left);
 		left -= getTotalSize() % pieceLen > 0 ?
 		        getTotalSize() % pieceLen : pieceLen;
-printf("final piece: %lu, left=%lu\n",
-		getTotalSize() % pieceLen > 0 ?  getTotalSize() % pieceLen : pieceLen,
-left);
-		UNLOCK(data); /* :( */
-dump();
-		LOCK(data);
 	} else {
 		left -= pieceLen;
 	}
