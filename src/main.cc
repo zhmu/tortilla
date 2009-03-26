@@ -43,6 +43,16 @@ formatNumber(uint64_t n) {
 }
 
 std::string
+formatHex(const uint8_t* hex, unsigned int len)
+{
+	string result = "";
+
+	for (unsigned int i = 0; i < len; i++)
+		for (int j = 1; j >= 0; j--)
+			result += "0123456789abcdef"[(hex[i] >> j * 4) & 0xf];
+	return result;
+}
+
 int
 main(int argc, char** argv)
 {
