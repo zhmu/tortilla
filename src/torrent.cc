@@ -36,6 +36,10 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 	lastChokingAlgorithm = 0; unchokingRound = 0;
 	optimisticUnchokedPeer = NULL; tracker_key = "";
 
+	/* force the thread to contact the tracker */
+	tracker_interval = 0; tracker_min_interval = 0;
+	lastTrackerContact = 0;
+
 	pthread_mutex_init(&mtx_peers, NULL);
 	pthread_mutex_init(&mtx_data, NULL);
 
@@ -435,8 +439,6 @@ Torrent::handleTracker(string event)
 void
 Torrent::go()
 {
-	handleTracker("started");
-
 	while (!terminating) {
 		fd_set fds;
 
@@ -473,8 +475,6 @@ Torrent::go()
 		UNLOCK(peers);
 
 		/*
-		 * Sleep for at most 0.5 seconds while waiting for a response; this is to
-		 * ensure we won't wait too long while shutting down.
 		 *
 		 * Note that, for busy torrents, this 0.5 second loop will never be reached.
 		 */
@@ -494,7 +494,6 @@ Torrent::go()
 			if (!FD_ISSET(fd, &fds))
 				continue;
 			Peer* p = (*it);
-
 			/*
 			 * There is data here.
 			 */
@@ -1067,7 +1066,7 @@ Torrent::heartbeat()
 		interval = tracker_min_interval;
 	if (time(NULL) >= lastTrackerContact + interval) {
 		/* The time is now */
-		handleTracker();
+		handleTracker(lastTrackerContact == 0 ? "started" : "");
 	}
 
 	if (time(NULL) >= lastChokingAlgorithm + TORRENT_DELTA_CHOKING_ALGO) {
