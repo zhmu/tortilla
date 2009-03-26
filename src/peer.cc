@@ -347,7 +347,7 @@ Peer::msgHave(const uint8_t* msg, uint32_t len)
 		return true;
 
 	uint32_t index = READ_UINT32(msg, 0);
-	TRACE(PROTOCOL, "have: peer=%p,piece=%u", this, len);
+	TRACE(PROTOCOL, "have: peer=%p,piece=%u", this, index);
 	if (index >= torrent->getNumPieces())
 		return true;
 
