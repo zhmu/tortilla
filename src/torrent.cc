@@ -18,6 +18,7 @@
 #include "overseer.h"
 #include "peer.h"
 #include "sha1.h"
+#include "tracer.h"
 #include "torrent.h"
 
 using namespace std;
@@ -370,6 +371,9 @@ Torrent::handleTracker(string event)
 		tracker_key = msKey->getString();
 
 	MetaList* peerslist = dynamic_cast<MetaList*>((*md->getDictionary())["peers"]);
+	TRACE(TRACKER, "contacted tracker: torrent=%p, interval=%u, min_interval=%u, key='%s',peers=%u",
+	 this, tracker_interval, tracker_min_interval, tracker_key.c_str(),
+	 peerslist != NULL && peerslist != NULL ? peerslist->getList().size() : 0);
 	if (peerslist != NULL) {
 		/*
 		 * The tracker has provided us with (possibly new) peers. Add them to the
@@ -411,9 +415,9 @@ Torrent::handleTracker(string event)
 				LOCK(peers);
 				peers[msPeerID->getString()] = p;
 				UNLOCK(peers);
-				printf("got peer %p at %s:%lu\n", p, msHost->getString().c_str(), msPort->getInteger());
+				TRACE(NETWORK, "added peer: torrent=%p, peer=%p, address=%s, port=%lu", this, p, msHost->getString().c_str(), msPort->getInteger());
 			} catch (ConnectionException e) {
-				cerr << "skipping peer: "; cerr << e.what(); cerr << endl;
+				TRACE(NETWORK, "skipping peer: torrent=%p, address=%s, port=%lu, error=%s", this, msHost->getString().c_str(), msPort->getInteger(), e.what());
 			}
 		}
 	}
@@ -547,11 +551,13 @@ Torrent::scheduleRequests()
 		 	 * request.
 			 */
 			Peer* p = findPeerForPiece(i);
+			TRACE(TORRENT, "finding peer for piece %i: peer=%p", i, p);
 			assert(p != NULL);
 			if (p->getNumRequests() >= TORRENT_PEER_MAX_REQUESTS)
 				continue;
 			p->claimInterest();
 			p->requestPiece(i);
+			TRACE(TORRENT, "requesting piece from peer %p, piece=%i", p, i);
 			requestedPiece[i] = p;
 		}
 	}
@@ -645,6 +651,7 @@ Torrent::callbackCompleteChunk(Peer* p, unsigned int piece, uint32_t offset, con
 	UNLOCK(data);
 
 	/* Yay! */
+	TRACE(TORRENT, "piece completed: piece=%u", piece);
 	callbackCompletePiece(p, piece);
 }
 
@@ -760,6 +767,7 @@ dump();
 
 	/* Yeah! */
 	complete = true;
+	TRACE(TORRENT, "torrent completed: torrent=%p", this);
 	callbackCompleteTorrent();
 }
 
@@ -1171,9 +1179,13 @@ Torrent::handleUnchokingAlgorithm()
 	}
 	UNLOCK(peers);
 
+	int numChoked = 0, numUnchoked = 0;
+
 	for (vector<Peer*>::iterator it = newChokes.begin();
-	     it != newChokes.end(); it++)
+	     it != newChokes.end(); it++) {
 		(*it)->choke();
+		numChoked++;
+	}
 
 	for (vector<Peer*>::iterator it = newUnchokes.begin();
 	     it != newUnchokes.end(); it++){
@@ -1182,9 +1194,11 @@ Torrent::handleUnchokingAlgorithm()
 		if (!p->isPeerChoked())
 			continue;
 		p->unchoke();
+		numUnchoked++;
 	}
 
 	lastChokingAlgorithm = time(NULL);
+	TRACE(CHOKING, "(un)choke algorithm: choked=%u, unchoked=%u", numChoked, numUnchoked);
 }
 
 Peer*
@@ -1233,6 +1247,7 @@ Torrent::processCurrentPeers()
 		Peer* p = (*it).second;
 
 		if (complete && p->isSeeder()) {
+			TRACE(TORRENT, "kicking seeder peer=%p", p);
 			p->shutdown();
 			continue;
 		}
