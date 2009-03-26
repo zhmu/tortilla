@@ -251,57 +251,24 @@ Overseer::handleIncomingConnection(Connection* c)
 	}
 
 	/*
-	 * Attempt to grab the handshake in one go. XXX this will break if there
-	 * ever exists protocol 2.0...
-	 *
-	 * XXX is this really the right place to do this?
+	 * Attempt to grab part one of the handshake; this consists of everything but
+	 * the peer id.
 	 */
-	uint8_t handshake[2000 /* XXX */];
-
-	size_t left = 68; /* XXX */
-	size_t got = 0;
-
-	char* ptr = (char*)handshake;
-	while (left > 0) {
-		TRACE(NETWORK, "reading handshake: connection=%p, fd=%u, got=%u,left=%u", c, fd, got, left);
-		ssize_t l = ::read(fd, ptr, 1);
-		TRACE(NETWORK, "reading handshake: l=%i", l);
-		if (l <= 0) {
-			/* Ugh, not complete... XXX now what? */
-		perror("read");
-			cerr << "got incomplete handshake from peer, dropping!" << endl;
-			delete c;
-			return;
-		}
-		ptr += l; got += l; left -= l;
-	}
-
-	char msg[1024];
-	sprintf(msg, "got handshake: connection=%p, got=%lu, left=%lu, data=", c, got, left);
-	for(unsigned int z = 0; z < got; z++) {
-		char tmp[32];
-		sprintf(tmp , " %02x(%c)", handshake[z], handshake[z]);
-		strcat(msg, tmp);
-	}
-	TRACE(NETWORK, msg);
+	uint8_t handshake[1024 /* XXX */];
+	c->read((void*)handshake, 1 + strlen(PEER_PSTR) + 8 + TORRENT_HASH_LEN, true);
+	TRACE(NETWORK, "got handshake (part 1): connection=%p", c);
 	
-	/* So, we have a handshake; validate it */
-	if (handshake[0] != strlen(PEER_PSTR) ||
-			memcmp((handshake + 1), PEER_PSTR, strlen(PEER_PSTR))) {
-		TRACE(NETWORK, "got bad protocol version, dropping!");
-		delete c;
-		return;
-	}
-
-	/* Grab all values from the handshake and throw the handshake data away */
+	/* So, we have part one of the handshake; dissect and validate it */
 	uint8_t reserved[8];
 	memcpy(reserved, (const char*)(handshake + 1 + strlen(PEER_PSTR)), 8);
 	string info((const char*)(handshake + 1 + strlen(PEER_PSTR) + 8), TORRENT_HASH_LEN);
-	string peer((const char*)(handshake + 1 + strlen(PEER_PSTR) + 8 + TORRENT_HASH_LEN), TORRENT_PEERID_LEN);
-
 	string sInfo = formatHex((uint8_t*)info.c_str(), TORRENT_HASH_LEN);
-	string sPeer = formatHex((uint8_t*)peer.c_str(), TORRENT_PEERID_LEN);
-	TRACE(NETWORK, "got handshake: infohash='%s',peer='%s'", sInfo.c_str(), sPeer.c_str());
+	if (handshake[0] != strlen(PEER_PSTR) ||
+			memcmp((handshake + 1), PEER_PSTR, strlen(PEER_PSTR))) {
+		TRACE(NETWORK, "got bad protocol version from connection=%p, dropping!", c);
+		delete c;
+		return;
+	}
 
 	/* Find the torrent that belongs to this info hash */
 	pthread_mutex_lock(&mtx_torrents);
@@ -311,15 +278,34 @@ Overseer::handleIncomingConnection(Connection* c)
 		t = it->second;
 	pthread_mutex_unlock(&mtx_torrents);
 	if (t == NULL) {
-		TRACE(TORRENT, "connection %p: peer '%s' requests unknown info hash '%s', dropping", c, sPeer.c_str(), sInfo.c_str());
+		TRACE(TORRENT, "connection %p: peer requests unknown info hash '%s', dropping", c, sInfo.c_str());
 		delete c;
 		return;
 	}
 
+	/*
+	 * OK, we have a handshake and we know the torrent. This means we can
+	 * accept the torrent, which we hereby do. Due to possible NAT
+	 * checking, it may be that we won't get the peer ID until after we
+	 * send our own handshake (the Peer constructor does this!) so do this and
+	 * then grab the peer ID (Why is this implemented this way?)
+	 */
+	Peer* p = new Peer(t, c);
+
+	/*
+	 * We sent our stuff; wait for the final 20 bytes indicating the torrent's peer ID.
+	 */
+	c->read((void*)handshake, TORRENT_PEERID_LEN);
+	TRACE(NETWORK, "got handshake (part 2): connection=%p", p);
+	string peer((const char*)(handshake), TORRENT_PEERID_LEN);
+	string sPeer = formatHex((uint8_t*)peer.c_str(), TORRENT_PEERID_LEN);
+	p->setPeerID(peer);
+	TRACE(NETWORK, "handshake completed: connection=%p,peer=%p, infohash='%s',peerid='%s'", c, p, sInfo.c_str(), sPeer.c_str());
+
 	/* We accept! We have no choice! */
+	t->addPeer(p);
 	TRACE(NETWORK, "accepted peer id '%s' (%p) for torrent hash '%s' (%p)",
 	 sPeer.c_str(), c, sInfo.c_str(), t);
-	t->addIncomingPeer(c, peer, reserved);
 }
 
 /* vim:set ts=2 sw=2: */
