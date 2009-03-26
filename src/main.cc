@@ -9,11 +9,13 @@
 #include "metadata.h"
 #include "sha1.h"
 #include "overseer.h"
+#include "tracer.h"
 #include "torrent.h"
 
 using namespace std;
 
 Overseer* overseer = NULL;
+Tracer* tracer = NULL;	
 
 void
 sigint(int s)
@@ -40,10 +42,12 @@ formatNumber(uint64_t n) {
 	return string(tmp);
 }
 
+std::string
 int
 main(int argc, char** argv)
 {
 	srand(time(NULL));
+	tracer = new Tracer();
 
 	if (argc != 2) {
 		fprintf(stderr, "usage: tortilla file.torrent\n");
@@ -89,6 +93,7 @@ main(int argc, char** argv)
 	overseer->stop();
 
 	delete overseer;
+	delete tracer;
 	return 0;
 }
 

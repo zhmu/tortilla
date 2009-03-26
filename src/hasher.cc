@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <string.h>
 #include "hasher.h"
+#include "tracer.h"
 #include "sha1.h"
 
 using namespace std;
@@ -59,6 +60,7 @@ Hasher::run() {
 			unsigned int piecenum = hashQueue.front();
 			hashQueue.pop();
 			pthread_mutex_unlock(&mtx);
+			TRACE(HASHER, "hashing started: piece=%u", piecenum);
 
 			/*
 			 * While hashing, let go of the mutex; we'd be holding
@@ -83,6 +85,7 @@ Hasher::run() {
 				todo -= chunk_len;
 			}
 			bool ok = memcmp(h.getHash(), torrent->getPieceHash(piecenum), TORRENT_HASH_LEN) == 0;
+			TRACE(HASHER, "hashing completed: piece=%u,ok=%u", piecenum, ok ? 1 : 0);
 			torrent->callbackCompleteHashing(piecenum, ok);
 
 			pthread_mutex_lock(&mtx);

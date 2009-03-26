@@ -3,6 +3,7 @@
 #include "connection.h"
 #include "overseer.h"
 #include "peer.h"
+#include "tracer.h"
 #include "torrent.h"
 
 using namespace std;
@@ -88,7 +89,7 @@ Peer::receive(const uint8_t* data, uint32_t data_len)
 	 * better give up.
 	 */
 	if (((PEER_BUFFER_SIZE - command_buffer_writepos) + command_buffer_readpos) < data_len) {
-		cerr << "out of space to store data received from peer, closing connection" << endl;
+		TRACE(NETWORK, "out of space to store data received from peer=%p, closing connection", this);
 		return true;
 	}
 
@@ -143,6 +144,7 @@ Peer::receive(const uint8_t* data, uint32_t data_len)
 			command_buffer_readpos = (command_buffer_readpos + handshake_len) % PEER_BUFFER_SIZE;
 			data_left -= handshake_len;
 		}
+TRACE(NETWORK, "read_pos=%u,write_pos=%u,data_left=%u", command_buffer_readpos, command_buffer_writepos, data_left);
 
 		/* Only try something if we have at least the length */
 		if (data_left < 4)
@@ -168,6 +170,10 @@ Peer::receive(const uint8_t* data, uint32_t data_len)
 		if (len == 0) {
 			/* Keepalive; skip the length bytes and continue */
 			command_buffer_readpos = (command_buffer_readpos + 4) % PEER_BUFFER_SIZE;
+			if (command_buffer_readpos == command_buffer_readpos) {
+				command_buffer_readpos = 0; command_buffer_writepos = 0;
+				break;
+			}
 			continue;
 		}
 
@@ -295,19 +301,17 @@ Peer::receive(const uint8_t* data, uint32_t data_len)
 bool
 Peer::msgChoke()
 {
+	TRACE(PROTOCOL, "choke: peer=%p", this);
 	am_choked = true;
 
-#if 1
-	/* XXX why are we choked?? */
-	dump();
-	torrent->dump();
-#endif
 	return false;
 }
 
 bool
 Peer::msgUnchoke()
 {
+	TRACE(PROTOCOL, "unchoke: peer=%p", this);
+
 	/*
 	 * We are unchoked! This means we can request pieces from this peer; so send
 	 * the first few.
@@ -320,7 +324,7 @@ Peer::msgUnchoke()
 bool
 Peer::msgInterested()
 {
-	cout << peerID + ": " + "interested" << endl;
+	TRACE(PROTOCOL, "interested: peer=%p", this);
 
 	peer_interested = true;
 	torrent->callbackPeerChangedInterest(this);
@@ -330,7 +334,7 @@ Peer::msgInterested()
 bool
 Peer::msgNotInterested()
 {
-	cout << peerID + ": " + "notinterested" << endl;
+	TRACE(PROTOCOL, "notinterested: peer=%p", this);
 
 	peer_interested = false;
 	torrent->callbackPeerChangedInterest(this);
@@ -344,6 +348,7 @@ Peer::msgHave(const uint8_t* msg, uint32_t len)
 		return true;
 
 	uint32_t index = READ_UINT32(msg, 0);
+	TRACE(PROTOCOL, "have: peer=%p,piece=%u", this, len);
 	if (index >= torrent->getNumPieces())
 		return true;
 
@@ -386,6 +391,7 @@ Peer::msgBitfield(const uint8_t* msg, uint32_t len)
 			numPeerPieces++;
 		}
 	}
+	TRACE(PROTOCOL, "bitfield: peer=%p, pieces=%u", this, numPeerPieces);
 
 	/* Inform the torrent class of all added pieces */
 	torrent->callbackPiecesAdded(this, newPieces);
@@ -401,7 +407,8 @@ Peer::msgRequest(const uint8_t* msg, uint32_t len)
 	uint32_t index = READ_UINT32(msg, 0);
 	uint32_t begin = READ_UINT32(msg, 4);
 	uint32_t length = READ_UINT32(msg, 8);
-	assert(length <= 16384);
+	TRACE(PROTOCOL, "request: peer=%p, index=%u, begin=%u, length=%u", this, index, begin, length);
+
 	torrent->queueUploadRequest(this, index, begin, length);
 	return false;
 }
@@ -416,6 +423,7 @@ Peer::msgPiece(const uint8_t* msg, uint32_t len)
 	uint32_t begin = READ_UINT32(msg, 4);
 	const uint8_t* data = (msg + 8);
 	len -= 8;
+	TRACE(PROTOCOL, "piece: peer=%p, index=%u, begin=%u, length=%u", index, index, begin, len);
 
 	if (numOutstandingRequests > 0)
 		numOutstandingRequests--;
@@ -441,16 +449,14 @@ Peer::msgPiece(const uint8_t* msg, uint32_t len)
 bool
 Peer::msgCancel(const uint8_t* msg, uint32_t len)
 {
-	cout << peerID + ": " + "cancel" << endl;
-
 	if (len < 12)
 		return true;
 
 	uint32_t index = READ_UINT32(msg, 0);
 	uint32_t begin = READ_UINT32(msg, 4);
 	uint32_t length = READ_UINT32(msg, 8);
+	TRACE(PROTOCOL, "cancel: peer=%p, index=%u, begin=%u, length=%u", this, index, begin, length);
 	
-	printf("got cancel: index=%u, begin=%u, len=%u\n", index, begin, length);	
 	torrent->dequeueUploadRequest(this, index, begin, length);
 	return false;
 }
@@ -463,6 +469,7 @@ Peer::claimInterest()
 		return;
 
 	sendMessage(PEER_MSGID_INTERESTED, NULL, 0);
+	TRACE(PROTOCOL, "expressed interested in peer %p", this);
 	am_interested = true;
 }
 
@@ -474,6 +481,7 @@ Peer::revokeInterest()
 		return;
 
 	sendMessage(PEER_MSGID_NOTINTERESTED, NULL, 0);
+	TRACE(PROTOCOL, "revoked interested in peer %p", this);
 	am_interested = false;
 }
 
@@ -564,9 +572,9 @@ Peer::sendPieceRequest()
 		WRITE_UINT32(msg, 0, piece);
 		WRITE_UINT32(msg, 4, missingChunk * TORRENT_CHUNK_SIZE);
 		WRITE_UINT32(msg, 8, request_length);
-		assert(request_length <= 16384);
 		torrent->setChunkRequested(piece, missingChunk, true);
 		sendMessage(PEER_MSGID_REQUEST, msg, 12);
+		TRACE(PROTOCOL, "sent request: peer=%p, piece=%u, offset=%u, length=%u", this, piece, missingChunk * TORRENT_CHUNK_SIZE, request_length);
 
 		numOutstandingRequests++;
 	}
@@ -608,6 +616,8 @@ Peer::sendHandshake()
 
 	/* Hi! */
 	send((const uint8_t*)handshake.c_str(), handshake.size());
+	TRACE(PROTOCOL, "sent our handshake: peer=%p, size=%u",
+	 this, handshake.size());
 }
 
 
@@ -638,6 +648,9 @@ Peer::sendBitfield()
 		sendMessage(PEER_MSGID_BITFIELD, bitfield, bitfieldLen);
 	}
 	delete[] bitfield;
+
+	if (numAvailable > 0)
+		TRACE(PROTOCOL, "sent our bitfield: peer=%p, available=%u", this, numAvailable);
 }
 
 void
@@ -650,6 +663,8 @@ Peer::processUploadRequest(UploadRequest* request)
 	sendMessage(PEER_MSGID_PIECE, chunk, request->getLength() + 8);
 	torrent->incrementUploadedBytes(request->getLength());
 	delete[] chunk;
+	TRACE(PROTOCOL, "sent piece: peer=%p, piece=%u, offset=%u, length=%u",
+	 this, request->getPiece(), request->getOffset(), request->getLength());
 }
 
 void
@@ -680,6 +695,7 @@ Peer::unchoke()
 	assert (peer_choked);
 
 	sendMessage(PEER_MSGID_UNCHOKE, NULL, 0);
+	TRACE(PROTOCOL, "sent unchoke");
 	peer_choked = false;
 }
 
@@ -689,6 +705,7 @@ Peer::choke()
 	assert (!peer_choked);
 
 	sendMessage(PEER_MSGID_CHOKE, NULL, 0);
+	TRACE(PROTOCOL, "sent choke");
 	peer_choked = true;
 }
 
@@ -706,6 +723,7 @@ Peer::have(unsigned int piece)
 	uint8_t msg[4];
 	WRITE_UINT32(msg, 0, piece);
 	sendMessage(PEER_MSGID_HAVE, msg, 4);
+	TRACE(PROTOCOL, "sent have: peer=%p, piece=%u", this, piece);
 }
 
 void
