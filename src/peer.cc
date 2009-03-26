@@ -30,7 +30,7 @@ Peer::__init(Torrent* t)
 	peer_choked = true; peer_interested = false; numOutstandingRequests = 0;
 	command_buffer_readpos = 0; command_buffer_writepos = 0;
 	snubbedLeftoverCounter = 0; numPeerPieces = 0;
-	peerID = peerID; terminating = false;
+	peerID = ""; terminating = false;
 
 	/* Assume the peer doesn't have any pieces */
 	havePiece.reserve(t->getNumPieces());
@@ -41,7 +41,7 @@ Peer::__init(Torrent* t)
 
 Peer::Peer(Torrent* t, std::string peer_id, std::string peer_host, uint16_t peer_port)
 {
-	__init(t); /* ugly */
+	__init(t); peerID = peer_id; /* ugly */
 	connection = new Connection(peer_host, peer_port);
 
 	/* Send our handshake and wait for the other party to complete the procedure */
@@ -50,7 +50,7 @@ Peer::Peer(Torrent* t, std::string peer_id, std::string peer_host, uint16_t peer
 	sendBitfield();
 }
 
-Peer::Peer(Torrent* t, std::string peer_id, Connection* c)
+Peer::Peer(Torrent* t, Connection* c)
 {
 	__init(t); /* ugly */
 	connection = c;
@@ -144,7 +144,6 @@ Peer::receive(const uint8_t* data, uint32_t data_len)
 			command_buffer_readpos = (command_buffer_readpos + handshake_len) % PEER_BUFFER_SIZE;
 			data_left -= handshake_len;
 		}
-TRACE(NETWORK, "read_pos=%u,write_pos=%u,data_left=%u", command_buffer_readpos, command_buffer_writepos, data_left);
 
 		/* Only try something if we have at least the length */
 		if (data_left < 4)
@@ -730,6 +729,13 @@ void
 Peer::shutdown()
 {
 	terminating = true;
+}
+
+void
+Peer::setPeerID(std::string peer_id)
+{
+	assert(peer_id.size() == TORRENT_PEERID_LEN);
+	peerID = peer_id;
 }
 
 #undef WRITE_UINT32

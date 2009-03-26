@@ -48,10 +48,9 @@ public:
 
 	/*! \brief Constructs a new peer object for an incoming connection
 	 *  \param t Torrent the peer is connected to
-	 *  \param peer_id Peer ID of the peer
 	 *  \param c Connection used
 	 */
-	Peer(Torrent* t, std::string peer_id, Connection* c);
+	Peer(Torrent* t, Connection* c);
 
 	//! \brief Destructs the peer
 	~Peer();
@@ -69,6 +68,9 @@ public:
 
 	//! \brief How much pieces has this peer requested?
 	unsigned int getNumRequests();
+
+	//! \brief Retrieve the peer ID
+	std::string getPeerID() { return peerID; }
 
 	//! \brief Called if we should express interest in this peer
 	void claimInterest();
@@ -133,6 +135,9 @@ public:
 
 	//! \brief Are we terminating?
 	bool isShuttingDown() { return terminating; }
+
+	//! \brief Set the peer ID
+	void setPeerID(std::string peer_id);
 
 	void dump();
 
