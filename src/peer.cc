@@ -422,7 +422,7 @@ Peer::msgPiece(const uint8_t* msg, uint32_t len)
 	uint32_t begin = READ_UINT32(msg, 4);
 	const uint8_t* data = (msg + 8);
 	len -= 8;
-	TRACE(PROTOCOL, "piece: peer=%p, index=%u, begin=%u, length=%u", index, index, begin, len);
+	TRACE(PROTOCOL, "piece: peer=%p, index=%u, begin=%u, length=%u", this, index, begin, len);
 
 	if (numOutstandingRequests > 0)
 		numOutstandingRequests--;
@@ -694,7 +694,7 @@ Peer::unchoke()
 	assert (peer_choked);
 
 	sendMessage(PEER_MSGID_UNCHOKE, NULL, 0);
-	TRACE(PROTOCOL, "sent unchoke");
+	TRACE(PROTOCOL, "sent unchoke: peer=%p", this);
 	peer_choked = false;
 }
 
@@ -704,7 +704,7 @@ Peer::choke()
 	assert (!peer_choked);
 
 	sendMessage(PEER_MSGID_CHOKE, NULL, 0);
-	TRACE(PROTOCOL, "sent choke");
+	TRACE(PROTOCOL, "sent choke: peer=%p", this);
 	peer_choked = true;
 }
 
