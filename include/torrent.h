@@ -25,6 +25,9 @@
 //! \brief Delta in seconds between running (un)choking algorithm
 #define TORRENT_DELTA_CHOKING_ALGO 10
 
+//! \brief Size of a peer in compact form
+#define TORRENT_COMPACTPEER_SIZE 6
+    
 class Connection;
 class Peer;
 class Overseer;

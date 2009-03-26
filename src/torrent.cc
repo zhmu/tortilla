@@ -433,6 +433,35 @@ Torrent::handleTracker(string event)
 			}
 		}
 	}
+
+	MetaString* peerstring = dynamic_cast<MetaString*>((*md->getDictionary())["peers"]);
+	if (peerstring != NULL && peerstring->getString().size() % TORRENT_COMPACTPEER_SIZE == 0) {
+		/* We got a compact peer list! */
+		TRACE(TRACKER, "contacted tracker: torrent=%p, compact peers=%u",
+		 this, peerstring->getString().size() / TORRENT_COMPACTPEER_SIZE);
+		for (unsigned int i = 0; i < peerstring->getString().size() / TORRENT_COMPACTPEER_SIZE; i++) {
+			char ip[32];
+			uint16_t port;
+
+			/* XXX this makes eyes bleed */
+			const char* ptr = (peerstring->getString().c_str() + i * TORRENT_COMPACTPEER_SIZE);
+			snprintf(ip,   sizeof(ip),   "%u.%u.%u.%u",
+			 (uint8_t)ptr[0], (uint8_t)ptr[1],
+			 (uint8_t)ptr[2], (uint8_t)ptr[3]);
+			port = ((uint16_t)ptr[4] << 8) | (uint16_t)ptr[5];
+
+			try {
+				Peer* p = new Peer(this, string(""), string(ip), port);
+				LOCK(peers);
+				peers.push_back(p);
+				UNLOCK(peers);
+				TRACE(NETWORK, "added compact peer: torrent=%p, address=%s, port=%u", this, ip, port);
+			} catch (ConnectionException e) {
+				TRACE(NETWORK, "skipping compact peer: torrent=%p, address=%s, port=%u, error=%s", this, ip, port, e.what());
+			}
+		}
+	}
+
 	delete md;
 }
 
