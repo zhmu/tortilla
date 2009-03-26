@@ -270,11 +270,11 @@ Torrent::~Torrent()
 	 */
 	LOCK(peers);
 	while (true) {
-		map<string, Peer*>::iterator it = peers.begin();
+		vector<Peer*>::iterator it = peers.begin();
 		if (it == peers.end())
 			break;
 		peers.erase(it);
-		delete (*it).second;
+		delete *it;
 	}
 	UNLOCK(peers);
 
@@ -328,9 +328,15 @@ Torrent::contactTracker(std::string event)
 	string result = HTTP::get(announceURL, m);
 
 	/* Parse the result as metadata (which it should be) */
-	stringbuf sb(result);
-	istream is(&sb);
-	Metadata* md = new Metadata(is);
+	Metadata* md;
+	try {
+		stringbuf sb(result);
+		istream is(&sb);
+		md = new Metadata(is);
+	} catch (MetadataException e) {
+		TRACE(TORRENT, "torrent %p: tracker returned garbage '%s'", this, result.c_str());
+		return NULL;
+	}
 
 	/*
 	 * If we got here, the result is valid metadata. However, a failure may have
@@ -392,9 +398,11 @@ Torrent::handleTracker(string event)
 			if (msHost == NULL || msPeerID == NULL || msPort == NULL)
 				continue;
 
+#if 0
 			/* If we already know this peer ID, ignore it */
 			if (peers.find(msPeerID->getString()) != peers.end())
 				continue;
+#endif
 
 			/* Don't connect with ourselves *shrug* */
 			if (!memcmp((const char*)overseer->getPeerID(), msPeerID->getString().c_str(), TORRENT_PEERID_LEN))
@@ -413,7 +421,7 @@ Torrent::handleTracker(string event)
 			try {
 				Peer* p = new Peer(this, msPeerID->getString(), msHost->getString(), msPort->getInteger());
 				LOCK(peers);
-				peers[msPeerID->getString()] = p;
+				peers.push_back(p);
 				UNLOCK(peers);
 				TRACE(NETWORK, "added peer: torrent=%p, peer=%p, address=%s, port=%lu", this, p, msHost->getString().c_str(), msPort->getInteger());
 			} catch (ConnectionException e) {
@@ -421,7 +429,6 @@ Torrent::handleTracker(string event)
 			}
 		}
 	}
-
 	delete md;
 }
 
@@ -437,9 +444,9 @@ Torrent::go()
 	 	 * Gracefully handle any peers that are going away.
 		  */
 		LOCK(peers);
-		map<string, Peer*>::iterator peerit = peers.begin();
+		vector<Peer*>::iterator peerit = peers.begin();
 		while (peerit != peers.end()) {
-			Peer* p = (*peerit).second;
+			Peer* p = *peerit;
 			if (!p->isShuttingDown()) {
 				peerit++;
 				continue;
@@ -457,9 +464,9 @@ Torrent::go()
 		int maxfd = -1;
 		FD_ZERO(&fds);
 		LOCK(peers);
-		for (map<string, Peer*>::iterator it = peers.begin();
+		for (vector<Peer*>::iterator it = peers.begin();
 		     it != peers.end(); it++) {
-			int fd = (*it).second->getFD();
+			int fd = (*it)->getFD();
 			if (maxfd < fd) maxfd = fd;
 			FD_SET(fd, &fds);
 		}
@@ -481,12 +488,12 @@ Torrent::go()
 		 * Wade through all peers, handle any data to service. No locking is needed
 		 * here, as the only place were peers can die is the cleanup code above.
 	   */
-		for (map<string, Peer*>::iterator it = peers.begin();
+		for (vector<Peer*>::iterator it = peers.begin();
 				 it != peers.end(); it++) {
-			int fd = (*it).second->getFD();
+			int fd = (*it)->getFD();
 			if (!FD_ISSET(fd, &fds))
 				continue;
-			Peer* p = (*it).second;
+			Peer* p = (*it);
 
 			/*
 			 * There is data here.
@@ -738,9 +745,9 @@ Torrent::callbackCompleteHashing(unsigned int piece, bool result)
 	 * Inform our peers that we have this piece.
 	 */
 	LOCK(peers);
-	for (map<string, Peer*>::iterator it = peers.begin();
+	for (vector<Peer*>::iterator it = peers.begin();
 	     it != peers.end(); it++) {
-		Peer* p = (*it).second;
+		Peer* p = (*it);
 		p->have(piece);
 	}
 	UNLOCK(peers);
@@ -917,9 +924,9 @@ Torrent::updateBandwidth()
 	/* XXX we use this to update the snubbed status too! */
 
 	rx_rate = 0; tx_rate = 0;
-	for (map<string, Peer*>::iterator it = peers.begin();
+	for (vector<Peer*>::iterator it = peers.begin();
 	     it != peers.end(); it++) {
-		Peer* p = (*it).second;
+		Peer* p = (*it);
 		rx_rate += p->getRxRate(); tx_rate += p->getTxRate();
 
 		p->timer();
@@ -948,12 +955,12 @@ Torrent::findPeerForPiece(uint32_t piece)
 	Peer* p = NULL;
 	LOCK(peers);
 	unsigned int peer_num = rand() % pieceCardinality[piece];
-	for (std::map<std::string, Peer*>::iterator it = peers.begin();
+	for (vector<Peer*>::iterator it = peers.begin();
 	     it != peers.end(); it++) {
-		if (!it->second->hasPiece(piece))
+		if (!(*it)->hasPiece(piece))
 			continue;
 		if (peer_num-- == 0) {
-			p = it->second;
+			p = (*it);
 			break;
 		}
 	}
@@ -1004,7 +1011,7 @@ Torrent::addPeer(Peer* p)
 	assert(p->getPeerID().size() == TORRENT_PEERID_LEN);
 
 	LOCK(peers);
-	peers[p->getPeerID()] = p;
+	peers.push_back(p);
 	UNLOCK(peers);
 }
 
@@ -1099,9 +1106,9 @@ Torrent::handleUnchokingAlgorithm()
 	 */
 	LOCK(peers);
 	vector<Peer*> uiPeers;
-	for (map<string, Peer*>::iterator it = peers.begin();
+	for (vector<Peer*>::iterator it = peers.begin();
 	     it != peers.end(); it++) {
-		Peer* p = (*it).second;
+		Peer* p = (*it);
 		if (p->isPeerSnubbed() || !p->isPeerInterested())
 			continue;
 		uiPeers.push_back(p);
@@ -1159,9 +1166,9 @@ Torrent::handleUnchokingAlgorithm()
 	 */
 	LOCK(peers);
 	vector<Peer*> newChokes;
-	for (map<string, Peer*>::iterator it = peers.begin();
+	for (vector<Peer*>::iterator it = peers.begin();
 	     it != peers.end(); it++) {
-		Peer* p = (*it).second;
+		Peer* p = (*it);
 		if (p->isPeerChoked())
 			continue;
 		if (find(newUnchokes.begin(), newUnchokes.end(), p) != newUnchokes.end())
@@ -1199,9 +1206,9 @@ Torrent::pickRandomPeer(int choked, int interested, std::vector<Peer*>& skiplist
 
 	/* Note that this implementation is O(|peers| |skiplist|) */
 	LOCK(peers);
-	for (map<string, Peer*>::iterator it = peers.begin();
+	for (vector<Peer*>::iterator it = peers.begin();
 	     it != peers.end(); it++) {
-		Peer* p = (*it).second;
+		Peer* p = (*it);
 		if (choked >= 0 && p->isPeerChoked() != (choked != 0))
 			continue;
 		if (interested >= 0 && p->isPeerInterested() != (interested != 0))
@@ -1233,9 +1240,9 @@ Torrent::processCurrentPeers()
 {
 	LOCK(data); LOCK(peers);
 
-	for (map<string, Peer*>::iterator it = peers.begin();
+	for (vector<Peer*>::iterator it = peers.begin();
 	     it != peers.end(); it++) {
-		Peer* p = (*it).second;
+		Peer* p = (*it);
 
 		if (complete && p->isSeeder()) {
 			TRACE(TORRENT, "kicking seeder peer=%p", p);

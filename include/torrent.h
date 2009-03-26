@@ -299,12 +299,10 @@ private:
 
 	/*! \brief List of peers
 	 *
-	 *  A map is used as we consider the peer ID to be unique and identify
-	 *  peers using it, which is an O(log n) operation. For other
-	 *  operations, we need the entire list anyway which is O(n), so using
-	 *  a map will work out for us.
+	 *  A peers ID isn't always known, so just use a vector. We bound the
+	 *  upper number of peers anyway.
 	 */
-	std::map<std::string, Peer*> /* [M=peers] */ peers;
+	std::vector<Peer*> /* [M=peers] */ peers;
 
 	//! \brief Hasher thread used to validate chunk integrity
 	Hasher* /* [R] */ hasher;
