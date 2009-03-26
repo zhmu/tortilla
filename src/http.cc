@@ -1,4 +1,5 @@
 #include <curl/curl.h>
+#include <string.h>
 #include "exceptions.h"
 #include "http.h"
 
@@ -30,13 +31,14 @@ HTTP::get(string url, map<string, string> params)
 	string fullurl = url;
 	for (map<string, string>::iterator it = params.begin();
 	       it != params.end(); it++) {
-		char *key, *value;
-		key   = curl_easy_escape(curl, (*it).first.c_str(),  0);
+		char *value;
+		/*
+		 * Note: do not escape the key; this causes issues with several braindead	
+		 * trackers :-/
+		 */
 		value = curl_easy_escape(curl, (*it).second.c_str(), 0);
-		if (key == NULL || value == NULL) {
+		if (value == NULL) {
 			/* Unlikely, yet we'd better check for it */
-			if (key != NULL)   curl_free(key);
-			if (value != NULL) curl_free(value);
 			throw HTTPException("unable to escape parameters");
 		}
 
@@ -45,8 +47,8 @@ HTTP::get(string url, map<string, string> params)
 		 * very first parameter
 		 */
 		fullurl += (fullurl == url) ? "?" : "&";
-		fullurl += key + string("=") + value;
-		curl_free(key); curl_free(value);
+		fullurl += (*it).first + string("=") + value;
+		curl_free(value);
 	}
 
 	string s;
