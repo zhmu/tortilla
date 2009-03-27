@@ -267,9 +267,8 @@ Peer::receive(const uint8_t* data, uint32_t data_len)
 				disconnect = msgCancel(ptr, len);
 				break;
 			default:
-				/* Unknown command, ignore */
-				disconnect = false;
-				assert(0);
+				/* Unknown command, disconnect */
+				disconnect = true;
 				break;
 		}
 
