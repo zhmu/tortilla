@@ -317,6 +317,7 @@ Torrent::contactTracker(std::string event)
 	m["port"] = convertInteger(overseer->getListeningPort());
 	if (tracker_key != "")
 		m["key"] = tracker_key;
+	m["compact"] = "1";
 	UNLOCK(data);
 	/* If we are a seeder, we care not about any new peers XXX small race here */
 	if (complete) {
