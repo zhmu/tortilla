@@ -424,6 +424,7 @@ Torrent::handleTracker(string event)
 				break;
 		
 			try {
+				TRACE(NETWORK, "trying peer: torrent=%p, address=%s, port=%lu", this, msHost->getString().c_str(), msPort->getInteger());
 				Peer* p = new Peer(this, msPeerID->getString(), msHost->getString(), msPort->getInteger());
 				LOCK(peers);
 				peers.push_back(p);
@@ -445,13 +446,14 @@ Torrent::handleTracker(string event)
 			uint16_t port;
 
 			/* XXX this makes eyes bleed */
-			const char* ptr = (peerstring->getString().c_str() + i * TORRENT_COMPACTPEER_SIZE);
+			const uint8_t* ptr = (const uint8_t*)(peerstring->getString().c_str() + i * TORRENT_COMPACTPEER_SIZE);
 			snprintf(ip,   sizeof(ip),   "%u.%u.%u.%u",
 			 (uint8_t)ptr[0], (uint8_t)ptr[1],
 			 (uint8_t)ptr[2], (uint8_t)ptr[3]);
-			port = ((uint16_t)ptr[4] << 8) | (uint16_t)ptr[5];
+			port = (uint16_t)(ptr[4] << 8) | ptr[5];
 
 			try {
+				TRACE(NETWORK, "trying compact peer: torrent=%p, address=%s, port=%u", this, ip, port);
 				Peer* p = new Peer(this, string(""), string(ip), port);
 				LOCK(peers);
 				peers.push_back(p);
