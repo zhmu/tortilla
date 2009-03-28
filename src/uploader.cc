@@ -90,9 +90,10 @@ Uploader::dequeue(Peer* p, uint32_t piece, uint32_t begin, uint32_t len)
 void
 Uploader::process()
 {
-	while(!terminating) {
+	while(true) {
 		pthread_mutex_lock(&mtx_queue);
-		pthread_cond_wait(&cv_queue, &mtx_queue);
+		if (!terminating && requests.empty())
+			pthread_cond_wait(&cv_queue, &mtx_queue);
 		if (terminating)
 			break;
 

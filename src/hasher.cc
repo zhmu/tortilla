@@ -50,10 +50,11 @@ Hasher::addPiece(Torrent* t, unsigned int num)
 
 void
 Hasher::run() {
-	while(!terminating) {
-		/* Wait until some event arrives */
+	while(true) {
+		/* If needed, wait until some event arrives */
 		pthread_mutex_lock(&mtx);
-		pthread_cond_wait(&cv, &mtx);
+		if (!terminating && hashQueue.empty())
+			pthread_cond_wait(&cv, &mtx);
 		if (terminating)
 			break;
 
