@@ -2,6 +2,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <string.h>
 #include <netdb.h>
 #include <iostream>
@@ -28,22 +29,54 @@ Connection::Connection(string host, uint16_t port)
 		throw ConnectionException("getaddrinfo(): " + string(gai_strerror(i)));
 
 	/* We got a list of addresses - try them one by one */
-	struct addrinfo* rp;
+	struct addrinfo* rp; fd = -1;
 	for (rp = result; rp != NULL; rp = rp->ai_next) {
 		fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
 		if (fd < 0)
 			continue;
 
+		/*
+		 * Set the socket to nonblocking; this is used to be able to timeout
+		 * connections.
+		 */
+		int fl = fcntl(fd, F_GETFL, NULL);
+		fl |= O_NONBLOCK;
+		fcntl(fd, F_SETFL, fl);
+
 		if (connect(fd, rp->ai_addr, rp->ai_addrlen) == 0)
 			break;
+		if (errno == EINPROGRESS) {
+			/*
+		 	 * Use select(2) to wait at most 5 seconds for the connection to be
+			 * made.
+			 */
+			fd_set fds;
+			struct timeval tv;
+			FD_ZERO(&fds);
+			FD_SET(fd, &fds);
+			tv.tv_sec = 5; tv.tv_usec = 0;
+			if (select(fd + 1, NULL, &fds, NULL, &tv) > 0) {
+				/* Something happened; but is it for good? */
+				unsigned int err;
+				socklen_t errlen = sizeof(err);
+				if (getsockopt(fd, SOL_SOCKET, SO_ERROR, (void*)&err, &errlen) == 0 && err == 0)
+					/* Socket was acceptable! */
+					break;
+			}
+		}
 
-		close(fd);
+		close(fd); fd = -1;
 	}
 	/* We don't need the address information anymore; just the pointer is enough */
 	freeaddrinfo(result);
 
-	if (rp == NULL)
+	if (fd < 0)
 		throw ConnectionException("unable to connect to " + host + " port " + portstr);
+
+	/* Socket is fine; get rid of the nonblocking mode before we hand it back */
+	int fl = fcntl(fd, F_GETFL, NULL);
+	fl &= ~O_NONBLOCK;
+	fcntl(fd, F_SETFL, fl);
 }
 
 Connection::Connection(uint16_t port)
