@@ -513,6 +513,10 @@ Torrent::go()
 		if (n == 0)
 			continue;
 
+		/* If we are terminating, we don't care about any data as we're leaving */
+		if (terminating)
+			continue;
+
 		/*
 		 * Wade through all peers, handle any data to service. No locking is needed
 		 * here, as the only place were peers can die is the cleanup code above.
@@ -527,7 +531,7 @@ Torrent::go()
 			 * There is data here.
 			 */
 			uint8_t buf[65536 /* XXX */];
-			ssize_t len = ::recv(fd, buf, sizeof(buf), 0);
+			ssize_t len = ::recv(fd, buf, sizeof(buf), MSG_DONTWAIT);
 			if (len <= 0) {
 				/* socket lost */
 				cerr << "connection lost" << endl;
