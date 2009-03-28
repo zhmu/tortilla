@@ -149,6 +149,8 @@ Overseer::listenerThread()
 		 * 5 seconds seems reasonable.
 		 */
 		Connection* c = incoming->acceptConnection();
+		if (c == NULL)
+			continue;
 		TRACE(NETWORK, "accepted: connection=%p, fd=%u", c, c->getFD());
 
 		handleIncomingConnection(c);
