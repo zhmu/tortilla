@@ -772,8 +772,10 @@ Torrent::callbackCompleteHashing(unsigned int piece, bool result)
 	}
 
 	/*
-	 * Inform our peers that we have this piece.
+	 * Inform our peers that we have this piece. We let go of the
+	 * data lock, since we don't care if data changes here.
 	 */
+	UNLOCK(data);
 	LOCK(peers);
 	for (vector<Peer*>::iterator it = peers.begin();
 	     it != peers.end(); it++) {
@@ -781,7 +783,6 @@ Torrent::callbackCompleteHashing(unsigned int piece, bool result)
 		p->have(piece);
 	}
 	UNLOCK(peers);
-	UNLOCK(data);
 
 	/* Try to use this as an attempt to signal disinterest in peers */
 	processCurrentPeers();
