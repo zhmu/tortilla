@@ -10,7 +10,7 @@
 class Torrent;
 class UploadRequest;
 
-#define PEER_MAX_OUTSTANDING_REQUESTS	5
+#define PEER_MAX_OUTSTANDING_REQUESTS	20
 
 //! \brief Amount of seconds that must pass before we snub a peer
 #define PEER_SNUBBED_SECONDS 30
