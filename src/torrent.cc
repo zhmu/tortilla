@@ -534,7 +534,6 @@ Torrent::go()
 			ssize_t len = ::recv(fd, buf, sizeof(buf), MSG_DONTWAIT);
 			if (len <= 0) {
 				/* socket lost */
-				cerr << "connection lost" << endl;
 				p->shutdown();
 				continue;
 			}
