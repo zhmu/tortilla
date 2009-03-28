@@ -104,8 +104,8 @@ public:
 	 */
 	void addPeer(Peer* p);
 
-	//! \brief Is this torrent currently hashing?
-	bool isHashing();
+	//! \brief Retrieve the number of pieces we are hashing
+	unsigned int getNumPiecesHashing();
 
 	//! \brief Retrieve how many bytes are left
 	uint64_t getBytesLeft() { return left; }

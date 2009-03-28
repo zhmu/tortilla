@@ -1042,18 +1042,18 @@ Torrent::addPeer(Peer* p)
 	UNLOCK(peers);
 }
 
-bool
-Torrent::isHashing()
+unsigned int 
+Torrent::getNumPiecesHashing()
 {
+	unsigned int num = 0;
+
 	LOCK(data);
 	for (unsigned int i = 0; i < numPieces; i++)
-		if (hashingPiece[i]) {
-			UNLOCK(data);
-			return true;
-		}
-
+		if (hashingPiece[i])
+			num++;
 	UNLOCK(data);
-	return false;
+
+	return num;
 }
 
 void
