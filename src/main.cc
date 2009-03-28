@@ -59,6 +59,9 @@ main(int argc, char** argv)
 	srand(time(NULL));
 	tracer = new Tracer();
 
+	/* XXX */
+	signal(SIGPIPE, SIG_IGN);
+
 	if (argc != 2) {
 		fprintf(stderr, "usage: tortilla file.torrent\n");
 		return EXIT_FAILURE;
