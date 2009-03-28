@@ -1,4 +1,5 @@
 #include <sys/select.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -40,6 +41,12 @@ Overseer::Overseer(unsigned int portnum)
 	hasher = new Hasher();
 	uploader = new Uploader();
 	incoming = new Connection(port);
+
+	/* Block SIGPIPE - the appropriate thread will notice this anyway */
+	sigset_t sm;
+	sigemptyset(&sm);
+	sigaddset(&sm, SIGPIPE);
+	pthread_sigmask(SIG_BLOCK, &sm, NULL);
 
 	pthread_mutex_init(&mtx_torrents, NULL);
 	pthread_create(&thread_bandwidth_monitor, NULL, bandwidth_thread, this);
