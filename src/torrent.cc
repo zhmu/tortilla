@@ -162,6 +162,14 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 	if ((total_size + (pieceLen - 1)) / pieceLen != numPieces)
 		throw TorrentException("sum of file lengths doesn't agree with number of pieces");
 
+	/*
+	 * Start out by assuming we have to download everything; the hashing
+	 * callback will adjust this number as needed. We need to set this
+	 * value here, as a successful piece will decrement this
+	 * number.
+	 */
+	left = total_size;
+
 	/* Stream the info-part of the torrent to a buffer... */
 	stringbuf sb;
 	ostream os(&sb);
@@ -240,12 +248,6 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 	 * We must have processed as many pieces as there are in the file.
 	 */
 	assert(piecenum == numPieces);
-
-	/*
-	 * Start out by assuming we have to download everything; the hashing
-	 * callback will adjust this number as needed.
-	 */
-	left = total_size;
 }
 
 Torrent::~Torrent()
@@ -759,15 +761,12 @@ Torrent::callbackCompleteHashing(unsigned int piece, bool result)
 
 	/* At least someone has this piece... we! */
 	pieceCardinality[piece]++;
-	uint64_t old_left = left;
 	if (piece == numPieces - 1) {
 		left -= getTotalSize() % pieceLen > 0 ?
 		        getTotalSize() % pieceLen : pieceLen;
 	} else {
 		left -= pieceLen;
 	}
-	TRACE(HASHER, "torrent=%p, piece=%u, old_left=%lu,left=%lu,delta=%lu", 
-	 this, piece, old_left, left, old_left - left);
 
 	/*
 	 * Inform our peers that we have this piece.
