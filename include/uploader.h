@@ -81,7 +81,7 @@ private:
 	/*! \brief Queue of items to be handeled
 	 *
 	 */
-	std::list<UploadRequest*> requests;
+	std::list<UploadRequest> requests;
 };
 
 #endif /*  __UPLOADER_H__ */

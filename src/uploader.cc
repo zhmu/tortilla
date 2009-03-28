@@ -37,9 +37,8 @@ Uploader::~Uploader()
 void
 Uploader::enqueue(Peer* p, uint32_t piece, uint32_t begin, uint32_t len)
 {
-	UploadRequest* req = new UploadRequest(p, piece, begin, len);
 	pthread_mutex_lock(&mtx_queue);
-	requests.push_back(req);
+	requests.push_back(UploadRequest(p, piece, begin, len));
 	pthread_mutex_unlock(&mtx_queue);
 
 	/* Awaken! */
@@ -50,8 +49,8 @@ Uploader::enqueue(Peer* p, uint32_t piece, uint32_t begin, uint32_t len)
 class peer_match {
 public:
 	inline peer_match(Peer *p) { peer = p; };
-	bool operator () (UploadRequest* ur) {
-		return ur->getPeer() == peer;
+	bool operator () (UploadRequest ur) {
+		return ur.getPeer() == peer;
 	}
 
 private:
@@ -66,24 +65,26 @@ Uploader::removeRequestsFromPeer(Peer* p)
 	pthread_mutex_unlock(&mtx_queue);
 }
 
+/* Helper for removeRequestsFromPeer */
+class request_match {
+public:
+	inline request_match(UploadRequest u) : ur(u) { }
+	bool operator () (UploadRequest u) {
+		return (ur.getPeer() == u.getPeer() &&
+		        ur.getPiece() == u.getPiece() &&
+		        ur.getOffset() == u.getOffset() &&
+			ur.getLength() == u.getLength());
+	}
+
+private:
+	UploadRequest ur;
+};
+
 void
 Uploader::dequeue(Peer* p, uint32_t piece, uint32_t begin, uint32_t len)
 {
 	pthread_mutex_lock(&mtx_queue);
-	/* XXX rewrite me to remove_if or simular */
-	while (true) {
-		list<UploadRequest*>::iterator it = requests.begin();
-		while (it != requests.end()) {
-			UploadRequest* ur = *it;
-			if (ur->getPeer() == p && ur->getPiece() == piece &&
-			    ur->getOffset() == begin && ur->getLength() == len) {
-				delete *it;
-				break;
-			}
-		}
-		if (it == requests.end())
-			break;
-	}
+	requests.remove_if(request_match(UploadRequest(p, piece, begin, len)));
 	pthread_mutex_unlock(&mtx_queue);
 }
 
@@ -99,14 +100,13 @@ Uploader::process()
 
 		while (!terminating && !requests.empty()) {
 			/* Grab a request from the queue */
-			UploadRequest* request = requests.front();
+			UploadRequest request = requests.front();
 			requests.pop_front();
 			pthread_mutex_unlock(&mtx_queue);
 
 			/* Ask the peer to process */
-			request->getPeer()->processUploadRequest(request);
+			request.getPeer()->processUploadRequest(&request);
 
-			delete request;
 			pthread_mutex_lock(&mtx_queue);
 		}
 		pthread_mutex_unlock(&mtx_queue);
