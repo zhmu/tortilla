@@ -188,6 +188,9 @@ protected:
 	 */
 	void processCurrentPeers();
 
+	/*! \brief Fetch the number of peers */
+	unsigned int getNumPeers();
+
 private:
 	/*! \brief Contact the tracker
 	 *  \param event Event to report to the tracker
@@ -322,7 +325,7 @@ private:
 	bool terminating;
 
 	//! \brief Mutex protecting the peers list
-	pthread_mutex_t mtx_peers;
+	pthread_rwlock_t rwl_peers;
 
 	//! \brief Mutex protecting the data
 	pthread_mutex_t mtx_data;
