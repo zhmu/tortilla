@@ -277,8 +277,10 @@ Torrent::~Torrent()
 		vector<Peer*>::iterator it = peers.begin();
 		if (it == peers.end())
 			break;
+		Peer* p = *it;
 		peers.erase(it);
-		delete *it;
+		callbackPeerGone(p);
+		delete p;
 	}
 	UNLOCK(peers);
 
@@ -589,7 +591,6 @@ Torrent::scheduleRequests()
 		 	 * request.
 			 */
 			Peer* p = findPeerForPiece(i);
-			TRACE(TORRENT, "finding peer for piece %i: peer=%p", i, p);
 			assert(p != NULL);
 			if (p->getNumRequests() >= TORRENT_PEER_MAX_REQUESTS)
 				continue;
