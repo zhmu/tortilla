@@ -37,6 +37,7 @@ Overseer::Overseer(unsigned int portnum)
 	for (int i = 7; i < TORRENT_PEERID_LEN; i++)
 		peerid[i] = rand() % 26 + 'a';
 
+	hasher = new Hasher();
 	uploader = new Uploader();
 	incoming = new Connection(port);
 
@@ -63,6 +64,7 @@ Overseer::~Overseer()
 		torrents.erase(it);
 	}
 
+	delete hasher;
 	delete uploader;
 
 	pthread_mutex_destroy(&mtx_torrents);
@@ -94,6 +96,7 @@ void
 Overseer::stop()
 {
 }
+
 void
 Overseer::terminate()
 {
@@ -306,6 +309,18 @@ Overseer::handleIncomingConnection(Connection* c)
 	t->addPeer(p);
 	TRACE(NETWORK, "accepted peer id '%s' (%p) for torrent hash '%s' (%p)",
 	 sPeer.c_str(), c, sInfo.c_str(), t);
+}
+
+void
+Overseer::queueHashPiece(Torrent* t, uint32_t piece)
+{
+	hasher->addPiece(t, piece);
+}
+
+void
+Overseer::cancelHashingTorrent(Torrent* t)
+{
+	hasher->cancelTorrent(t);
 }
 
 /* vim:set ts=2 sw=2: */

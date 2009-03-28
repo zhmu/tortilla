@@ -172,9 +172,6 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 	sha1.process(sb.str().c_str(), sb.str().size());
  	memcpy(infoHash, sha1.getHash(), sizeof(infoHash));
 
-	/* Summon the hashing thread */
-	hasher = new Hasher(this);
-
 	/*
 	 * If one or more files were pre-existing (this means they existed and
 	 * have the correct length), we already have the pieces. Since we have
@@ -257,6 +254,8 @@ Torrent::~Torrent()
 	if (haveThread)
 		stop();
 
+	overseer->cancelHashingTorrent(this);
+
 	/*
 	 * Inform the tracker that we are going away. We care not
 	 * about any errors; we are leaving anyway.
@@ -283,12 +282,6 @@ Torrent::~Torrent()
 		delete p;
 	}
 	UNLOCK(peers);
-
-	/*
-	 * Need to get rid of the hasher first, as it'll crash and burn if we suddenly
-	 * nuke the files.
-	 */
-	delete hasher;
 
 	/* Close all files, too */
 	while (true) {
@@ -766,12 +759,15 @@ Torrent::callbackCompleteHashing(unsigned int piece, bool result)
 
 	/* At least someone has this piece... we! */
 	pieceCardinality[piece]++;
+	uint64_t old_left = left;
 	if (piece == numPieces - 1) {
 		left -= getTotalSize() % pieceLen > 0 ?
 		        getTotalSize() % pieceLen : pieceLen;
 	} else {
 		left -= pieceLen;
 	}
+	TRACE(HASHER, "torrent=%p, piece=%u, old_left=%lu,left=%lu,delta=%lu", 
+	 this, piece, old_left, left, old_left - left);
 
 	/*
 	 * Inform our peers that we have this piece.
@@ -918,7 +914,7 @@ Torrent::scheduleHashing(unsigned int piece)
 	assert(!hashingPiece[piece]);
 	hashingPiece[piece] = true;
 	UNLOCK(data);
-	hasher->addPiece(piece);
+	overseer->queueHashPiece(this, piece);
 }
 
 void*

@@ -8,14 +8,26 @@
 //! \brief Number of bytes used to calculate hash
 #define HASHER_CHUNK_SIZE 8192
 
+class HasherItem {
+public:
+	inline HasherItem(Torrent* t, unsigned int p) {
+		torrent = t; piecenum = p;
+	}
+
+	inline Torrent* getTorrent() { return torrent; }
+	inline unsigned int getPiece() { return piecenum; }
+
+private:
+	Torrent* torrent;
+	unsigned int piecenum;
+};
+
 //! \brief Implements a hashing thread, which checks the torrent contents hash
 class Hasher {
 friend	void* hasher_thread(void* ptr);
 public:
-	/*! \brief Construct a new hasher thread
-	 *  \param t Torrent to process
-	 */
-	Hasher(Torrent* t);
+	//! \brief Construct a new hasher thread
+	Hasher();
 
 	/*! \brief Destructs the hasher
 	 *
@@ -24,22 +36,25 @@ public:
 	~Hasher();
 
 	/*! \brief Add a piece to hash
+	 *  \param t Torrent to hash for
 	 *  \param num Piece to hash
-	 *
-	 *  Once the hashing is complete, 
 	 */
-	void addPiece(unsigned int num);
+	void addPiece(Torrent* t, unsigned int num);
+
+	//! \brief Cancels hashing of all pieces of a torrent
+	void cancelTorrent(Torrent* t);
 
 protected:
 	//! \brief Launch the hashing thread
 	void run();
 
 private:
-	//! \brief Torrent we are hasing
-	Torrent* torrent;
-
-	//! \brief Queue of items that need to be hashed
-	std::queue<unsigned int> hashQueue;
+	/*! \brief Queue of items that need to be hashed
+	 *
+	 *  This is implemented as a list, as we need to remove items
+	 *  from torrents that no longer exist.
+	 */
+	std::list<HasherItem> hashQueue;
 
 	//! \brief Reference to our thread
 	pthread_t thread;

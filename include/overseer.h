@@ -1,6 +1,7 @@
 #include <map>
 #include <string>
 #include "connection.h"
+#include "hasher.h"
 #include "torrent.h"
 #include "uploader.h"
 
@@ -72,6 +73,12 @@ protected:
 	//! \brief Handles a new incoming socket
 	void handleIncomingConnection(Connection* c);
 
+	//! \brief Request hashing of a piece
+	void queueHashPiece(Torrent* t, uint32_t piece);
+
+	//! \brief Cancel hashing for a torrent
+	void cancelHashingTorrent(Torrent* t);
+
 private:
 	//! \brief Info hash to torrent mappings
 	std::map<std::string, Torrent*> torrents;
@@ -96,6 +103,9 @@ private:
 
 	//! \brief Uploader used for all torrents
 	Uploader* uploader;
+
+	//! \brief Hasher thread
+	Hasher* hasher;
 
 	//! \brief Incoming listener thread
 	pthread_t thread_listener;

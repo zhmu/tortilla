@@ -31,7 +31,6 @@
 class Connection;
 class Peer;
 class Overseer;
-class Hasher;
 
 /*! \brief Implements a single, independant torrent
  *
@@ -42,8 +41,8 @@ class Hasher;
 class Torrent {
 friend void* torrent_thread(void* ptr);
 friend class Peer;
-friend class Hasher;
 friend class Overseer;
+friend class Hasher;
 public:
 	/*! \brief Constructs a new torrent object
 	 *  \param o Overseer to use
@@ -306,9 +305,6 @@ private:
 	 *  upper number of peers anyway.
 	 */
 	std::vector<Peer*> /* [M=peers] */ peers;
-
-	//! \brief Hasher thread used to validate chunk integrity
-	Hasher* /* [R] */ hasher;
 
 	//! \brief Stores the files in the torrent
 	std::vector<File*> /* [R] */ files;

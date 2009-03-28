@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <string.h>
+#include <algorithm>
 #include "hasher.h"
 #include "tracer.h"
 #include "sha1.h"
@@ -13,10 +14,9 @@ hasher_thread(void* ptr)
 	return NULL;
 }
 
-Hasher::Hasher(Torrent* t)
+Hasher::Hasher()
 {
-	torrent = t; terminating = false;
-	assert (torrent->getPieceLength() % HASHER_CHUNK_SIZE == 0);
+	terminating = false;
 
 	pthread_mutex_init(&mtx, NULL);
 	pthread_cond_init(&cv, NULL);
@@ -36,10 +36,12 @@ Hasher::~Hasher()
 }
 
 void
-Hasher::addPiece(unsigned int num)
+Hasher::addPiece(Torrent* t, unsigned int num)
 {
+	assert (t->getPieceLength() % HASHER_CHUNK_SIZE == 0);
+
 	pthread_mutex_lock(&mtx);
-	hashQueue.push(num);
+	hashQueue.push_back(HasherItem(t, num));
 	pthread_mutex_unlock(&mtx);
 
 	/* Get back to work, you slacker! */
@@ -57,16 +59,18 @@ Hasher::run() {
 
 		assert(!hashQueue.empty());
 		while (!hashQueue.empty() && !terminating) {
-			unsigned int piecenum = hashQueue.front();
-			hashQueue.pop();
+			HasherItem hi = hashQueue.front();
+			hashQueue.pop_front();
 			pthread_mutex_unlock(&mtx);
-			TRACE(HASHER, "hashing started: piece=%u", piecenum);
+			TRACE(HASHER, "hashing started: torrent=%p,piece=%u", hi.getTorrent(), hi.getPiece());
 
 			/*
 			 * While hashing, let go of the mutex; we'd be holding
 			 * it unnecessarily long, as we can happily hash
 			 * without it...
 			 */
+			Torrent* torrent = hi.getTorrent();
+			unsigned int piecenum = hi.getPiece();
 			unsigned int todo;
 			if (piecenum == torrent->getNumPieces() - 1) {
 				todo = torrent->getTotalSize() % torrent->getPieceLength();
@@ -85,7 +89,7 @@ Hasher::run() {
 				todo -= chunk_len;
 			}
 			bool ok = memcmp(h.getHash(), torrent->getPieceHash(piecenum), TORRENT_HASH_LEN) == 0;
-			TRACE(HASHER, "hashing completed: piece=%u,ok=%u", piecenum, ok ? 1 : 0);
+			TRACE(HASHER, "hashing completed: torrent=%p,piece=%u,ok=%u", torrent, piecenum, ok ? 1 : 0);
 			torrent->callbackCompleteHashing(piecenum, ok);
 
 			pthread_mutex_lock(&mtx);
@@ -95,3 +99,25 @@ Hasher::run() {
 
 	pthread_mutex_unlock(&mtx);
 }
+
+/* Helper for removeRequestsFromPeer */
+class torrent_match {
+public:
+	torrent_match(Torrent* t) { torrent = t; }
+	bool operator () (HasherItem& hi) const {
+		return hi.getTorrent() == torrent;
+	}
+
+private:
+	Torrent* torrent;
+};
+
+void
+Hasher::cancelTorrent(Torrent* t)
+{
+	pthread_mutex_lock(&mtx);
+	hashQueue.remove_if(torrent_match(t));
+	pthread_mutex_unlock(&mtx);
+}
+
+/* vim:set ts=2 sw=2: */
