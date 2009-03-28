@@ -37,8 +37,6 @@ Uploader::~Uploader()
 void
 Uploader::enqueue(Peer* p, uint32_t piece, uint32_t begin, uint32_t len)
 {
-	assert(len <= 16384); /* XXX */
-
 	UploadRequest* req = new UploadRequest(p, piece, begin, len);
 	pthread_mutex_lock(&mtx_queue);
 	requests.push_back(req);
