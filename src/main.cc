@@ -72,7 +72,8 @@ main(int argc, char** argv)
 	Metadata md(is);
 
 	/* XXX handle it if the connection burns */
-	overseer = new Overseer(1024 + rand() % 10000);
+//	overseer = new Overseer(1024 + rand() % 10000);
+	overseer = new Overseer(4000);
 
 	overseer->addTorrent(new Torrent(overseer, &md));
 
