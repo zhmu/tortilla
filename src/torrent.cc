@@ -517,9 +517,9 @@ Torrent::go()
 			continue;
 
 		/*
-		 * Wade through all peers, handle any data to service. No locking is needed
-		 * here, as the only place were peers can die is the cleanup code above.
-	   */
+		 * Wade through all peers, handle any data to service.
+		 */
+		RLOCK(peers);
 		for (vector<Peer*>::iterator it = peers.begin();
 				 it != peers.end(); it++) {
 			int fd = (*it)->getFD();
@@ -544,6 +544,7 @@ Torrent::go()
 				continue;
 			}
 		}
+		RWUNLOCK(peers);
 	}
 }
 
