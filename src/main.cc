@@ -6,11 +6,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
-#include "metadata.h"
-#include "sha1.h"
-#include "overseer.h"
-#include "tracer.h"
-#include "torrent.h"
+#include "tortilla/metadata.h"
+#include "tortilla/sha1.h"
+#include "tortilla/overseer.h"
+#include "tortilla/tracer.h"
+#include "tortilla/torrent.h"
 
 using namespace std;
 
