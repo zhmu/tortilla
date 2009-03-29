@@ -118,8 +118,7 @@ Connection::Connection(int s, struct sockaddr* soa, socklen_t slen)
 void
 Connection::write(const void* buf, size_t len)
 {
-	if ((size_t)::write(fd, buf, len) != len)
-		cerr << "warning: short write" << endl;
+	::write(fd, buf, len);
 }
 
 Connection*
@@ -129,10 +128,8 @@ Connection::acceptConnection()
 	socklen_t slen = sizeof(soa);
 
 	int s = accept(fd, &soa, &slen);
-	if (s < 0) {
-		cerr << "accept(): " << string(strerror(errno)) << endl;
+	if (s < 0)
 		return NULL;
-	}
 	return new Connection(s, &soa, slen);
 }
 

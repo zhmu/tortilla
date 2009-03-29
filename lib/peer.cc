@@ -429,13 +429,7 @@ Peer::msgPiece(const uint8_t* msg, uint32_t len)
 		numOutstandingRequests--;
 
 	if (len > TORRENT_CHUNK_SIZE || begin % TORRENT_CHUNK_SIZE != 0) {
-		/* Not what we hoped for... */
-		cout << "piece fail: ";
-		if (len > TORRENT_CHUNK_SIZE)
-			cout << "length ";
-		if (begin % TORRENT_CHUNK_SIZE != 0)
-			cout << "begin";
-		cout << endl;
+		/* Not what we hoped for... XXX we need to alter the peers trust factor */
 		sendPieceRequest();
 		return false;
 	}

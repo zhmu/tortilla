@@ -185,7 +185,9 @@ Overseer::waitHashingComplete()
 		if (!num_hashing)
 			break;
 
+#if 0
 		printf("Overseer: waiting for %u torrent(s) to finish hashing %u pieces\n", num_hashing, hashing_pieces);
+#endif
 		sleep(1);
 	}
 }
