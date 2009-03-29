@@ -1226,8 +1226,20 @@ Torrent::handleUnchokingAlgorithm()
 		numUnchoked++;
 	}
 
+	/* Count the number of choked / unchoked peers */
+	unsigned int curUnchoked = 0;
+	RLOCK(peers);
+	for (vector<Peer*>::iterator it = peers.begin();
+	     it != peers.end(); it++) {
+		Peer* p = (*it);
+		if (p->isPeerChoked())
+			continue;
+		curUnchoked++;
+	}
+	RWUNLOCK(peers);
+
 	lastChokingAlgorithm = time(NULL);
-	TRACE(CHOKING, "(un)choke algorithm: choked=%u, unchoked=%u", numChoked, numUnchoked);
+	TRACE(CHOKING, "(un)choke algorithm: choked=%u, unchoked=%u", numChoked, numUnchoked, curUnchoked);
 }
 
 Peer*
