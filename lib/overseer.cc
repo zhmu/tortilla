@@ -208,10 +208,10 @@ Overseer::dequeuePeer(Peer* p)
 	uploader->removeRequestsFromPeer(p);
 }
 
-list<Torrent*>
+vector<Torrent*>
 Overseer::getTorrents()
 {
-	list<Torrent*> l;
+	vector<Torrent*> l;
 
 	pthread_mutex_lock(&mtx_torrents);
 	for (map<string, Torrent*>::iterator it = torrents.begin();
@@ -277,7 +277,6 @@ Overseer::handleIncomingConnection(Connection* c)
 	uint8_t reserved[8];
 	memcpy(reserved, (const char*)(handshake + 1 + strlen(PEER_PSTR)), 8);
 	string info((const char*)(handshake + 1 + strlen(PEER_PSTR) + 8), TORRENT_HASH_LEN);
-	string sInfo = formatHex((uint8_t*)info.c_str(), TORRENT_HASH_LEN);
 	if (handshake[0] != strlen(PEER_PSTR) ||
 			memcmp((handshake + 1), PEER_PSTR, strlen(PEER_PSTR))) {
 		TRACE(NETWORK, "got bad protocol version from connection=%p, dropping!", c);
@@ -293,7 +292,7 @@ Overseer::handleIncomingConnection(Connection* c)
 		t = it->second;
 	pthread_mutex_unlock(&mtx_torrents);
 	if (t == NULL) {
-		TRACE(TORRENT, "connection %p: peer requests unknown info hash '%s', dropping", c, sInfo.c_str());
+		TRACE(TORRENT, "connection %p: peer requests unknown info hash, dropping", c);
 		delete c;
 		return;
 	}
@@ -313,14 +312,13 @@ Overseer::handleIncomingConnection(Connection* c)
 	c->read((void*)handshake, TORRENT_PEERID_LEN);
 	TRACE(NETWORK, "got handshake (part 2): connection=%p", p);
 	string peer((const char*)(handshake), TORRENT_PEERID_LEN);
-	string sPeer = formatHex((uint8_t*)peer.c_str(), TORRENT_PEERID_LEN);
 	p->setPeerID(peer);
-	TRACE(NETWORK, "handshake completed: connection=%p,peer=%p, infohash='%s',peerid='%s'", c, p, sInfo.c_str(), sPeer.c_str());
+	TRACE(NETWORK, "handshake completed: connection=%p,peer=%p", c, p);
 
 	/* We accept! We have no choice! */
 	t->addPeer(p);
-	TRACE(NETWORK, "accepted peer id '%s' (%p) for torrent hash '%s' (%p)",
-	 sPeer.c_str(), c, sInfo.c_str(), t);
+	TRACE(NETWORK, "accepted peer %p for torrent %p",
+	 c, t);
 }
 
 void

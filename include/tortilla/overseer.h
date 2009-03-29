@@ -49,7 +49,7 @@ public:
 	bool isTerminating() { return terminating; }
 
 	//! \brief Retrieve a list of torrents
-	std::list<Torrent*> getTorrents();
+	std::vector<Torrent*> getTorrents();
 
 protected:
 	//! \brief Seperate thread handling bandwidth monitoring
