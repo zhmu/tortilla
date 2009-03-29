@@ -45,6 +45,9 @@ public:
 	//! \brief Retrieve the file descriptor associated with this connection
 	inline int getFD() { return fd; }
 
+	//! \brief Retrieve a human-readable endpoint description
+	inline std::string getEndpoint() { return endpoint; }
+
 protected:
 	/*! \brief Constructs a TCP connection based on an accepted socket
 	 *  \param s File descriptor to use
@@ -56,6 +59,9 @@ protected:
 private:
 	//! \brief File descriptor used for the connection
 	int fd;
+
+	//! \brief Human-readable endpoint name
+	std::string endpoint;
 };
 
 #endif /* __CONNECTION_H__ */

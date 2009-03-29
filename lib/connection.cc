@@ -77,6 +77,7 @@ Connection::Connection(string host, uint16_t port)
 	int fl = fcntl(fd, F_GETFL, NULL);
 	fl &= ~O_NONBLOCK;
 	fcntl(fd, F_SETFL, fl);
+	endpoint = host + ":" + portstr;
 }
 
 Connection::Connection(uint16_t port)
@@ -105,6 +106,13 @@ Connection::Connection(uint16_t port)
 Connection::Connection(int s, struct sockaddr* soa, socklen_t slen)
 {
 	fd = s;
+
+	char host[128 /* XXX */], port[128 /* XXX */];
+	if (getnameinfo(soa, slen, host, sizeof(host), port, sizeof(port), NI_NUMERICHOST | NI_NUMERICSERV) == 0) {
+		endpoint = string(host) + ":" + string(port);
+	} else {
+		endpoint = "?";
+	}
 }
 
 void
