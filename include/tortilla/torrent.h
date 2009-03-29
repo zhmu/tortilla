@@ -32,6 +32,44 @@ class Connection;
 class Peer;
 class Overseer;
 
+class PieceInfo {
+public:
+	PieceInfo(unsigned int num, bool have, bool hashing, bool requested) {
+		this->num = num; this->have = have;
+		this->hashing = hashing; this->requested = requested;
+	}
+
+	unsigned int getPieceNum() { return num; }
+	unsigned int getHave() { return have; }
+	unsigned int isHashing() { return hashing; }
+	unsigned int isRequested() { return requested; }
+
+private:
+	unsigned int num;
+	bool have, hashing, requested;
+};
+
+class PeerInfo {
+public:
+	PeerInfo(Peer* p);
+
+	bool isSnubbed() { return snubbed; }
+	bool isPeerInterested() { return peer_interested; }
+	bool isPeerChoked() { return peer_choked; }
+	bool areInterested() { return interested; }
+	bool areChoking() { return choking; }
+	bool isIncoming() { return incoming; }
+	uint32_t getRxRate() { return rx; }
+	uint32_t getTxRate() { return tx; }
+
+	std::string getEndpoint() { return endpoint; }
+
+private:
+	bool snubbed, peer_interested, peer_choked, interested, choking, incoming;
+	uint32_t rx, tx;
+	std::string endpoint;
+};
+
 /*! \brief Implements a single, independant torrent
  *
  *  Since we have multiple threads at work here, variables are marked:
@@ -122,6 +160,18 @@ public:
 	 */
 	void getRateCounters(uint32_t* rx, uint32_t* tx);
 
+	//! \brief Retrieve the torrent name
+	std::string getName() { return name; }
+
+	/*! \brief Fetch the number of peers */
+	unsigned int getNumPeers();
+
+	/*! \brief Retrieve details on all pieces */
+	std::vector<PieceInfo> getPieceDetails();
+
+	/*! \brief Retrieve details on all peers */
+	std::vector<PeerInfo> getPeerDetails();
+
 protected:
 	/*! \brief Called by a peer if pieces are added to the map */
 	void callbackPiecesAdded(Peer* p, std::vector<unsigned int>& pieces);
@@ -187,9 +237,6 @@ protected:
 	 *  chance of getting a seeder (we don't need the slot anyway)
 	 */
 	void processCurrentPeers();
-
-	/*! \brief Fetch the number of peers */
-	unsigned int getNumPeers();
 
 private:
 	/*! \brief Contact the tracker
@@ -362,6 +409,9 @@ private:
 
 	//! \brief Key presented by the tracker
 	std::string tracker_key;
+
+	//! \brief Torrent name
+	std::string name;
 };
 
 #endif /* __TORRENT_H__ */

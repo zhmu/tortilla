@@ -115,6 +115,9 @@ public:
 	//! \brief Are we interested in this peer?
 	bool isInterested() { return am_interested; }
 
+	//! \brief Are we choking this peer?
+	bool isChoking() { return am_choked; }
+
 	//! \brief Compares two peers based on upload rate
 	static bool compareByUpload(Peer* a, Peer* b);
 
@@ -138,6 +141,12 @@ public:
 
 	//! \brief Set the peer ID
 	void setPeerID(std::string peer_id);
+
+	//! \brief Is this an incoming connection?
+	bool isIncoming() { return incoming; }
+
+	//! \brief Retrieve the endpoint in human-readable notation
+	std::string getEndpoint() { return connection->getEndpoint(); }
 
 	void dump();
 
@@ -263,6 +272,9 @@ private:
 
 	//! \brief Is this peer terminating?
 	bool terminating;
+
+	//! \brief Is this an incoming connection?
+	bool incoming;
 };
 
 #endif /* __PEER_H__ */

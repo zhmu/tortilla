@@ -38,6 +38,7 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 	haveThread = false; terminating = false; complete = false;
 	lastChokingAlgorithm = 0; unchokingRound = 0;
 	optimisticUnchokedPeer = NULL; tracker_key = "";
+	name = "";
 
 	/* force the thread to contact the tracker */
 	tracker_interval = 0; tracker_min_interval = 0;
@@ -118,6 +119,7 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 	MetaString* msName = dynamic_cast<MetaString*>((*info)["name"]);
 	if (msName == NULL)
 		throw TorrentException("info dictionary doesn't contain a name!");
+	name = msName->getString();
 
 	/* XXX check name for badness */
 	total_size = 0;
@@ -895,7 +897,6 @@ Torrent::getPieceHash(unsigned int piece)
 void
 Torrent::callbackCompleteTorrent()
 {
-	printf(">>> torrent is complete!\n");
 	complete = true;
 
 	/* Kick anyone who is also a seeder */
@@ -1318,6 +1319,49 @@ Torrent::getNumPeers()
 	RWUNLOCK(peers);
 
 	return n;
+}
+
+vector<PieceInfo>
+Torrent::getPieceDetails()
+{
+	vector<PieceInfo> pi;
+
+	LOCK(data);
+	for (unsigned int i = 0; i < numPieces; i++) {
+		pi.push_back(PieceInfo(
+			i, havePiece[i], hashingPiece[i], haveRequestedChunk[i]
+		));
+	}
+	UNLOCK(data);
+	return pi;
+}
+
+PeerInfo::PeerInfo(Peer* p)
+{
+	snubbed = p->isPeerSnubbed();
+	peer_interested = p->isPeerInterested();
+	peer_choked = p->isPeerChoked();
+	interested = p->isInterested();
+	choking = p->isChoking();
+	incoming = p->isIncoming();
+	rx = p->getRxRate(); tx = p->getTxRate();
+	endpoint = p->getEndpoint();
+}
+
+vector<PeerInfo>
+Torrent::getPeerDetails()
+{
+	vector<PeerInfo> pi;
+
+	RLOCK(peers);
+	for (vector<Peer*>::iterator it = peers.begin();
+	     it != peers.end(); it++) {
+		Peer* p = *it;
+		pi.push_back(PeerInfo(p));
+	}
+	RWUNLOCK(peers);
+
+	return pi;
 }
 
 /* vim:set ts=2 sw=2: */
