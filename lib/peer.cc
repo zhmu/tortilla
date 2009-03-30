@@ -3,6 +3,7 @@
 #include "connection.h"
 #include "overseer.h"
 #include "peer.h"
+#include "sender.h"
 #include "tracer.h"
 #include "torrent.h"
 
@@ -462,7 +463,7 @@ Peer::claimInterest()
 	if (am_interested)
 		return;
 
-	sendMessage(PEER_MSGID_INTERESTED, NULL, 0);
+	queueMessage(PEER_MSGID_INTERESTED, NULL, 0);
 	TRACE(PROTOCOL, "expressed interested in peer %p", this);
 	am_interested = true;
 }
@@ -474,7 +475,7 @@ Peer::revokeInterest()
 	if (!am_interested)
 		return;
 
-	sendMessage(PEER_MSGID_NOTINTERESTED, NULL, 0);
+	queueMessage(PEER_MSGID_NOTINTERESTED, NULL, 0);
 	TRACE(PROTOCOL, "revoked interested in peer %p", this);
 	am_interested = false;
 }
@@ -486,11 +487,14 @@ Peer::requestPiece(unsigned int num)
 }
 
 void
-Peer::sendMessage(uint8_t msg, const uint8_t* buf, size_t len)
+Peer::queueMessage(uint8_t msg, const uint8_t* buf, size_t len)
 {
 
 	assert(buf == NULL || len > 0);
 
+	torrent->queueMessage(this, msg, (uint8_t*)buf, (uint32_t)len);
+
+#if 0
 	/* XXX */
 	unsigned char* pkt = new unsigned char[len + 5];
 	WRITE_UINT32(pkt, 0, len + 1);
@@ -498,6 +502,7 @@ Peer::sendMessage(uint8_t msg, const uint8_t* buf, size_t len)
 	memcpy((pkt + 5), buf, len);
 	send(pkt, len + 5);
 	delete[] pkt;
+#endif
 }
 
 bool
@@ -567,7 +572,7 @@ Peer::sendPieceRequest()
 		WRITE_UINT32(msg, 4, missingChunk * TORRENT_CHUNK_SIZE);
 		WRITE_UINT32(msg, 8, request_length);
 		torrent->setChunkRequested(piece, missingChunk, true);
-		sendMessage(PEER_MSGID_REQUEST, msg, 12);
+		queueMessage(PEER_MSGID_REQUEST, msg, 12);
 		TRACE(PROTOCOL, "sent request: peer=%p, piece=%u, offset=%u, length=%u", this, piece, missingChunk * TORRENT_CHUNK_SIZE, request_length);
 
 		numOutstandingRequests++;
@@ -639,7 +644,7 @@ Peer::sendBitfield()
 
 	/* Only send something if there is something to report */
 	if (numAvailable > 0) {
-		sendMessage(PEER_MSGID_BITFIELD, bitfield, bitfieldLen);
+		queueMessage(PEER_MSGID_BITFIELD, bitfield, bitfieldLen);
 	}
 	delete[] bitfield;
 
@@ -648,17 +653,10 @@ Peer::sendBitfield()
 }
 
 void
-Peer::processUploadRequest(UploadRequest* request)
+Peer::processSenderRequest(SenderRequest* request)
 {
-	uint8_t* chunk = new uint8_t[request->getLength() + 8];
-	WRITE_UINT32(chunk, 0, request->getPiece());
-	WRITE_UINT32(chunk, 4, request->getOffset());
-	torrent->readChunk(request->getPiece(), request->getOffset(), (chunk + 8), request->getLength());
-	sendMessage(PEER_MSGID_PIECE, chunk, request->getLength() + 8);
-	torrent->incrementUploadedBytes(request->getLength());
-	delete[] chunk;
-	TRACE(PROTOCOL, "sent piece: peer=%p, piece=%u, offset=%u, length=%u",
-	 this, request->getPiece(), request->getOffset(), request->getLength());
+	connection->write(request->getMessage(), request->getMessageLength());
+	tx_bytes += request->getMessageLength();
 }
 
 void
@@ -688,7 +686,7 @@ Peer::unchoke()
 {
 	assert (peer_choked);
 
-	sendMessage(PEER_MSGID_UNCHOKE, NULL, 0);
+	queueMessage(PEER_MSGID_UNCHOKE, NULL, 0);
 	TRACE(PROTOCOL, "sent unchoke: peer=%p", this);
 	peer_choked = false;
 }
@@ -698,7 +696,7 @@ Peer::choke()
 {
 	assert (!peer_choked);
 
-	sendMessage(PEER_MSGID_CHOKE, NULL, 0);
+	queueMessage(PEER_MSGID_CHOKE, NULL, 0);
 	TRACE(PROTOCOL, "sent choke: peer=%p", this);
 	peer_choked = true;
 }
@@ -716,7 +714,7 @@ Peer::have(unsigned int piece)
 
 	uint8_t msg[4];
 	WRITE_UINT32(msg, 0, piece);
-	sendMessage(PEER_MSGID_HAVE, msg, 4);
+	queueMessage(PEER_MSGID_HAVE, msg, 4);
 	TRACE(PROTOCOL, "sent have: peer=%p, piece=%u", this, piece);
 }
 

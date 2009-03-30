@@ -7,7 +7,7 @@ CXXFLAGS += 	-I/usr/local/include
 LDFLAGS +=	-L/usr/local/lib
 LDFLAGS +=	-pthread
 
-tortilla:	$(OBJS)
+tortilla:	$(OBJS) $(LIBS)
 		$(CXX) -o tortilla $(OBJS) $(LIBS) $(LDFLAGS)
 
 clean:

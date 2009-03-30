@@ -3,7 +3,7 @@
 #include "connection.h"
 #include "hasher.h"
 #include "torrent.h"
-#include "uploader.h"
+#include "sender.h"
 
 #ifndef __OVERSEER_H__
 #define __OVERSEER_H__
@@ -62,10 +62,13 @@ protected:
 	void heartbeatThread();
 
 	//! \brief Queue a peer upload request
-	void queueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len);
+	void enqueueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len);
 
 	//! \brief Cancels a peer upload request
 	void dequeueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len);
+
+	//! \brief Enqueue a message
+	void enqueueMessage(Peer* p, uint8_t msg, uint8_t* data, uint32_t len);
 
 	//! \brief Dequeues all requests for a peer
 	void dequeuePeer(Peer* p);
@@ -101,8 +104,8 @@ private:
 	//! \brief Incoming connections
 	Connection* incoming;
 
-	//! \brief Uploader used for all torrents
-	Uploader* uploader;
+	//! \brief Sender object used for all torrents
+	Sender* sender;
 
 	//! \brief Hasher thread
 	Hasher* hasher;

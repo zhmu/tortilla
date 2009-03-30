@@ -8,7 +8,7 @@
 #define __PEER_H__
 
 class Torrent;
-class UploadRequest;
+class SenderRequest;
 
 #define PEER_MAX_OUTSTANDING_REQUESTS	20
 
@@ -97,8 +97,8 @@ public:
 	//! \brief Retrieve transmit rate, in bytes/second
 	uint32_t getTxRate() { return tx_bytes; }
 
-	//! \brief Processes an upload request
-	void processUploadRequest(UploadRequest* request);
+	//! \brief Processes data to be sent
+	void processSenderRequest(SenderRequest* request);
 
 	//! \brief Must be called every second
 	void timer();
@@ -148,6 +148,9 @@ public:
 	//! \brief Retrieve the endpoint in human-readable notation
 	std::string getEndpoint() { return connection->getEndpoint(); }
 
+	//! \brief Retrieves the torrent corresponding to this peer
+	Torrent* getTorrent() { return torrent; }
+
 	void dump();
 
 protected:
@@ -178,12 +181,12 @@ protected:
 	//! \brief Handles a 'cancel' message
 	bool msgCancel(const uint8_t* msg, uint32_t len);
 
-	/*! \brief Send a message to the peer
+	/*! \brief Queue a message for a peer
 	 *  \param msg Message to send
 	 *  \param data Payload of the message, if any
 	 *  \param len Length of message
 	 */
-	void sendMessage(uint8_t msg, const uint8_t* data, size_t len);
+	void queueMessage(uint8_t msg, const uint8_t* data, size_t len);
 
 	//! \brief Send our handshake to the peer
 	void sendHandshake();

@@ -39,7 +39,7 @@ Overseer::Overseer(unsigned int portnum)
 		peerid[i] = rand() % 26 + 'a';
 
 	hasher = new Hasher();
-	uploader = new Uploader();
+	sender = new Sender();
 	incoming = new Connection(port);
 
 	/* Block SIGPIPE - the appropriate thread will notice this anyway */
@@ -72,7 +72,7 @@ Overseer::~Overseer()
 	}
 
 	delete hasher;
-	delete uploader;
+	delete sender;
 
 	pthread_mutex_destroy(&mtx_torrents);
 }
@@ -193,21 +193,27 @@ Overseer::waitHashingComplete()
 }
 
 void
-Overseer::queueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len)
+Overseer::enqueueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len)
 {
-	uploader->enqueue(p, piece, begin, len);
+	sender->enqueuePieceRequest(p, piece, begin, len);
 }
 
 void
 Overseer::dequeueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len)
 {
-	uploader->dequeue(p, piece, begin, len);
+	sender->dequeuePieceRequest(p, piece, begin, len);
+}
+
+void
+Overseer::enqueueMessage(Peer* p, uint8_t msg, uint8_t* data, uint32_t len)
+{
+	sender->enqueueMessage(p, msg, data, len);
 }
 
 void
 Overseer::dequeuePeer(Peer* p)
 {
-	uploader->removeRequestsFromPeer(p);
+	sender->removeRequestsFromPeer(p);
 }
 
 vector<Torrent*>

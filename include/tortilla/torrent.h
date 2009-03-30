@@ -31,6 +31,7 @@
 class Connection;
 class Peer;
 class Overseer;
+class SenderRequest;
 
 class PieceInfo {
 public:
@@ -81,6 +82,7 @@ friend void* torrent_thread(void* ptr);
 friend class Peer;
 friend class Overseer;
 friend class Hasher;
+friend class SenderRequest;
 public:
 	/*! \brief Constructs a new torrent object
 	 *  \param o Overseer to use
@@ -217,6 +219,9 @@ protected:
 
 	//! \brief Dequeue a peer upload request
 	void dequeueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len);
+
+	//! \brief Queue the message for transmission
+	void queueMessage(Peer* p, uint8_t msg, uint8_t* data, uint32_t len);
 
 	/*! \brief Retrieves a piece from the output files
 	 *  \param piece Piece number to read
