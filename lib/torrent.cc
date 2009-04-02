@@ -385,10 +385,10 @@ Torrent::handleTracker(string event)
 	TRACE(TRACKER, "contacted tracker: torrent=%p, interval=%u, min_interval=%u, key='%s',peers=%u",
 	 this, tracker_interval, tracker_min_interval, tracker_key.c_str(),
 	 peerslist != NULL && peerslist != NULL ? peerslist->getList().size() : 0);
-	if (peerslist != NULL) {
+	if (peerslist != NULL && !complete) {
 		/*
 		 * The tracker has provided us with (possibly new) peers. Add them to the
-		 * list if applicable.
+		 * list if applicable - note that we only do this if we aren't seeding!
 		 */
 		for (list<MetaField*>::iterator it = peerslist->getList().begin();
 		    it != peerslist->getList().end(); it++) {
