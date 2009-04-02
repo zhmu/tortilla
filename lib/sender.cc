@@ -173,7 +173,6 @@ Sender::process()
 			pthread_mutex_lock(&mtx_queue);
 			uint32_t cur_tx = tx_left;
 			pthread_mutex_unlock(&mtx_queue);
-			TRACE(NETWORK, "Sender: tx_left=%u", cur_tx);
 
 			uint32_t amount = request->getPeer()->processSenderRequest(request, cur_tx);
 
@@ -192,6 +191,12 @@ Sender::process()
 				pthread_mutex_lock(&mtx_queue);
 				requests.pop_front();
 				pthread_mutex_unlock(&mtx_queue);
+			} else {
+				/*
+				 * XXX We didn't transfer this chunk in a single go; this means we
+				 * should preferably give some other peer a chance to grab data while
+				 * we delay this peer...
+				 */
 			}
 
 			if (overseer->getUploadRate() > 0 && cur_tx == 0) {
@@ -199,8 +204,6 @@ Sender::process()
 			 	 * We've run out of bandwidth to use! Wait for a second for it to
 				 * replenish.
 			 	 */
-				TRACE(NETWORK, "Sender: tx_left=zero, stalling");
-
 				struct timeval tv;
 				tv.tv_sec = 1; tv.tv_usec = 0;
 				select(0, NULL, NULL, NULL, &tv);
