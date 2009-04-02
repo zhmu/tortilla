@@ -666,8 +666,11 @@ Peer::processSenderRequest(SenderRequest* request, uint32_t max_length)
 		sending_len = max_length;
 
 	ssize_t written = connection->write(request->getMessage(), sending_len);
+	if (written < 0)
+		return 0;
 	tx_bytes += written;
 	request->skip(written);
+	/* XXX only increment upload if we are uploading pieces */
 	torrent->incrementUploadedBytes(written);
 	return written;
 }

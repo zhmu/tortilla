@@ -196,7 +196,15 @@ Sender::process()
 				 * XXX We didn't transfer this chunk in a single go; this means we
 				 * should preferably give some other peer a chance to grab data while
 				 * we delay this peer...
+				 *
+				 * For now, if the data wasn't accepted, put it at the end of the queue.
 				 */
+				if (amount == 0) {
+					pthread_mutex_lock(&mtx_queue);
+					requests.pop_front();
+					requests.push_back(request);
+					pthread_mutex_unlock(&mtx_queue);
+				}
 			}
 
 			if (overseer->getUploadRate() > 0 && cur_tx == 0) {
