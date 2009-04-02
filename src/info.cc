@@ -61,7 +61,6 @@ Info::draw(Torrent* t)
 		if (pi.isSnubbed()) strcat(line, " snubbed");
 		if (pi.isPeerInterested()) strcat(line, " peer_int");
 		if (pi.isPeerChoked()) strcat(line, " peer_chk");
-		if (pi.isPeerInterested()) strcat(line, " peer_int");
 		if (pi.areInterested()) strcat(line, " are_int");
 		if (pi.areChoking()) strcat(line, " are_chk");
 		mvwprintw(window, y, 0, line);
