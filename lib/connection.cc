@@ -115,10 +115,10 @@ Connection::Connection(int s, struct sockaddr* soa, socklen_t slen)
 	}
 }
 
-void
+ssize_t
 Connection::write(const void* buf, size_t len)
 {
-	::write(fd, buf, len);
+	return ::write(fd, buf, len);
 }
 
 Connection*

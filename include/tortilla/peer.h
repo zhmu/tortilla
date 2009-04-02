@@ -97,8 +97,14 @@ public:
 	//! \brief Retrieve transmit rate, in bytes/second
 	uint32_t getTxRate() { return tx_bytes; }
 
-	//! \brief Processes data to be sent
-	void processSenderRequest(SenderRequest* request);
+	/*! \brief Processes data to be sent
+	 *  \param request Request to send
+	 *  \param max_length Maximum number of bytes to send, zero for unlimited
+	 *  \returns Number of bytes transmitted
+	 *
+	 *  If the result had to be split, the resulting request will be modified.
+	 */
+	uint32_t processSenderRequest(SenderRequest* request, uint32_t max_length);
 
 	//! \brief Must be called every second
 	void timer();

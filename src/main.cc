@@ -47,6 +47,7 @@ main(int argc, char** argv)
 	/* XXX handle it if the connection burns */
 	overseer = new Overseer(1024 + rand() % 10000);
 	interface = new Interface(overseer);
+	//overseer->setUploadRate(1024 * 1024);
 	overseer->addTorrent(new Torrent(overseer, &md));
 
 	signal(SIGINT, sigint);

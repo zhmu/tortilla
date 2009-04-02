@@ -1,7 +1,9 @@
 #include <assert.h>
 #include <string.h>
+#include "overseer.h"
 #include "sender.h"
 #include "torrent.h"
+#include "tracer.h"
 
 using namespace std;
 
@@ -14,7 +16,8 @@ using namespace std;
 
 SenderRequest::SenderRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len)
 {
-	peer = p; length = len + 13; this->piece = piece; this->offset = begin; this->piece_length = len;
+	peer = p; length = len + 13; skip_num = 0;
+	this->piece = piece; this->offset = begin; this->piece_length = len;
 
 	message = new uint8_t[length];
 	WRITE_UINT32(message, 0, len + 9);
@@ -26,7 +29,7 @@ SenderRequest::SenderRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t l
 
 SenderRequest::SenderRequest(Peer* p, uint8_t msg, const uint8_t* data, uint32_t len)
 {
-	peer = p; length = len + 5; piece = 0; offset = 0; piece_length = 0;
+	peer = p; length = len + 5; skip_num = 0; piece = 0; offset = 0; piece_length = 0;
 
 	message = new uint8_t[length];
 	WRITE_UINT32(message, 0, len + 1);
@@ -35,6 +38,18 @@ SenderRequest::SenderRequest(Peer* p, uint8_t msg, const uint8_t* data, uint32_t
 }
 
 #undef WRITE_UINT32
+
+const uint8_t* 
+SenderRequest::getMessage()
+{
+	return (const uint8_t*)(message + skip_num);
+}
+
+const uint32_t
+SenderRequest::getMessageLength() {
+	return length - skip_num;
+}
+
 
 SenderRequest::~SenderRequest()
 {
@@ -48,11 +63,12 @@ sender_thread(void* ptr)
 	return NULL;
 }
 
-Sender::Sender()
+Sender::Sender(Overseer* o)
 {
-	terminating = false;
+	terminating = false; overseer = o;
 
 	pthread_mutex_init(&mtx_queue, NULL);
+	pthread_mutex_init(&mtx_data, NULL);
 	pthread_cond_init(&cv_queue, NULL);
 
 	/* Off we gooo! */
@@ -151,19 +167,59 @@ Sender::process()
 		while (!terminating && !requests.empty()) {
 			/* Grab a request from the queue */
 			SenderRequest* request = requests.front();
-			requests.pop_front();
 			pthread_mutex_unlock(&mtx_queue);
 
 			/* Ask the peer to process */
-			request->getPeer()->processSenderRequest(request);
+			pthread_mutex_lock(&mtx_queue);
+			uint32_t cur_tx = tx_left;
+			pthread_mutex_unlock(&mtx_queue);
+			TRACE(NETWORK, "Sender: tx_left=%u", cur_tx);
 
-			delete request;
+			uint32_t amount = request->getPeer()->processSenderRequest(request, cur_tx);
+
+			pthread_mutex_lock(&mtx_data);
+			if (tx_left > 0)
+				tx_left -= amount;
+			cur_tx = tx_left;
+			pthread_mutex_unlock(&mtx_data);
+
+			/*
+			 * If we still have bytes left, re-queue the request for next time.
+			 * Otherwise, just get rid of it.
+			 */
+			if (request->getMessageLength() == 0) {
+				delete request;
+				pthread_mutex_lock(&mtx_queue);
+				requests.pop_front();
+				pthread_mutex_unlock(&mtx_queue);
+			}
+
+			if (overseer->getUploadRate() > 0 && cur_tx == 0) {
+				/*
+			 	 * We've run out of bandwidth to use! Wait for a second for it to
+				 * replenish.
+			 	 */
+				TRACE(NETWORK, "Sender: tx_left=zero, stalling");
+
+				struct timeval tv;
+				tv.tv_sec = 1; tv.tv_usec = 0;
+				select(0, NULL, NULL, NULL, &tv);
+			}
+
 			pthread_mutex_lock(&mtx_queue);
 		}
 		pthread_mutex_unlock(&mtx_queue);
 	}
 
 	pthread_mutex_unlock(&mtx_queue);
+}
+
+void
+Sender::setAmountTransferrable(uint32_t amount)
+{
+	pthread_mutex_lock(&mtx_data);
+	tx_left = amount;
+	pthread_mutex_unlock(&mtx_data);
 }
 
 /* vim:set ts=2 sw=2: */

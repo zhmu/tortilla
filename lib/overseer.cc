@@ -39,7 +39,7 @@ Overseer::Overseer(unsigned int portnum)
 		peerid[i] = rand() % 26 + 'a';
 
 	hasher = new Hasher();
-	sender = new Sender();
+	sender = new Sender(this);
 	incoming = new Connection(port);
 
 	/* Block SIGPIPE - the appropriate thread will notice this anyway */
@@ -118,6 +118,9 @@ Overseer::bandwidthThread()
 		struct timeval tv;
 		tv.tv_sec = 1; tv.tv_usec = 0;
 		select(0, NULL, NULL, NULL, &tv);
+
+		/* Replenish amount of data transferrable */
+		sender->setAmountTransferrable(upload_rate);
 
 		/* Ask all torrents to update their bandwidth usage */
 		pthread_mutex_lock(&mtx_torrents);

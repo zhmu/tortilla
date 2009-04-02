@@ -26,8 +26,9 @@ public:
 	/*! \brief Writes data to the other side
 	 *  \param buf Buffer to write
 	 *  \param len Number of bytes to transfer
+	 *  \return Number of bytes sent
 	 */
-	void write(const void* buf, size_t len);
+	ssize_t write(const void* buf, size_t len);
 
 	/*! \brief Reads data from the other side
 	 *  \param buf Buffer to read

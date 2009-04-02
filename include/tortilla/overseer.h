@@ -51,6 +51,16 @@ public:
 	//! \brief Retrieve a list of torrents
 	std::vector<Torrent*> getTorrents();
 
+	/*! \brief Set the upload rate, in bytes/second
+	 *
+	 *  An upload rate of zero indicates no upload rate throtteling is
+	 *  performed.
+	 */
+	inline void setUploadRate(uint32_t rate) { upload_rate = rate; }
+
+	//! \brief Retrieve the upload rate, in bytes/second
+	inline uint32_t getUploadRate() { return upload_rate; }
+
 protected:
 	//! \brief Seperate thread handling bandwidth monitoring
 	void bandwidthThread();
@@ -115,6 +125,12 @@ private:
 
 	//! \brief Heartbeat thread
 	pthread_t thread_heartbeat;
+
+	/*! \brief Upload rate, in bytes/second
+	 *
+	 *  Zero indicates unlimited.
+	 */
+	uint32_t upload_rate;
 };
 
 #endif /* __OVERSEER_H__ */

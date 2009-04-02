@@ -652,11 +652,18 @@ Peer::sendBitfield()
 		TRACE(PROTOCOL, "sent our bitfield: peer=%p, available=%u", this, numAvailable);
 }
 
-void
-Peer::processSenderRequest(SenderRequest* request)
+uint32_t
+Peer::processSenderRequest(SenderRequest* request, uint32_t max_length)
 {
-	connection->write(request->getMessage(), request->getMessageLength());
-	tx_bytes += request->getMessageLength();
+	uint32_t sending_len = request->getMessageLength();
+
+	if (sending_len > max_length && max_length > 0)
+		sending_len = max_length;
+
+	ssize_t written = connection->write(request->getMessage(), sending_len);
+	tx_bytes += written;
+	request->skip(written);
+	return written;
 }
 
 void

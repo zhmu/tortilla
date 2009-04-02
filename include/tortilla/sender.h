@@ -2,6 +2,8 @@
 #include <queue>
 #include "peer.h"
 
+class Overseer;
+
 #ifndef __UPLOADER_H__
 #define __UPLOADER_H__
 
@@ -21,10 +23,10 @@ public:
 	Peer* const getPeer() { return peer; }
 
 	//! \brief Retrieve the data to upload
-	const uint8_t* getMessage() { return message; }
+	const uint8_t* getMessage();
 
 	//! \brief Retrieve the number of bytes to upload
-	const uint32_t getMessageLength() { return length; }
+	const uint32_t getMessageLength();
 
 	//! \brief Retrieves the piece to download
 	const uint32_t getPiece() { return piece; }
@@ -38,12 +40,21 @@ public:
 	//! \brief Is this a request to send data?
 	const bool haveData() { return (message == NULL); }
 
+	//! \brief Is this request partial?
+	bool isPartialRequest() { return skip_num > 0; }
+
+	//! \brief Skip a specific number of bytes
+	void skip(uint32_t l) { skip_num += l; }
+
 private:
 	//! \brief Peer we should be uploading to
 	Peer* peer;
 
 	//! \brief Number of bytes to upload
 	uint32_t length;
+
+	//! \brief Number of bytes to skip when sending data
+	uint32_t skip_num;
 
 	//! \brief Message to send
 	uint8_t* message;
@@ -65,13 +76,16 @@ private:
 /*! \brief Handles sending data to peers
  *
  *  This resides in a seperate thread to monitor the available bandwidth and
- *  gracefully deal with withouts without risking blocking the torrent itself.
+ *  gracefully deal with write timeouts risking blocking the torrent itself.
  */
 class Sender {
 friend	void* sender_thread(void* ptr);
+friend  class Overseer;
 public:
-	//! \brief Constructs an uploader
-	Sender();
+	/*! \brief Constructs an uploader
+	 *  \param o Overseer to use
+	 */
+	Sender(Overseer* o);
 
 	//! \brief Destroys the uploader
 	~Sender();
@@ -88,6 +102,12 @@ public:
 	//! \brief Remove all requests by a specific peer
 	void removeRequestsFromPeer(Peer* p);
 
+	/*! \brief Set the number of bytes we may upload this interval
+	 *
+	 *  Zero means anything goes.
+	 */
+	void setAmountTransferrable(uint32_t amount);
+
 protected:
 	//! \brief Handles processing of the queue
 	void process();
@@ -95,6 +115,9 @@ protected:
 private:
 	//! \brief Mutex protecting the queue
 	pthread_mutex_t mtx_queue;
+
+	//! \brief Mutex protecting our local data
+	pthread_mutex_t mtx_data;
 
 	//! \brief Condition variable used to kick the queue
 	pthread_cond_t cv_queue;
@@ -105,12 +128,21 @@ private:
 	//! \brief Are we terminating?
 	bool terminating;
 
+	/*! \brief Number of bytes allowed to be transfered
+	 *
+	 *  This is protected by mtx_data.
+	 */
+	uint32_t tx_left;
+	
 	/*! \brief Queue of items to be handeled
 	 *
 	 *  This is implemented as a list as we need to remove items when a
 	 *  peer vanishes.
 	 */
 	std::list<SenderRequest*> requests;
+
+	//! \brief Overseer object we belong to
+	Overseer* overseer;
 };
 
 #endif /*  __UPLOADER_H__ */
