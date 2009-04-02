@@ -38,6 +38,11 @@ Peer::__init(Torrent* t)
 	for (unsigned int i = 0; i < t->getNumPieces(); i++)
 		havePiece.push_back(false);
 
+	/*
+	 * If we initialize a peer, assume they are not snubbed; this gaves them nice
+	 * chance to be considered for sending data.
+	 */
+	snubbedLeftoverCounter = PEER_SNUBBED_SECONDS;
 }
 
 Peer::Peer(Torrent* t, std::string peer_id, std::string peer_host, uint16_t peer_port)
@@ -663,6 +668,7 @@ Peer::processSenderRequest(SenderRequest* request, uint32_t max_length)
 	ssize_t written = connection->write(request->getMessage(), sending_len);
 	tx_bytes += written;
 	request->skip(written);
+	torrent->incrementUploadedBytes(written);
 	return written;
 }
 
