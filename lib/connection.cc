@@ -37,7 +37,7 @@ Connection::Connection(string host, uint16_t port)
 
 		/*
 		 * Set the socket to nonblocking; this is used to be able to timeout
-		 * connections.
+		 * connections / writes.
 		 */
 		int fl = fcntl(fd, F_GETFL, NULL);
 		fl |= O_NONBLOCK;
@@ -73,10 +73,7 @@ Connection::Connection(string host, uint16_t port)
 	if (fd < 0)
 		throw ConnectionException("unable to connect to " + host + " port " + portstr);
 
-	/* Socket is fine; get rid of the nonblocking mode before we hand it back */
-	int fl = fcntl(fd, F_GETFL, NULL);
-	fl &= ~O_NONBLOCK;
-	fcntl(fd, F_SETFL, fl);
+	/* Socket is fine; store the name and off we go */
 	endpoint = host + ":" + portstr;
 }
 
@@ -113,11 +110,27 @@ Connection::Connection(int s, struct sockaddr* soa, socklen_t slen)
 	} else {
 		endpoint = "?";
 	}
+
+	/* Enable non-blocking mode; this ensures we don't stall on writes */
+	int fl = fcntl(fd, F_GETFL, NULL);
+	fl |= O_NONBLOCK;
+	fcntl(fd, F_SETFL, fl);
 }
 
 ssize_t
 Connection::write(const void* buf, size_t len)
 {
+	/*
+	 * Try a maximum of one second to write; if this fails, don't try to write to
+	 * the socket.
+	 */
+	fd_set fds;
+	struct timeval tv;
+	FD_ZERO(&fds);
+	FD_SET(fd, &fds);
+	tv.tv_sec = 1; tv.tv_usec = 0;
+	if (select(fd + 1, NULL, &fds, NULL, &tv) == 0 || !FD_ISSET(fd, &fds))
+		return 0;
 	return ::write(fd, buf, len);
 }
 
