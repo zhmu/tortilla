@@ -147,6 +147,9 @@ public:
 	//! \brief Retrieve the number of pieces we are hashing
 	unsigned int getNumPiecesHashing();
 
+	//! \brief Retrieve the number of pieces we have complete
+	unsigned int getNumPiecesComplete();
+
 	//! \brief Retrieve how many bytes are left
 	uint64_t getBytesLeft() { return left; }
 

@@ -15,7 +15,7 @@ Info::draw(Torrent* t)
 	mvwprintw(window, 0, 0, "Info hash:      %s",
 	 Interface::formatHex(t->getInfoHash(), TORRENT_HASH_LEN).c_str());
 	mvwprintw(window, 1, 0, "Pieces:         %u / %u (%u hashing)",
-	 0, t->getNumPieces(), t->getNumPiecesHashing());
+	 t->getNumPiecesComplete(), t->getNumPieces(), t->getNumPiecesHashing());
 	mvwprintw(window, 2, 0, "Data left:      %llu / %llu bytes",
 	 (unsigned long)t->getBytesLeft(), (unsigned long)t->getTotalSize());
 	mvwprintw(window, 3, 0, "Peers:          %u", t->getNumPeers());

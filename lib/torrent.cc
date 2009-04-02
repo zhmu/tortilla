@@ -1370,4 +1370,18 @@ Torrent::getPeerDetails()
 	return pi;
 }
 
+unsigned int 
+Torrent::getNumPiecesComplete()
+{
+	unsigned int num = 0;
+
+	LOCK(data);
+	for (unsigned int i = 0; i < numPieces; i++)
+		if (havePiece[i] && !hashingPiece[i])
+			num++;
+	UNLOCK(data);
+
+	return num;
+}
+
 /* vim:set ts=2 sw=2: */
