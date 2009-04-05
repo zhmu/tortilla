@@ -11,6 +11,8 @@ public:
 	friend std::ostream& operator<<(std::ostream& os, const MetaField& mf);
 	friend std::istream& operator>>(std::istream& is, const MetaField& mf);
 
+	inline virtual ~MetaField() { }
+
 protected:
 	/*! \brief Stream field to an output stream
 	 *
