@@ -35,20 +35,37 @@ main(int argc, char** argv)
 	/* XXX */
 	signal(SIGPIPE, SIG_IGN);
 
-	if (argc != 2) {
-		fprintf(stderr, "usage: tortilla file.torrent\n");
+	if (argc < 2) {
+		fprintf(stderr, "usage: tortilla file.torrent ...\n");
 		return EXIT_FAILURE;
 	}
 
-	ifstream is;
-	is.open(argv[1], ios::binary);
-	Metadata md(is);
+	/*
+	 * Try to parse metadata of all torrents; this ensures we only do something
+	 * once all torrents are OK.
+	 */
+	vector<Metadata*> metadatas;
+	for (int i = 1; i < argc; i++) {
+		ifstream is;
+		is.open(argv[i], ios::binary);
+		metadatas.push_back(new Metadata(is));
+	}
 
 	/* XXX handle it if the connection burns */
-	overseer = new Overseer(1024 + rand() % 10000);
+	//overseer = new Overseer(1024 + rand() % 10000);
+	overseer = new Overseer(4000);
 	interface = new Interface(overseer);
-	//overseer->setUploadRate(1024 * 1024);
-	overseer->addTorrent(new Torrent(overseer, &md));
+	overseer->setUploadRate(16 * 1024);
+
+	/*
+	 * Add the torrents one by one; we won't need the metadata
+	 * anymore after this, so get rid of it.
+	 */
+	for (vector<Metadata*>::iterator it = metadatas.begin();
+	     it != metadatas.end(); it++) {
+		overseer->addTorrent(new Torrent(overseer, *it));
+		delete *it;
+	}
 
 	signal(SIGINT, sigint);
 	overseer->waitHashingComplete();

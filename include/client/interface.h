@@ -5,6 +5,9 @@
 #ifndef __INTERFACE_H__
 #define __INTERFACE_H__
 
+class Overview;
+class Info;
+
 class Interface {
 public:
 	Interface(Overseer* o);
@@ -18,7 +21,11 @@ public:
 	static std::string formatHex(const uint8_t* hex, unsigned int len);
 
 private:
+	void handleInput();
+
 	Overseer* overseer;
+	Overview* overview;
+	Info* info;
 
 	WINDOW* overviewWindow;
 	WINDOW* infoWindow;

@@ -47,4 +47,19 @@ Overview::getSelectedTorrent()
 	return interface->getOverseer()->getTorrents()[curSelection];
 }
 
+void
+Overview::downTorrent()
+{
+	curSelection = (curSelection + 1) % interface->getOverseer()->getTorrents().size();
+}
+
+void
+Overview::upTorrent()
+{
+	if (curSelection == 0)
+		curSelection = interface->getOverseer()->getTorrents().size() - 1;
+	else
+		curSelection--;
+}
+
 /* vim:set ts=2 sw=2: */

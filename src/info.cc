@@ -5,20 +5,25 @@ using namespace std;
 
 Info::Info(WINDOW* w, Interface* iface)
 {
-	window = w; interface = iface;
+	window = w; interface = iface; y_offset = 0;
 }
 
 void
 Info::draw(Torrent* t)
 {
 	werase(window);
-	mvwprintw(window, 0, 0, "Info hash:      %s",
+	if (t == NULL) {
+		printxyf(0, 0, "<no torrent selected>");
+		wrefresh(window);
+		return;
+	}
+	printxyf(0, 0, "Info hash:      %s",
 	 Interface::formatHex(t->getInfoHash(), TORRENT_HASH_LEN).c_str());
-	mvwprintw(window, 1, 0, "Pieces:         %u / %u (%u hashing)",
+	printxyf(0, 1, "Pieces:         %u / %u (%u hashing)",
 	 t->getNumPiecesComplete(), t->getNumPieces(), t->getNumPiecesHashing());
-	mvwprintw(window, 2, 0, "Data left:      %llu / %llu bytes",
+	printxyf(0, 2, "Data left:      %llu / %llu bytes",
 	 (unsigned long)t->getBytesLeft(), (unsigned long)t->getTotalSize());
-	mvwprintw(window, 3, 0, "Peers:          %u", t->getNumPeers());
+	printxyf(0, 3, "Peers:          %u", t->getNumPeers());
 
 	vector<PieceInfo> pieces = t->getPieceDetails();
 	unsigned int y = 4;
@@ -41,7 +46,7 @@ Info::draw(Torrent* t)
 			strncat(line, tmp, sizeof(line));
 		}
 		strncat(line, " ", sizeof(line));
-		mvwprintw(window, y, 0, line);
+		printxyf(0, y, line);
 		y++;
 	}
 
@@ -55,7 +60,7 @@ Info::draw(Torrent* t)
 		 pi.isIncoming() ? "in" : "out",
 		 Interface::formatNumber(pi.getRxRate()).c_str(),
 		 Interface::formatNumber(pi.getTxRate()).c_str());
-		mvwprintw(window, y, 0, line);
+		printxyf(0, y, line);
 		y++;
 		snprintf(line, sizeof(line), "flags:");
 		if (pi.isSnubbed()) strcat(line, " snubbed");
@@ -63,10 +68,45 @@ Info::draw(Torrent* t)
 		if (pi.isPeerChoked()) strcat(line, " peer_chk");
 		if (pi.areInterested()) strcat(line, " are_int");
 		if (pi.areChoking()) strcat(line, " are_chk");
-		mvwprintw(window, y, 0, line);
+		printxyf(0, y, line);
 		y++;
 	}
 	wrefresh(window);
+}
+
+void
+Info::printxyf(unsigned int x, unsigned int y, const char* format, ...)
+{
+	va_list vl;
+
+	if (y < y_offset)
+		return;
+
+	if (wmove(window, y - y_offset, x) == ERR)
+		return;
+
+	va_start(vl, format);
+	vwprintw(window, format, vl);
+	va_end(vl);
+}
+
+void
+Info::scrollUp()
+{
+	unsigned int lines = getmaxy(window);
+
+	if (y_offset - lines / 2 < 0)
+		y_offset = 0;
+	else
+		y_offset -= lines / 2;
+}
+
+void
+Info::scrollDown()
+{
+	unsigned int lines = getmaxy(window);
+
+	y_offset += lines / 2;
 }
 
 /* vim:set ts=2 sw=2: */

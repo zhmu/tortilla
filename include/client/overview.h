@@ -12,6 +12,9 @@ public:
 
 	Torrent* getSelectedTorrent();
 
+	void upTorrent();
+	void downTorrent();
+
 private:
 	WINDOW* window;
 	Interface* interface;
