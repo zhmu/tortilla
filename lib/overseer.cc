@@ -87,6 +87,21 @@ Overseer::addTorrent(Torrent* t)
 }
 
 void
+Overseer::removeTorrent(Torrent* t)
+{
+	string info((const char*)t->getInfoHash(), TORRENT_HASH_LEN);
+
+	pthread_mutex_lock(&mtx_torrents);
+	map<string, Torrent*>::iterator it = torrents.find(info);
+	if (it != torrents.end()) {
+		delete it->second;
+		torrents.erase(it);
+	}
+	pthread_mutex_unlock(&mtx_torrents);
+}
+
+
+void
 Overseer::start()
 {
 	/* Launch all torrents */

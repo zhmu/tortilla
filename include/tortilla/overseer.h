@@ -27,6 +27,9 @@ public:
 	//! \brief Hook a torrent to the overseer
 	void addTorrent(Torrent* t);
 
+	//! \brief Remove a torrent from the overseer
+	void removeTorrent(Torrent* t);
+
 	//! \brief Go, and oversee!
 	void start();
 
