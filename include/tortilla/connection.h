@@ -49,6 +49,12 @@ public:
 	//! \brief Retrieve a human-readable endpoint description
 	inline std::string getEndpoint() { return endpoint; }
 
+	//! \brief Are we connecting?
+	bool areConnecting() { return connecting; }
+
+	//! \brief Used to signal connection is done!
+	void connectionDone() { connecting = true; }
+
 protected:
 	/*! \brief Constructs a TCP connection based on an accepted socket
 	 *  \param s File descriptor to use
@@ -60,6 +66,9 @@ protected:
 private:
 	//! \brief File descriptor used for the connection
 	int fd;
+
+	//! \brief Are we currently waiting for a connect(2) to finish?
+	bool connecting;
 
 	//! \brief Human-readable endpoint name
 	std::string endpoint;

@@ -736,6 +736,13 @@ Peer::setPeerID(std::string peer_id)
 	peerID = peer_id;
 }
 
+void
+Peer::connectionDone()
+{
+	TRACE(NETWORK, "connection completed: peer=%p", this);
+	connection->connectionDone();
+}
+
 #undef WRITE_UINT32
 
 /* vim:set ts=2 sw=2: */

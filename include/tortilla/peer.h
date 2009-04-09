@@ -157,6 +157,12 @@ public:
 	//! \brief Retrieves the torrent corresponding to this peer
 	Torrent* getTorrent() { return torrent; }
 
+	//! \brief Is the peer still connecting to the endpoint?
+	bool areConnecting() { return connection->areConnecting(); }
+
+	//! \brief Signal that we finished connecting
+	void connectionDone();
+
 	void dump();
 
 protected:

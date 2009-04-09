@@ -470,7 +470,7 @@ void
 Torrent::go()
 {
 	while (!terminating) {
-		fd_set fds;
+		fd_set readfds, writefds;
 
 		/*
 	 	 * Gracefully handle any peers that are going away.
@@ -494,13 +494,18 @@ Torrent::go()
 
 		/* Construct our file descriptor set */
 		int maxfd = -1;
-		FD_ZERO(&fds);
+		FD_ZERO(&readfds); FD_ZERO(&writefds);
 		RLOCK(peers);
 		for (vector<Peer*>::iterator it = peers.begin();
 		     it != peers.end(); it++) {
-			int fd = (*it)->getFD();
+			Peer* p = *it;
+			int fd = p->getFD();
 			if (maxfd < fd) maxfd = fd;
-			FD_SET(fd, &fds);
+			if (p->areConnecting()) {
+				FD_SET(fd, &writefds);
+			} else {
+				FD_SET(fd, &readfds);
+			}
 		}
 		RWUNLOCK(peers);
 
@@ -510,7 +515,7 @@ Torrent::go()
 		 */
 		struct timeval tv;
 		tv.tv_sec = 0; tv.tv_usec = 5000;
-		int n = select(maxfd + 1, &fds, (fd_set*)NULL, (fd_set*)NULL, &tv);
+		int n = select(maxfd + 1, &readfds, &writefds, (fd_set*)NULL, &tv);
 		if (n == 0)
 			continue;
 
@@ -524,10 +529,15 @@ Torrent::go()
 		RLOCK(peers);
 		for (vector<Peer*>::iterator it = peers.begin();
 				 it != peers.end(); it++) {
-			int fd = (*it)->getFD();
-			if (!FD_ISSET(fd, &fds))
-				continue;
 			Peer* p = (*it);
+			int fd = (*it)->getFD();
+			if (FD_ISSET(fd, &writefds)) {
+				/* Handle with made connections */
+				if (p->areConnecting())
+					p->connectionDone();
+			}
+			if (!FD_ISSET(fd, &readfds))
+				continue;
 			/*
 			 * There is data here.
 			 */

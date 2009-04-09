@@ -45,42 +45,27 @@ Connection::Connection(string host, uint16_t port)
 
 		if (connect(fd, rp->ai_addr, rp->ai_addrlen) == 0)
 			break;
-		if (errno == EINPROGRESS) {
-			/*
-		 	 * Use select(2) to wait at most 5 seconds for the connection to be
-			 * made.
-			 */
-			fd_set fds;
-			struct timeval tv;
-			FD_ZERO(&fds);
-			FD_SET(fd, &fds);
-			tv.tv_sec = 5; tv.tv_usec = 0;
-			if (select(fd + 1, NULL, &fds, NULL, &tv) > 0) {
-				/* Something happened; but is it for good? */
-				unsigned int err;
-				socklen_t errlen = sizeof(err);
-				if (getsockopt(fd, SOL_SOCKET, SO_ERROR, (void*)&err, &errlen) == 0 && err == 0)
-					/* Socket was acceptable! */
-					break;
-			}
-		}
+		if (errno == EINPROGRESS)
+			break;
 
 		close(fd); fd = -1;
 	}
-	/* We don't need the address information anymore; just the pointer is enough */
+
+	/* We don't need the address information anymore - we are connecting */
 	freeaddrinfo(result);
 
 	if (fd < 0)
 		throw ConnectionException("unable to connect to " + host + " port " + portstr);
 
-	/* Socket is fine; store the name and off we go */
-	endpoint = host + ":" + portstr;
+	/* Socket is fine; mind that we are connecting, store the name and off we go */
+	connecting = true; endpoint = host + ":" + portstr;
 }
 
 Connection::Connection(uint16_t port)
 {
 	struct sockaddr_in sin;
 
+	connecting = false;
 	fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (fd < 0)
 		throw ConnectionException("unable create socket");
@@ -102,7 +87,7 @@ Connection::Connection(uint16_t port)
 
 Connection::Connection(int s, struct sockaddr* soa, socklen_t slen)
 {
-	fd = s;
+	fd = s; connecting = false;
 
 	char host[128 /* XXX */], port[128 /* XXX */];
 	if (getnameinfo(soa, slen, host, sizeof(host), port, sizeof(port), NI_NUMERICHOST | NI_NUMERICSERV) == 0) {
@@ -131,6 +116,8 @@ Connection::write(const void* buf, size_t len)
 	tv.tv_sec = 1; tv.tv_usec = 0;
 	if (select(fd + 1, NULL, &fds, NULL, &tv) == 0 || !FD_ISSET(fd, &fds))
 		return 0;
+	/* We cannot be connecting if this worked */
+	connecting = false;
 	return ::write(fd, buf, len);
 }
 
