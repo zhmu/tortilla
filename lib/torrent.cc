@@ -278,7 +278,7 @@ Torrent::~Torrent()
 	 * Nuke all our peers. XXX we should implement signalling and exit more
 	 * gracefully.
 	 */
-	RLOCK(peers);
+	WLOCK(peers);
 	while (true) {
 		vector<Peer*>::iterator it = peers.begin();
 		if (it == peers.end())
