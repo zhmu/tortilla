@@ -1156,6 +1156,17 @@ Torrent::handleUnchokingAlgorithm()
 	/* Given this list of peers, sort them by upload rate */
 	sort(uiPeers.begin(), uiPeers.end(), Peer::compareByUpload);
 
+	char bla[65536];
+	sprintf(bla, "sorted peer list (size=%u):", (int)uiPeers.size());
+	for (unsigned int i = 0; i < uiPeers.size(); i++) {
+		char mn[128];
+		snprintf(mn, sizeof mn, "%s(%u/%u)",
+		 uiPeers[i]->getEndpoint().c_str(),
+		 uiPeers[i]->getRxRate(), uiPeers[i]->getTxRate());
+		strncat(bla, mn, sizeof bla);
+	}
+	TRACE(NETWORK, "%s", bla);
+
 	/*
 	 * 3) The three fastest peers are unchoked
 	 *
