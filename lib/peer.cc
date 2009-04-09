@@ -494,20 +494,9 @@ Peer::requestPiece(unsigned int num)
 void
 Peer::queueMessage(uint8_t msg, const uint8_t* buf, size_t len)
 {
-
 	assert(buf == NULL || len > 0);
 
 	torrent->queueMessage(this, msg, (uint8_t*)buf, (uint32_t)len);
-
-#if 0
-	/* XXX */
-	unsigned char* pkt = new unsigned char[len + 5];
-	WRITE_UINT32(pkt, 0, len + 1);
-	pkt[4] = msg;
-	memcpy((pkt + 5), buf, len);
-	send(pkt, len + 5);
-	delete[] pkt;
-#endif
 }
 
 bool
