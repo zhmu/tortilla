@@ -1192,35 +1192,14 @@ Torrent::handleUnchokingAlgorithm()
 	vector<Peer*> newUnchokes;
 
 	/*
-	 * The algorithm used here is the Choke Algorithm as described in:
-	 *
-	 * Arnaud Legout, Guillaume Urvoy-Keller, Pietro Michiardi.
-	 * Understanding BitTorrent: An Experimental Perspective, INRIA 2005.
-	 * (Obtained from http://hal.inria.fr/inria-00000156/en, v3 2005-11-10)
-	 */
-
-	/* New round, but >3 rounds doesn't matter so we round them */
-	unchokingRound = (unchokingRound + 1) % 3;
-
-	/*
-	 * 1) Every three rounds, chose a random peer that is unchoked and
-	 *    interested.  The algorithm calls this peer the 'optimistic unchoked
-	 *    peer'.
-	 */
-	if (unchokingRound == 0) {
-		optimisticUnchokedPeer = pickRandomPeer(1, 1, newUnchokes);
-	}
-
-	/*
-	 * 2) Order peers that are interested and have sent at least one
-	 *    block in the last 30 seconds (i.e. peers that are not snubbed)
+	 * Order interested peers based on their upload rate.
 	 */
 	RLOCK(peers);
 	vector<Peer*> uiPeers;
 	for (vector<Peer*>::iterator it = peers.begin();
 	     it != peers.end(); it++) {
 		Peer* p = (*it);
-		if (p->isPeerSnubbed() || !p->isPeerInterested())
+		if (!p->isPeerInterested())
 			continue;
 		uiPeers.push_back(p);
 	}
@@ -1241,51 +1220,12 @@ Torrent::handleUnchokingAlgorithm()
 	TRACE(NETWORK, "%s", bla);
 
 	/*
-	 * 3) The three fastest peers are unchoked
-	 *
-	 * Note that we already check for the necessary condition for steps 4+ here!
+	 * Unchoke the peers.
 	 */
-	bool unchokedOUP = false;
-	for (unsigned int i = 0; i < MIN(3, uiPeers.size()); i++) {
+	for (unsigned int i = 0; i < uiPeers.size(); i++) {
 		newUnchokes.push_back(uiPeers[i]);
-		if (uiPeers[i] == optimisticUnchokedPeer)
-			unchokedOUP = true;
 	}
 
-	/*
-	 * (4) If the optimistic unchoked is not part of the peers we just unchoked,
-	 *     unchoke it and we are done.
-	 */
-	if (!unchokedOUP) {
-		if (optimisticUnchokedPeer != NULL) {
-			newUnchokes.push_back(optimisticUnchokedPeer);
-			optimisticUnchokedPeer = NULL;
-		}
-	} else {
-		/*
-		 * (5) If the planned optimistic unchoke peer was part of the unchoked peers
-		 *     (it was), we need to pick a new choked peer at random.
-		 */
-		while (true) {
-			optimisticUnchokedPeer = pickRandomPeer(1, -1, newUnchokes);
-			if (optimisticUnchokedPeer == NULL)
-				break;
-
-			/* Note that steps 5a/5b always unchoke the peer,  so we do that here */
-			newUnchokes.push_back(optimisticUnchokedPeer);
-
-			/* (5a) If this peer is interested, it is unchoked and the round is complete */
-			if (optimisticUnchokedPeer->isPeerInterested())
-				break;
-
-			/* (5b) If this peer is not interested, it is unchoked and another peer is chosen */
-		}
-	}
-
-	/*
-	 * OK, newunchokes is the amount of peers we unchoke; start by choking
-	 * not in it.
-	 */
 	RLOCK(peers);
 	vector<Peer*> newChokes;
 	for (vector<Peer*>::iterator it = peers.begin();
