@@ -63,6 +63,7 @@ Overseer::~Overseer()
 	pthread_join(thread_listener, NULL);
 	pthread_join(thread_heartbeat, NULL);
 
+	/* Get rid of the torrents; these will remove any peers and hashing requests too */
 	while (true) {
 		map<string, Torrent*>::iterator it = torrents.begin();
 		if (it == torrents.end())

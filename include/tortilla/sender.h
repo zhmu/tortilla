@@ -22,6 +22,9 @@ public:
 	//! \brief Retrieve the peer to upload to
 	Peer* const getPeer() { return peer; }
 
+	//! \brief Is the request cancelled?
+	bool isCancelled() { return cancelled; }
+
 	//! \brief Retrieve the data to upload
 	const uint8_t* getMessage();
 
@@ -46,9 +49,20 @@ public:
 	//! \brief Skip a specific number of bytes
 	void skip(uint32_t l) { skip_num += l; }
 
+	/*! \brief Cancel the request
+	 *
+	 *  If a request is cancelled, this means the peer may or may not
+	 *  be available anymore; either way, we should not rely on the
+	 *  peer being available.
+	 */
+	void cancel() { cancelled = true; }
+
 private:
 	//! \brief Peer we should be uploading to
 	Peer* peer;
+
+	//! \brief Is the request cancelled?
+	bool cancelled;
 
 	//! \brief Number of bytes to upload
 	uint32_t length;
@@ -113,8 +127,14 @@ protected:
 	void process();
 
 private:
-	//! \brief Mutex protecting the queue
-	pthread_mutex_t mtx_queue;
+	/*! \brief Mutex protecting the queue
+	 *
+	 *  This is a r/w lock because we need to scan the list from
+	 *  other threads (i.e. the torrent itself may cancel
+	 *  requests) yet the Sender itself modifies the list when
+	 *  requests vanish...
+	 */
+	pthread_rwlock_t rwl_queue;
 
 	//! \brief Mutex protecting our local data
 	pthread_mutex_t mtx_data;

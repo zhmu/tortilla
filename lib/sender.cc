@@ -13,10 +13,13 @@ using namespace std;
 	ptr[(offs) + 2] = (((val) >>  8) & 0xff); \
 	ptr[(offs) + 3] = (((val)      ) & 0xff);
 
+#define RLOCK(x)    pthread_rwlock_rdlock(&rwl_## x);
+#define WLOCK(x)    pthread_rwlock_wrlock(&rwl_## x);
+#define RWUNLOCK(x) pthread_rwlock_unlock(&rwl_## x);
 
 SenderRequest::SenderRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len)
 {
-	peer = p; length = len + 13; skip_num = 0;
+	peer = p; length = len + 13; skip_num = 0; cancelled = false;
 	this->piece = piece; this->offset = begin; this->piece_length = len;
 
 	message = new uint8_t[length];
@@ -30,6 +33,7 @@ SenderRequest::SenderRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t l
 SenderRequest::SenderRequest(Peer* p, uint8_t msg, const uint8_t* data, uint32_t len)
 {
 	peer = p; length = len + 5; skip_num = 0; piece = 0; offset = 0; piece_length = 0;
+	cancelled = false;
 
 	message = new uint8_t[length];
 	WRITE_UINT32(message, 0, len + 1);
@@ -67,7 +71,7 @@ Sender::Sender(Overseer* o)
 {
 	terminating = false; overseer = o;
 
-	pthread_mutex_init(&mtx_queue, NULL);
+	pthread_rwlock_init(&rwl_queue, NULL);
 	pthread_mutex_init(&mtx_data, NULL);
 	pthread_cond_init(&cv_queue, NULL);
 
@@ -85,15 +89,15 @@ Sender::~Sender()
 	pthread_join(thread, NULL);
 
 	pthread_cond_destroy(&cv_queue);
-	pthread_mutex_destroy(&mtx_queue);
+	pthread_rwlock_destroy(&rwl_queue);
 }
 
 void
 Sender::enqueuePieceRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len)
 {
-	pthread_mutex_lock(&mtx_queue);
+	WLOCK(queue);
 	requests.push_back(new SenderRequest(p, piece, begin, len));
-	pthread_mutex_unlock(&mtx_queue);
+	RWUNLOCK(queue);
 
 	/* Awaken! */
 	pthread_cond_signal(&cv_queue);
@@ -102,78 +106,94 @@ Sender::enqueuePieceRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t le
 void
 Sender::enqueueMessage(Peer* p, uint8_t msg, uint8_t* data, uint32_t len)
 {
-	pthread_mutex_lock(&mtx_queue);
+	WLOCK(queue);
 	requests.push_back(new SenderRequest(p, msg, data, len));
-	pthread_mutex_unlock(&mtx_queue);
+	RWUNLOCK(queue);
 
 	/* Awaken! */
 	pthread_cond_signal(&cv_queue);
 }
 
-/* Helper for removeRequestsFromPeer */
-class peer_match {
-public:
-	inline peer_match(Peer *p) { peer = p; };
-	bool operator () (SenderRequest* ur) {
-		return ur->getPeer() == peer;
-	}
-
-private:
-	const Peer* peer;
-};
-
 void
 Sender::removeRequestsFromPeer(Peer* p)
 {
-	pthread_mutex_lock(&mtx_queue);
-	requests.remove_if(peer_match(p));
-	pthread_mutex_unlock(&mtx_queue);
-}
-
-/* Helper for dequeuePieceRequest */
-class request_match {
-public:
-	inline request_match(SenderRequest u) : ur(u) { }
-	bool operator () (SenderRequest* u) {
-		return (ur.getPeer() == u->getPeer() &&
-		        ur.getPiece() == u->getPiece() &&
-		        ur.getOffset() == u->getOffset() &&
-			      ur.getPieceLength() == u->getPieceLength() &&
-		        !u->haveData());
+	/*
+	 * As we do not know whether requests are currently being serviced, we
+	 * traverse the outgoing queue and cancel any request belonging to this
+	 * peer.
+	 */
+	RLOCK(queue);
+	for (list<SenderRequest*>::iterator it = requests.begin();
+	     it != requests.end(); it++) {
+		SenderRequest* sr = *it;
+		if (sr->getPeer() == p)
+			sr->cancel();
 	}
-
-private:
-	SenderRequest ur;
-};
+	RWUNLOCK(queue);
+}
 
 void
 Sender::dequeuePieceRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len)
 {
-	pthread_mutex_lock(&mtx_queue);
-	requests.remove_if(request_match(SenderRequest(p, piece, begin, len)));
-	pthread_mutex_unlock(&mtx_queue);
+	RLOCK(queue);
+	for (list<SenderRequest*>::iterator it = requests.begin();
+	     it != requests.end(); it++) {
+		SenderRequest* sr = *it;
+		if (sr->getPeer() == p &&
+		    sr->getPiece() == piece &&
+		    sr->getOffset() == begin &&
+		    sr->getPieceLength() == len &&
+		    !sr->haveData())
+			sr->cancel();
+	}
+	RWUNLOCK(queue);
 }
 
 void
 Sender::process()
 {
 	while(true) {
-		pthread_mutex_lock(&mtx_queue);
-		if (!terminating && requests.empty())
-			pthread_cond_wait(&cv_queue, &mtx_queue);
+		/*
+		 * See if the queue is empty; we need this to determine whether we have to
+		 * wait for the queue to fill up.
+		 */
+		RLOCK(queue);
+		bool queueEmpty = requests.empty();
+		RWUNLOCK(queue);
+
+		/* Wait for the queue to fill up, if needed */
+		pthread_mutex_lock(&mtx_data);
+		if (!terminating && queueEmpty)
+			pthread_cond_wait(&cv_queue, &mtx_data);
+		pthread_mutex_unlock(&mtx_data);
 		if (terminating)
 			break;
 
-		while (!terminating && !requests.empty()) {
-			/* Grab a request from the queue */
-			SenderRequest* request = requests.front();
-			pthread_mutex_unlock(&mtx_queue);
+		while (!terminating) {
+			/* Try to fetch a request from the queue */
+			WLOCK(queue);
+			SenderRequest* request = NULL;
+			while (!requests.empty()) {
+				request = requests.front();
+				if (!request->isCancelled())
+					break;
+				delete request;
+				requests.pop_front();
+				request = NULL;
+			}
+			RWUNLOCK(queue);
+			if (request == NULL)
+				/* Queue is empty; try again later */
+				break;
 
-			/* Ask the peer to process */
-			pthread_mutex_lock(&mtx_queue);
+			/* Fetch the amount of data we may still transfer */
+			pthread_mutex_lock(&mtx_data);
 			uint32_t cur_tx = tx_left;
-			pthread_mutex_unlock(&mtx_queue);
+			pthread_mutex_unlock(&mtx_data);
 
+			/*
+			 * Ask the peer to process.
+			 */
 			uint32_t amount = request->getPeer()->processSenderRequest(request, cur_tx);
 
 			pthread_mutex_lock(&mtx_data);
@@ -187,10 +207,10 @@ Sender::process()
 			 * Otherwise, just get rid of it.
 			 */
 			if (request->getMessageLength() == 0) {
+				WLOCK(queue);
 				delete request;
-				pthread_mutex_lock(&mtx_queue);
 				requests.pop_front();
-				pthread_mutex_unlock(&mtx_queue);
+				RWUNLOCK(queue);
 			} else {
 				/*
 				 * XXX We didn't transfer this chunk in a single go; this means we
@@ -200,10 +220,10 @@ Sender::process()
 				 * For now, if the data wasn't accepted, put it at the end of the queue.
 				 */
 				if (amount == 0) {
-					pthread_mutex_lock(&mtx_queue);
+					WLOCK(queue);
 					requests.pop_front();
 					requests.push_back(request);
-					pthread_mutex_unlock(&mtx_queue);
+					RWUNLOCK(queue);
 				}
 			}
 
@@ -216,13 +236,8 @@ Sender::process()
 				tv.tv_sec = 1; tv.tv_usec = 0;
 				select(0, NULL, NULL, NULL, &tv);
 			}
-
-			pthread_mutex_lock(&mtx_queue);
 		}
-		pthread_mutex_unlock(&mtx_queue);
 	}
-
-	pthread_mutex_unlock(&mtx_queue);
 }
 
 void
