@@ -55,7 +55,7 @@ main(int argc, char** argv)
 	//overseer = new Overseer(1024 + rand() % 10000);
 	overseer = new Overseer(4000);
 	interface = new Interface(overseer);
-	overseer->setUploadRate(16 * 1024);
+//	overseer->setUploadRate(16 * 1024);
 
 	/*
 	 * Add the torrents one by one; we won't need the metadata

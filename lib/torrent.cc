@@ -654,8 +654,6 @@ Torrent::scheduleRequests()
 				Peer* p = *it;
 				if (!p->hasPiece(i) || p->haveRequestedPiece(i))
 					continue;
-				if (p->getNumRequests() >= TORRENT_PEER_MAX_REQUESTS)
-					continue;
 
 				p->claimInterest();
 				p->requestPiece(i);
