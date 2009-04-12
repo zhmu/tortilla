@@ -113,6 +113,14 @@ public:
 	//! \brief Cancels a piece request
 	void dequeuePieceRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len);
 
+	/*! \brief Cancels a request for a chunk
+	 *
+	 *  This is used in endgame mode; if we have requests queued for a chunk that
+	 *  we have yet to send (i.e. we already have the chunk, but haven't asked the peer to
+	 *  send it), this will cancel such a request.
+	 */
+	void dequeueRequestForChunk(Torrent* t, uint32_t piece, uint32_t begin, uint32_t len);
+
 	//! \brief Remove all requests by a specific peer
 	void removeRequestsFromPeer(Peer* p);
 

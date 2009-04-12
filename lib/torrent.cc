@@ -728,6 +728,9 @@ Torrent::callbackCompleteChunk(Peer* p, unsigned int piece, uint32_t offset, con
 	}
 	RWUNLOCK(peers);
 
+	/* If we have requests queued for this chunk, ditch them */
+	overseer->dequeueRequestForChunk(this, piece, offset, len);
+
 	LOCK(data);
 	haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + offset / TORRENT_CHUNK_SIZE] = true;
 	downloaded += len;

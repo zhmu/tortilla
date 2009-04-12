@@ -80,6 +80,9 @@ protected:
 	//! \brief Cancels a peer upload request
 	void dequeueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len);
 
+	//! \brief Cancels requests to upload a specific chunk
+	void dequeueRequestForChunk(Torrent* t, uint32_t piece, uint32_t begin, uint32_t len);
+
 	//! \brief Enqueue a message
 	void enqueueMessage(Peer* p, uint8_t msg, uint8_t* data, uint32_t len);
 

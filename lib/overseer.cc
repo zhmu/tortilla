@@ -360,4 +360,10 @@ Overseer::cancelHashingTorrent(Torrent* t)
 	hasher->cancelTorrent(t);
 }
 
+void
+Overseer::dequeueRequestForChunk(Torrent* t, uint32_t piece, uint32_t begin, uint32_t len)
+{
+	sender->dequeueRequestForChunk(t, piece, begin, len);
+}
+
 /* vim:set ts=2 sw=2: */

@@ -150,6 +150,27 @@ Sender::dequeuePieceRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t le
 }
 
 void
+Sender::dequeueRequestForChunk(Torrent* t, uint32_t piece, uint32_t begin, uint32_t len)
+{
+	RLOCK(queue);
+	for (list<SenderRequest*>::iterator it = requests.begin();
+	     it != requests.end(); it++) {
+		SenderRequest* sr = *it;
+		if (sr->isCancelled())
+			continue;
+		if (sr->getPeer()->getTorrent() == t &&
+		    sr->getPiece() == piece &&
+		    sr->getOffset() == begin &&
+		    sr->getPieceLength() == len &&
+		    !sr->haveData())
+TRACE(NETWORK, "cancelled request for chunk: torrent=%p, piece=%u, begin=%u, len=%u",
+	t, piece, begin, len);
+			sr->cancel();
+	}
+	RWUNLOCK(queue);
+}
+
+void
 Sender::process()
 {
 	while(true) {
