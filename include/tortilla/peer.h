@@ -97,6 +97,9 @@ public:
 	//! \brief Retrieve transmit rate, in bytes/second
 	uint32_t getTxRate() { return tx_bytes; }
 
+	//! \brief Retrieves the average send/transmit rate, in bytes/second
+	void getAverageRate(uint32_t* rx, uint32_t* tx);
+
 	/*! \brief Processes data to be sent
 	 *  \param request Request to send
 	 *  \param max_length Maximum number of bytes to send, zero for unlimited
@@ -269,11 +272,14 @@ private:
 	//! \brief Number of bytes in the command buffer
 	uint32_t command_buffer_readpos, command_buffer_writepos;
 
-	//! \brief Amount of data recieved during the last cycle
-	uint32_t rx_bytes;
+	//! \brief Amount of data sent / recieved during the last cycle
+	uint32_t tx_bytes, rx_bytes;
 
-	//! \brief Amount of data sent during the last cycle
-	uint32_t tx_bytes;
+	//! \brief Amount of data sent / received during the peers lifetime
+	uint64_t tx_total, rx_total;
+
+	//! \brief Timestamp of peer launch
+	time_t launchTime;
 
 	/*! \brief Amount of seconds this peer has left before it's snubbed.
 	 *

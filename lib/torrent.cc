@@ -1024,7 +1024,7 @@ Torrent::callbackPeerGone(Peer* p)
 	for (unsigned int i = 0; i < requestedPiece.size(); i++) {
 		if (requestedPiece[i] != p)
 			continue;
-    		requestedPiece[i] = NULL;
+		requestedPiece[i] = NULL;
 		unregisteredPieces = true;
 	}
 
@@ -1371,7 +1371,7 @@ PeerInfo::PeerInfo(Peer* p)
 	interested = p->isInterested();
 	choking = p->isChoking();
 	incoming = p->isIncoming();
-	rx = p->getRxRate(); tx = p->getTxRate();
+	p->getAverageRate(&rx, &tx);
 	endpoint = p->getEndpoint();
 }
 

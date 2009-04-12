@@ -55,6 +55,7 @@ Peer::Peer(Torrent* t, std::string peer_id, std::string peer_host, uint16_t peer
 	sendHandshake();
 	handshaking = true;
 	sendBitfield();
+	launchTime = time(NULL);
 }
 
 Peer::Peer(Torrent* t, Connection* c)
@@ -67,6 +68,7 @@ Peer::Peer(Torrent* t, Connection* c)
 	sendHandshake();
 	handshaking = false;
 	sendBitfield();
+	launchTime = time(NULL);
 }
 
 Peer::~Peer()
@@ -669,6 +671,9 @@ Peer::processSenderRequest(SenderRequest* request, uint32_t max_length)
 
 void
 Peer::timer() {
+	/* Increment the total peer's RX/TX counters */
+	rx_total += rx_bytes; tx_total += tx_bytes;
+
 	/* Reset the peer's received/transmitter counters */
 	rx_bytes = 0; tx_bytes = 0;
 
@@ -686,7 +691,10 @@ Peer::isPeerSnubbed()
 bool
 Peer::compareByUpload(Peer* a, Peer* b)
 {
-	return a->getRxRate() > b->getRxRate();
+	uint32_t a_rx, a_tx, b_rx, b_tx;
+	a->getAverageRate(&a_rx, &a_tx);
+	b->getAverageRate(&b_rx, &b_tx);
+	return a_rx > b_rx;
 }
 
 void
@@ -744,6 +752,20 @@ Peer::connectionDone()
 {
 	TRACE(NETWORK, "connection completed: peer=%p", this);
 	connection->connectionDone();
+}
+
+void
+Peer::getAverageRate(uint32_t* rx, uint32_t* tx)
+{
+	time_t now = time(NULL);
+
+	if (now != launchTime) {
+		*rx = rx_total / (now - launchTime);
+		*tx = tx_total / (now - launchTime);
+	} else {
+		*rx = rx_total;
+		*tx = tx_total;
+	}
 }
 
 #undef WRITE_UINT32
