@@ -340,7 +340,7 @@ Overseer::handleIncomingConnection(Connection* c)
 	TRACE(NETWORK, "got handshake (part 2): connection=%p", p);
 	string peer((const char*)(handshake), TORRENT_PEERID_LEN);
 	p->setPeerID(peer);
-	TRACE(NETWORK, "handshake completed: connection=%p,peer=%p", c, p);
+	TRACE(NETWORK, "handshake completed: connection=%p,peer=%s", c, p->getEndpoint().c_str());
 
 	/* We accept! We have no choice! */
 	t->addPeer(p);

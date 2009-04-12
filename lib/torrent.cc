@@ -427,7 +427,7 @@ Torrent::handleTracker(string event)
 				WLOCK(peers);
 				peers.push_back(p);
 				RWUNLOCK(peers);
-				TRACE(NETWORK, "added peer: torrent=%p, peer=%p, address=%s, port=%lu", this, p, msHost->getString().c_str(), msPort->getInteger());
+				TRACE(NETWORK, "added peer: torrent=%p, peer=%s, address=%s, port=%lu", this, p->getEndpoint().c_str(), msHost->getString().c_str(), msPort->getInteger());
 			} catch (ConnectionException e) {
 				TRACE(NETWORK, "skipping peer: torrent=%p, address=%s, port=%lu, error=%s", this, msHost->getString().c_str(), msPort->getInteger(), e.what());
 			}
@@ -1337,7 +1337,7 @@ Torrent::processCurrentPeers()
 		Peer* p = (*it);
 
 		if (complete && p->isSeeder()) {
-			TRACE(TORRENT, "kicking seeder peer=%p", p);
+			TRACE(TORRENT, "kicking seeder peer=%s", p->getEndpoint().c_str());
 			p->shutdown();
 			continue;
 		}
