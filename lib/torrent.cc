@@ -384,7 +384,7 @@ Torrent::handleTracker(string event)
 	MetaList* peerslist = dynamic_cast<MetaList*>((*md->getDictionary())["peers"]);
 	TRACE(TRACKER, "contacted tracker: torrent=%p, interval=%u, min_interval=%u, key='%s',peers=%u",
 	 this, tracker_interval, tracker_min_interval, tracker_key.c_str(),
-	 peerslist != NULL && peerslist != NULL ? peerslist->getList().size() : 0);
+	 peerslist != NULL ? peerslist->getList().size() : 0);
 	if (peerslist != NULL && !complete) {
 		/*
 		 * The tracker has provided us with (possibly new) peers. Add them to the
@@ -712,36 +712,6 @@ Torrent::setChunkRequested(unsigned int piece, unsigned int chunk, bool requeste
 
 	LOCK(data);
 	haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + chunk] = requested;
-	UNLOCK(data);
-}
-
-void
-Torrent::dump()
-{
-	LOCK(data);
-
-	printf("piece map\n");
-	for (unsigned int i = 0; i < numPieces; i++) {
-		if (i % 50 == 0) {
-				printf("\n");
-				printf ("%4u:", i);
-		}
-		if (i % 10 == 0) printf(" ");
-
-		if (havePiece[i]) {
-			printf("%c", hashingPiece[i] ? '?' : '#');
-		} else {
-			int numQueued = 0;
-			for (unsigned int j = 0; j < (pieceLen / TORRENT_CHUNK_SIZE); j++) {
-				if (haveRequestedChunk[(i * (pieceLen / TORRENT_CHUNK_SIZE)) + j]) {
-					numQueued++;
-				}
-			}
-			printf("%c", numQueued > 0 ? '0' + numQueued  : '.');
-		}
-	}
-	printf("\n");
-
 	UNLOCK(data);
 }
 

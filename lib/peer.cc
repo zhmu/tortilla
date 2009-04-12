@@ -576,12 +576,6 @@ Peer::sendPieceRequest()
 }
 
 void
-Peer::dump()
-{
-	cerr << "outstanding requests: "; cerr << numOutstandingRequests; cerr << endl;
-}
-
-void
 Peer::send(const uint8_t* data, size_t len)
 {
 	/* Off it goes, to the other side... */

@@ -166,8 +166,6 @@ public:
 	//! \brief Signal that we finished connecting
 	void connectionDone();
 
-	void dump();
-
 protected:
 	//! \brief Handles a 'choke' message
 	bool msgChoke();

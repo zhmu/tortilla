@@ -91,8 +91,6 @@ public:
 
 	MetaField* operator[](std::string key);
 
-	void dump();
-
 protected:
 	void stream(std::ostream& o) const;
 

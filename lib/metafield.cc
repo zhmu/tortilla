@@ -63,13 +63,4 @@ MetaField* MetaDictionary::operator[](std::string key)
 	return NULL;
 }
 
-void MetaDictionary::dump()
-{
-	for (std::list<StringFieldMap*>::const_iterator it = dictionary.begin();
-	     it != dictionary.end(); it++) {
-		StringFieldMap* sfm = *it;
-		printf("%s\n", sfm->getKey().c_str());
-	}
-}
-
 /* vim:set ts=2 sw=2: */

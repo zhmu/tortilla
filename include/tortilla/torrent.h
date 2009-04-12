@@ -126,8 +126,6 @@ public:
 	//! \brief How much data is in this torrent?
 	const uint64_t getTotalSize() { return total_size; }
 
-	void dump();
-
 	/*! \brief Retrieve the hash of a piece
 	 *  \param piece Piece number to use
 	 */
