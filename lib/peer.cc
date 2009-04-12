@@ -35,7 +35,8 @@ Peer::__init(Torrent* t)
 	command_buffer_readpos = 0; command_buffer_writepos = 0;
 	/* ensure we don't kick the peer immediately due to timeout */
 	lastTime = time(NULL);
-	numPeerPieces = 0;
+	numPeerPieces = 0; rx_bytes = 0; tx_bytes = 0;
+	rx_total = 0; tx_total = 0;
 	peerID = ""; terminating = false;
 	pthread_mutex_init(&mtx_data, NULL);
 
