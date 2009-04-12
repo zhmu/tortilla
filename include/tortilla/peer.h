@@ -1,4 +1,5 @@
 #include <list>
+#include <pthread.h>
 #include <stdint.h>
 #include <string>
 #include <vector>
@@ -33,6 +34,27 @@ class SenderRequest;
 #define PEER_MSGID_PIECE		0x7
 #define PEER_MSGID_CANCEL		0x8
 #define PEER_MSGID_PORT			0x9
+
+//! \brief Describes an outstanding request
+class OutstandingChunkRequest {
+public:
+	OutstandingChunkRequest (unsigned int num, unsigned int begin, unsigned int len) {
+		piece = num; offset = begin; length = len;
+	}
+
+	bool operator == (OutstandingChunkRequest r) const {
+		return piece == r.getPiece() &&
+		       offset == r.getOffset() &&
+		       length == r.getLength();
+	}
+
+	unsigned int getPiece() { return piece; }
+	unsigned int getOffset() { return offset; }
+	unsigned int getLength() { return length; }
+
+private:
+	unsigned int piece, offset, length;
+};
 
 /*! \brief A single bittorrent peer
  */
@@ -82,6 +104,9 @@ public:
 	 *  \param num Piece to request
 	 */
 	void requestPiece(unsigned int num);
+
+	//! \brief Have we requested a piece from this peer?
+	bool haveRequestedPiece(unsigned int num);
 
 	/*! \brief Called if we should cancel a piece from this peer
 	 *  \param num Piece to cancel
@@ -165,6 +190,9 @@ public:
 
 	//! \brief Signal that we finished connecting
 	void connectionDone();
+
+	/*! \brief Cancel a request for a certain chunk in a piece */
+	void cancelChunk(uint32_t piece, uint32_t offset, uint32_t len);
 
 protected:
 	//! \brief Handles a 'choke' message
@@ -261,9 +289,6 @@ private:
 	//! \brief Connection to the peer
 	Connection* connection;
 
-	//! \brief Number of outstanding requests
-	int numOutstandingRequests;
-
 	//! \brief Current command buffer
 	uint8_t command_buffer[PEER_BUFFER_SIZE];
 
@@ -294,6 +319,12 @@ private:
 
 	//! \brief Is this an incoming connection?
 	bool incoming;
+
+	//! \brief Chunks we are currently requesting
+	std::list<OutstandingChunkRequest> chunk_requests;
+
+	//! \brief Mutex protecting the peer data
+	pthread_mutex_t mtx_data;
 };
 
 #endif /* __PEER_H__ */

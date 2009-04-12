@@ -38,7 +38,7 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 	haveThread = false; terminating = false; complete = false;
 	lastChokingAlgorithm = 0; unchokingRound = 0;
 	optimisticUnchokedPeer = NULL; tracker_key = "";
-	name = "";
+	name = ""; endgame_mode = false;
 
 	/* force the thread to contact the tracker */
 	tracker_interval = 0; tracker_min_interval = 0;
@@ -78,12 +78,12 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 
 	/* For now, assume we have no pieces, requested none and are hashing none */
 	havePiece.reserve(numPieces);
-	requestedPiece.reserve(numPieces);
+	queuedPiece.reserve(numPieces);
 	hashingPiece.reserve(numPieces);
 	pieceCardinality.reserve(numPieces);
 	for (unsigned int i = 0; i < numPieces; i++) {
 		havePiece.push_back(false);
-		requestedPiece.push_back(NULL);
+		queuedPiece.push_back(PeerList());
 		hashingPiece.push_back(false);
 		pieceCardinality.push_back(0);
 	}
@@ -590,24 +590,54 @@ Torrent::callbackPiecesRemoved(Peer* p, vector<unsigned int>& pieces)
 void
 Torrent::scheduleRequests()
 {
+	if (complete)
+		return;
+
 	/*
 	 * XXX this algorithm should schedule a piece more randomly
 	 */
 	LOCK(data);
 	for (unsigned int i = 0; i < numPieces && !terminating; i++) {
-		if (!havePiece[i] && requestedPiece[i] == NULL && pieceCardinality[i] > 0) {
-			/*
-			 * This piece is of interest! Pick a peer, and if possible, give it the
-		 	 * request.
-			 */
-			Peer* p = findPeerForPiece(i);
-			assert(p != NULL);
-			if (p->getNumRequests() >= TORRENT_PEER_MAX_REQUESTS)
+		if (!havePiece[i] && pieceCardinality[i] > 0) {
+			if (!endgame_mode && queuedPiece[i].size() == 0) {
+				/*
+				 * This piece is of interest! Pick a peer, and if possible, give it the
+				 * request.
+				 */
+				Peer* p = findPeerForPiece(i);
+				assert(p != NULL);
+				assert(!p->haveRequestedPiece(i));
+				if (p->getNumRequests() >= TORRENT_PEER_MAX_REQUESTS)
+					continue;
+				p->claimInterest();
+				p->requestPiece(i);
+				TRACE(TORRENT, "requesting piece from peer %p, piece=%i", p, i);
+				queuedPiece[i].push_back(p);
 				continue;
-			p->claimInterest();
-			p->requestPiece(i);
-			TRACE(TORRENT, "requesting piece from peer %p, piece=%i", p, i);
-			requestedPiece[i] = p;
+			}
+
+			if (!endgame_mode)
+				continue;
+
+			/*
+			 * We don't have this piece, yet someone else does. We are doing
+			 * endgame mode, so ask anyone who has it for this piece.
+			 */
+			RLOCK(peers);
+			for (vector<Peer*>::iterator it = peers.begin();
+					 it != peers.end(); it++) {
+				Peer* p = *it;
+				if (!p->hasPiece(i) || p->haveRequestedPiece(i))
+					continue;
+				if (p->getNumRequests() >= TORRENT_PEER_MAX_REQUESTS)
+					continue;
+
+				p->claimInterest();
+				p->requestPiece(i);
+				TRACE(TORRENT, "requesting piece in endgame mode from peer %p, piece=%i", p, i);
+				queuedPiece[i].push_back(p);
+			}
+			RWUNLOCK(peers);
 		}
 	}
 	UNLOCK(data);
@@ -687,6 +717,17 @@ Torrent::callbackCompleteChunk(Peer* p, unsigned int piece, uint32_t offset, con
 
 	writeChunk(piece, offset, data, len);
 
+	/*
+	 * If anyone else is downloading this chunk, cancel it.
+	 */
+	RLOCK(peers);
+	for (vector<Peer*>::iterator it = peers.begin();
+	     it != peers.end(); it++) {
+		Peer* p = (*it);
+		p->cancelChunk(piece, offset, len);
+	}
+	RWUNLOCK(peers);
+
 	LOCK(data);
 	haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + offset / TORRENT_CHUNK_SIZE] = true;
 	downloaded += len;
@@ -751,6 +792,14 @@ Torrent::callbackCompleteHashing(unsigned int piece, bool result)
 		        getTotalSize() % pieceLen : pieceLen;
 	} else {
 		left -= pieceLen;
+	}
+
+	/*
+	 * Enter endgame mode if needed.
+	 */
+	if (!endgame_mode && ((total_size - left) / (float)total_size) * 100.0f >= TORRENT_ENDGAME_PERCENTAGE) {
+		endgame_mode = true;
+		TRACE(TORRENT, "endgame mode: torrent=%p", this);
 	}
 
 	/*
@@ -963,7 +1012,6 @@ Torrent::findPeerForPiece(uint32_t piece)
 	 * Note, this assumed the DATA mutex is locked!
 	 *
 	 */
-
 	Peer* p = NULL;
 	RLOCK(peers);
 	unsigned int peer_num = rand() % pieceCardinality[piece];
@@ -980,6 +1028,16 @@ Torrent::findPeerForPiece(uint32_t piece)
 	return p;
 }
 
+class peervector_matches {
+public:
+	peervector_matches(Peer* p) { peer = p; }
+
+	bool operator() (const Peer* p) { return p == peer; }
+
+private:
+	Peer* peer;
+};
+
 void
 Torrent::callbackPeerGone(Peer* p)
 {
@@ -990,21 +1048,14 @@ Torrent::callbackPeerGone(Peer* p)
 	 *
 	 * Note that this will be called with peers locked anyway!
 	 */
-	bool unregisteredPieces = false;
-	for (unsigned int i = 0; i < requestedPiece.size(); i++) {
-		if (requestedPiece[i] != p)
-			continue;
-		requestedPiece[i] = NULL;
-		unregisteredPieces = true;
+	for (unsigned int i = 0; i < queuedPiece.size(); i++) {
+		queuedPiece[i].remove_if(peervector_matches(p));
 	}
 
 	/* Get rid of any pieces being uploaded to this peer */
 	overseer->dequeuePeer(p);
 
-	if (!unregisteredPieces)
-		return;
-
-	/* We removed pieces; try to schedule requests to fill the void
+	/* Try to schedule requests to fill the void
 	 *
 	 * XXX don't reschedule here
 	scheduleRequests();
@@ -1326,7 +1377,7 @@ Torrent::getPieceDetails()
 	LOCK(data);
 	for (unsigned int i = 0; i < numPieces; i++) {
 		pi.push_back(PieceInfo(
-			i, havePiece[i], hashingPiece[i], haveRequestedChunk[i]
+			i, havePiece[i], hashingPiece[i], queuedPiece[i].size() > 0
 		));
 	}
 	UNLOCK(data);

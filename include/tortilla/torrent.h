@@ -27,27 +27,32 @@
 
 //! \brief Size of a peer in compact form
 #define TORRENT_COMPACTPEER_SIZE 6
+
+//! \brief Percentage completed when we enter endgame mode
+#define TORRENT_ENDGAME_PERCENTAGE	95
     
 class Connection;
 class Peer;
 class Overseer;
 class SenderRequest;
 
+typedef std::list<Peer*> PeerList;
+
 class PieceInfo {
 public:
-	PieceInfo(unsigned int num, bool have, bool hashing, bool requested) {
+	PieceInfo(unsigned int num, bool have, bool hashing, bool queued) {
 		this->num = num; this->have = have;
-		this->hashing = hashing; this->requested = requested;
+		this->hashing = hashing; this->queued = queued;
 	}
 
 	unsigned int getPieceNum() { return num; }
 	unsigned int getHave() { return have; }
 	unsigned int isHashing() { return hashing; }
-	unsigned int isRequested() { return requested; }
+	unsigned int isQueued() { return queued; }
 
 private:
 	unsigned int num;
-	bool have, hashing, requested;
+	bool have, hashing, queued;
 };
 
 class PeerInfo {
@@ -342,8 +347,12 @@ private:
 	//! \brief Which chunks are requested?
 	std::vector<bool> /* [M=data] */ haveRequestedChunk;
 
-	//! \brief Which pieces have we requested?
-	std::vector<Peer*> /* [M=data] */ requestedPiece;
+	/*! \brief Which pieces have we queued?
+	 *
+	 *  In this context, queued means we determined who'll get the request
+	 *  once there is space.
+	 */
+	std::vector<PeerList> /* [M=data] */ queuedPiece;
 
 	//! \brief Which pieces are being hashed?
 	std::vector<bool> /* [M=data] */ hashingPiece;
@@ -418,6 +427,9 @@ private:
 
 	//! \brief Torrent name
 	std::string name;
+
+	//! \brief Are we in endgame mode?
+	bool endgame_mode;
 };
 
 #endif /* __TORRENT_H__ */

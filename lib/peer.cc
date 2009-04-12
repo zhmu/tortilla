@@ -12,6 +12,9 @@ using namespace std;
 #define MIN(a,b) \
 	(((a) < (b)) ? (a) : (b))
 
+#define LOCK(x)     pthread_mutex_lock(&mtx_ ## x);
+#define UNLOCK(x)   pthread_mutex_unlock(&mtx_ ## x);
+
 #define WRITE_UINT32(ptr,offs,val) \
 	ptr[(offs) + 0] = (((val) >> 24) & 0xff); \
 	ptr[(offs) + 1] = (((val) >> 16) & 0xff); \
@@ -28,10 +31,11 @@ void
 Peer::__init(Torrent* t)
 {
 	torrent = t; am_choked = true; am_interested = false;
-	peer_choked = true; peer_interested = false; numOutstandingRequests = 0;
+	peer_choked = true; peer_interested = false;
 	command_buffer_readpos = 0; command_buffer_writepos = 0;
 	snubbedLeftoverCounter = 0; numPeerPieces = 0;
 	peerID = ""; terminating = false;
+	pthread_mutex_init(&mtx_data, NULL);
 
 	/* Assume the peer doesn't have any pieces */
 	havePiece.reserve(t->getNumPieces());
@@ -80,6 +84,7 @@ Peer::~Peer()
 		if (havePiece[i])
 			lostPieces.push_back(i);
 	torrent->callbackPiecesRemoved(this, lostPieces);
+	pthread_mutex_destroy(&mtx_data);
 }
 
 #define DATA_LEFT \
@@ -433,8 +438,9 @@ Peer::msgPiece(const uint8_t* msg, uint32_t len)
 	len -= 8;
 	TRACE(PROTOCOL, "piece: peer=%p, index=%u, begin=%u, length=%u", this, index, begin, len);
 
-	if (numOutstandingRequests > 0)
-		numOutstandingRequests--;
+	LOCK(data);
+	chunk_requests.remove(OutstandingChunkRequest(index, begin, len));
+	UNLOCK(data);
 
 	if (len > TORRENT_CHUNK_SIZE || begin % TORRENT_CHUNK_SIZE != 0) {
 		/* Not what we hoped for... XXX we need to alter the peers trust factor */
@@ -524,10 +530,10 @@ Peer::sendPieceRequest()
 		return;
 
 	/* Don't flood a peer with requests */
-	if (numOutstandingRequests >= PEER_MAX_OUTSTANDING_REQUESTS)
+	if (chunk_requests.size() >= PEER_MAX_OUTSTANDING_REQUESTS)
 		return;
 
-	while (requestedPieces.size() > 0 && numOutstandingRequests < PEER_MAX_OUTSTANDING_REQUESTS) {
+	while (requestedPieces.size() > 0 && chunk_requests.size() < PEER_MAX_OUTSTANDING_REQUESTS) {
 		unsigned int piece = requestedPieces.front();
 
 		/* If we are requesting a piece, the peer should have it */
@@ -571,7 +577,9 @@ Peer::sendPieceRequest()
 		queueMessage(PEER_MSGID_REQUEST, msg, 12);
 		TRACE(PROTOCOL, "sent request: peer=%p, piece=%u, offset=%u, length=%u", this, piece, missingChunk * TORRENT_CHUNK_SIZE, request_length);
 
-		numOutstandingRequests++;
+		LOCK(data);
+		chunk_requests.push_back(OutstandingChunkRequest(piece, missingChunk * TORRENT_CHUNK_SIZE, request_length));
+		UNLOCK(data);
 	}
 }
 
@@ -760,6 +768,42 @@ Peer::getAverageRate(uint32_t* rx, uint32_t* tx)
 		*rx = rx_total;
 		*tx = tx_total;
 	}
+}
+
+bool
+Peer::haveRequestedPiece(unsigned int num)
+{
+	for (std::list<unsigned int>::iterator it = requestedPieces.begin();
+	     it != requestedPieces.end(); it++) {
+		if (*it == num)
+			return true;
+	}
+	return false;
+}
+
+void
+Peer::cancelChunk(uint32_t piece, uint32_t offset, uint32_t len)
+{
+	/* XXX we assume the list will only contain unique requests */
+	LOCK(data);
+	for (list<OutstandingChunkRequest>::iterator it = chunk_requests.begin();
+	     it != chunk_requests.end(); it++) {
+		if (!((*it) == OutstandingChunkRequest(piece, offset, len)))
+			continue;
+
+		/* This chunk matches! Say goodbye */
+		chunk_requests.erase(it);
+		uint8_t msg[12];
+		WRITE_UINT32(msg, 0, piece);
+		WRITE_UINT32(msg, 4, offset);
+		WRITE_UINT32(msg, 8, len);
+		queueMessage(PEER_MSGID_CANCEL, msg, 12);
+		UNLOCK(data);
+		TRACE(TORRENT, "cancelchunk: peer=%p, piece=%u, offset=%u, len=%u, cancelled",
+		 this, piece, offset, len);
+		return;
+	}
+	UNLOCK(data);
 }
 
 #undef WRITE_UINT32

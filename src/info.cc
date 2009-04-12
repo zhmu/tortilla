@@ -38,8 +38,8 @@ Info::draw(Torrent* t)
 			PieceInfo& pi = pieces[i + j];
 			if (pi.getHave())
 				tmp[0] = pi.isHashing() ? '?' : '#';
-			else if (pi.isRequested())
-				tmp[0] = 'R';
+			else if (pi.isQueued())
+				tmp[0] = 'Q';
 			else
 				tmp[0] = '.';
 			tmp[1] = '\0';
