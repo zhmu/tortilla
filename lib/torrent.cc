@@ -1411,6 +1411,7 @@ PeerInfo::PeerInfo(Peer* p)
 	incoming = p->isIncoming();
 	p->getAverageRate(&rx, &tx);
 	endpoint = p->getEndpoint();
+	num_pieces = p->getNumPeerPieces();
 }
 
 vector<PeerInfo>

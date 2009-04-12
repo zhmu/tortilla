@@ -67,12 +67,13 @@ public:
 	bool isIncoming() { return incoming; }
 	uint32_t getRxRate() { return rx; }
 	uint32_t getTxRate() { return tx; }
+	uint32_t getNumPieces() { return num_pieces; }
 
 	std::string getEndpoint() { return endpoint; }
 
 private:
 	bool snubbed, peer_interested, peer_choked, interested, choking, incoming;
-	uint32_t rx, tx;
+	uint32_t rx, tx, num_pieces;
 	std::string endpoint;
 };
 

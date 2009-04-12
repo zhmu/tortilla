@@ -185,6 +185,9 @@ public:
 	//! \brief Retrieves the torrent corresponding to this peer
 	Torrent* getTorrent() { return torrent; }
 
+	//! \brief Retrieve the number of pieces this peer has
+	unsigned int getNumPeerPieces() { return numPeerPieces; }
+
 	//! \brief Is the peer still connecting to the endpoint?
 	bool areConnecting() { return connection->areConnecting(); }
 
