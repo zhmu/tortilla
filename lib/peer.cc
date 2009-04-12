@@ -146,10 +146,19 @@ Peer::receive(const uint8_t* data, uint32_t data_len)
 				return true;
 
 			/*
-			 * We don't check the peer ID, since Azureus seem to possibly anonymize it.
-			 * If we reach this point, we know the protocol and the torrent info hash
-			 * matches, which should be enough for us. To this extent, we just nuke the
-			 * handshake string and see if there is anything else to handle.
+		 	 * Check whether the peer ID is us - i.e. we are connecting to ourselves! If this is the
+			 * case, drop the connection immediately; it makes no sense talking to the voices in our
+		 	 * head.
+			 */
+			if (!memcmp((uint8_t*)(data + 1 + pstrlen + 8 + TORRENT_HASH_LEN), torrent->getPeerID(), TORRENT_HASH_LEN)) {
+				TRACE(PROTOCOL, "handshaking: peer=%s is us, dropping connection!", getEndpoint().c_str());
+				return true;
+			}
+
+			/*
+			 * We don't check anything else of the peer ID; the torrent hash matches, so we'll see what
+			 * this torrent has to offer. Plus, Azureus seem to possibly anonymize it, so checking seems
+			 * a bit useless anyway.
 			 */
 			handshaking = false;
 			command_buffer_readpos = (command_buffer_readpos + handshake_len) % PEER_BUFFER_SIZE;

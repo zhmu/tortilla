@@ -339,6 +339,16 @@ Overseer::handleIncomingConnection(Connection* c)
 	c->read((void*)handshake, TORRENT_PEERID_LEN);
 	TRACE(NETWORK, "got handshake (part 2): connection=%p", p);
 	string peer((const char*)(handshake), TORRENT_PEERID_LEN);
+	if (!memcmp(handshake, peerid, TORRENT_PEERID_LEN)) {
+		/*
+		 * The sender most likely has a bitfield message queued for us; we must get
+		 * rid of it before we nuke the peer, or Bad Things Will Happen.
+		 */
+		sender->removeRequestsFromPeer(p);
+		delete p;
+		TRACE(NETWORK, "handshake aborted: connection=%p,peer=%s is us", c, c->getEndpoint().c_str());
+		return;
+	}
 	p->setPeerID(peer);
 	TRACE(NETWORK, "handshake completed: connection=%p,peer=%s", c, p->getEndpoint().c_str());
 
