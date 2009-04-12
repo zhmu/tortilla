@@ -30,15 +30,4 @@ HashSHA1::getHash()
 	return hash;
 }
 
-std::string
-HashSHA1::getHashAsASCII(const uint8_t* hash)
-{
-	string result = "";
-
-	for (int i = 0; i < SHA_DIGEST_LENGTH; i++)
-		for (int j = 1; j >= 0; j--)
-			result += "0123456789abcdef"[(hash[i] >> j * 4) & 0xf];
-	return result;
-}
-
 /* vim:set ts=2 sw=2: */

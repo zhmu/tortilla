@@ -21,11 +21,6 @@ public:
 	 */
 	const uint8_t* getHash();
 
-	/*! \brief Retrieves a hash as an ASCII string
-	 *  \param hash Hash to convert
-	 */
-	std::string getHashAsASCII(const uint8_t* hash);
-
 	//! \brief Retrieves the chunk size used to calculate the hash
 	size_t getChunkSize() { return 1024; }
 
