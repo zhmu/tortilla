@@ -53,7 +53,7 @@ public:
 	bool areConnecting() { return connecting; }
 
 	//! \brief Used to signal connection is done!
-	void connectionDone() { connecting = true; }
+	void connectionDone() { connecting = false; }
 
 protected:
 	/*! \brief Constructs a TCP connection based on an accepted socket
