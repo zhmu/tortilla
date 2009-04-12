@@ -666,9 +666,9 @@ Torrent::getMissingChunk(unsigned int piece)
 	LOCK(data);
 	for (unsigned int j = 0; j < calculateChunksInPiece(piece); j++)
 		if (!haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j] &&
-		    !haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j]) {
-			UNLOCK(data);
-			return j;
+			  !haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j]) {
+				UNLOCK(data);
+				return j;
 		}
 	UNLOCK(data);
 
@@ -678,7 +678,8 @@ Torrent::getMissingChunk(unsigned int piece)
 void
 Torrent::callbackCompletePiece(Peer* p, unsigned int piece)
 {
-	assert (piece < numPieces);
+	assert(piece < numPieces);
+	assert(!havePiece[piece]);
 
 	LOCK(data);
 	havePiece[piece] = true;
@@ -714,6 +715,19 @@ Torrent::callbackCompleteChunk(Peer* p, unsigned int piece, uint32_t offset, con
 	assert (piece < numPieces);
 	assert (len <= TORRENT_CHUNK_SIZE);
 	assert (offset % TORRENT_CHUNK_SIZE == 0);
+
+	LOCK(data);
+	if (havePiece[piece]) {
+		/*
+		 * This can happen in endgame mode; if we have requested a piece but
+		 * couldn't cancel it anymore (or if we are too late), we may get the
+		 * last data while we are hashing. If this happens, just ignore the
+		 * data alltogether.
+		 */
+		UNLOCK(data);
+		return;
+	}
+	UNLOCK(data);
 
 	writeChunk(piece, offset, data, len);
 
