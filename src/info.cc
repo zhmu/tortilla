@@ -23,7 +23,7 @@ Info::draw(Torrent* t)
 	 t->getNumPiecesComplete(), t->getNumPieces(), t->getNumPiecesHashing());
 	printxyf(0, 2, "Data left:      %llu / %llu bytes",
 	 (unsigned long)t->getBytesLeft(), (unsigned long)t->getTotalSize());
-	printxyf(0, 3, "Peers:          %u", t->getNumPeers());
+	printxyf(0, 3, "Peers:          %u active / %u pending", t->getNumPeers(), t->getNumPendingPeers());
 
 	vector<PieceInfo> pieces = t->getPieceDetails();
 	unsigned int y = 4;

@@ -32,6 +32,24 @@ using namespace std;
 #define WLOCK(x)    pthread_rwlock_wrlock(&rwl_## x);
 #define RWUNLOCK(x) pthread_rwlock_unlock(&rwl_## x);
 
+PendingPeer::PendingPeer(Torrent* t, std::string ip, uint16_t port, std::string peerid)
+{
+	this->torrent = t; this->ip = ip; this->port = port; this->peerid = peerid;
+}
+
+Peer*
+PendingPeer::connect()
+{
+	try {
+		TRACE(NETWORK, "trying peer: torrent=%p, address=%s, port=%lu", torrent, ip.c_str(), port);
+		Peer* p = new Peer(torrent, peerid, ip, port);
+		return p;
+	} catch (ConnectionException e) {
+		TRACE(NETWORK, "skipping peer: torrent=%p, address=%s, port=%lu, error=%s",  torrent, ip.c_str(), port, e.what());
+	}
+	return NULL;
+}
+
 Torrent::Torrent(Overseer* o, Metadata* md)
 {
 	overseer = o; downloaded = 0; uploaded = 0; left = 0;
@@ -325,9 +343,13 @@ Torrent::contactTracker(std::string event)
 	if (complete) {
 		m["numwant"] = convertInteger(0);
 	} else {
-		/* Otherwise, try to grab as many peers as we need to fill our list */
+		/*
+		 * Otherwise, try to grab as many peers as we need to fill our list. Note
+		 * that we ask for twice as much peers as we need, since we expect that
+		 * about half of the peers will fail.
+		 */
 		uint32_t numPeers = getNumPeers();
-		m["numwant"] = convertInteger(TORRENT_DESIRED_PEERS - numPeers);
+		m["numwant"] = convertInteger((TORRENT_DESIRED_PEERS - numPeers) * 2);
 	}
 	lastTrackerContact = time(NULL);
 	string result = HTTP::get(announceURL, m);
@@ -413,24 +435,9 @@ Torrent::handleTracker(string event)
 			if (!memcmp((const char*)overseer->getPeerID(), msPeerID->getString().c_str(), TORRENT_PEERID_LEN))
 				continue;
 
-			/*
-			 * This peer looks fine. However, ensure we don't add too many peers to
-			 * the list; this hurts the network.
-			 */
-			unsigned int numPeers = getNumPeers();
-			if (numPeers >= TORRENT_DESIRED_PEERS)
-				break;
-		
-			try {
-				TRACE(NETWORK, "trying peer: torrent=%p, address=%s, port=%lu", this, msHost->getString().c_str(), msPort->getInteger());
-				Peer* p = new Peer(this, msPeerID->getString(), msHost->getString(), msPort->getInteger());
-				WLOCK(peers);
-				peers.push_back(p);
-				RWUNLOCK(peers);
-				TRACE(NETWORK, "added peer: torrent=%p, peer=%s, address=%s, port=%lu", this, p->getEndpoint().c_str(), msHost->getString().c_str(), msPort->getInteger());
-			} catch (ConnectionException e) {
-				TRACE(NETWORK, "skipping peer: torrent=%p, address=%s, port=%lu, error=%s", this, msHost->getString().c_str(), msPort->getInteger(), e.what());
-			}
+			LOCK(data);
+			pendingPeers.push_back(new PendingPeer(this, msHost->getString(), msPort->getInteger(), msPeerID->getString()));
+			UNLOCK(data);
 		}
 	}
 
@@ -450,16 +457,9 @@ Torrent::handleTracker(string event)
 			 (uint8_t)ptr[2], (uint8_t)ptr[3]);
 			port = (uint16_t)(ptr[4] << 8) | ptr[5];
 
-			try {
-				TRACE(NETWORK, "trying compact peer: torrent=%p, address=%s, port=%u", this, ip, port);
-				Peer* p = new Peer(this, string(""), string(ip), port);
-				WLOCK(peers);
-				peers.push_back(p);
-				RWUNLOCK(peers);
-				TRACE(NETWORK, "added compact peer: torrent=%p, address=%s, port=%u", this, ip, port);
-			} catch (ConnectionException e) {
-				TRACE(NETWORK, "skipping compact peer: torrent=%p, address=%s, port=%u, error=%s", this, ip, port, e.what());
-			}
+			LOCK(data);
+			pendingPeers.push_back(new PendingPeer(this, string(ip), port, ""));
+			UNLOCK(data);
 		}
 	}
 
@@ -491,6 +491,31 @@ Torrent::go()
 			peerit = peers.begin();
 		}
 		RWUNLOCK(peers);
+
+		/* If we can fill up our peer slots, try it */
+		while (true) {
+			unsigned int numPeers = getNumPeers();
+			if (numPeers >= TORRENT_DESIRED_PEERS)
+				break;
+
+			LOCK(data);
+			if (pendingPeers.empty()) {
+				UNLOCK(data);
+				break;
+			}
+			PendingPeer* pp = pendingPeers.front();
+			pendingPeers.pop_front();
+			UNLOCK(data);
+
+			Peer* p = pp->connect();
+			delete pp;
+
+			if (p != NULL) {
+				WLOCK(peers);
+				peers.push_back(p);
+				RWUNLOCK(peers);
+			}
+		}
 
 		/* Construct our file descriptor set */
 		int maxfd = -1;
@@ -1441,6 +1466,17 @@ Torrent::getNumPiecesComplete()
 			num++;
 	UNLOCK(data);
 
+	return num;
+}
+
+unsigned int
+Torrent::getNumPendingPeers()
+{
+	unsigned int num;
+
+	LOCK(data);
+	num = pendingPeers.size();
+	UNLOCK(data);
 	return num;
 }
 

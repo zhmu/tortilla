@@ -35,6 +35,7 @@ class Connection;
 class Peer;
 class Overseer;
 class SenderRequest;
+class PendingPeer;
 
 typedef std::list<Peer*> PeerList;
 
@@ -174,6 +175,9 @@ public:
 
 	/*! \brief Fetch the number of peers */
 	unsigned int getNumPeers();
+
+	//! \brief Retrieve the number of pending peers
+	unsigned int getNumPendingPeers();
 
 	/*! \brief Retrieve details on all pieces */
 	std::vector<PieceInfo> getPieceDetails();
@@ -431,6 +435,22 @@ private:
 
 	//! \brief Are we in endgame mode?
 	bool endgame_mode;
+
+	//! \brief List of pending peers we may try to use
+	std::list<PendingPeer*> /* [M=data] */ pendingPeers;
 };
+
+class PendingPeer {
+public:
+	PendingPeer(Torrent* t, std::string ip, uint16_t port, std::string peerid);
+
+	Peer* connect();
+
+private:
+	Torrent* torrent;
+	std::string ip, peerid;
+	uint16_t port;
+};
+
 
 #endif /* __TORRENT_H__ */
