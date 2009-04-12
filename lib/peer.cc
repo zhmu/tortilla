@@ -33,7 +33,9 @@ Peer::__init(Torrent* t)
 	torrent = t; am_choked = true; am_interested = false;
 	peer_choked = true; peer_interested = false;
 	command_buffer_readpos = 0; command_buffer_writepos = 0;
-	snubbedLeftoverCounter = 0; numPeerPieces = 0;
+	/* ensure we don't kick the peer immediately due to timeout */
+	lastTime = time(NULL);
+	numPeerPieces = 0;
 	peerID = ""; terminating = false;
 	pthread_mutex_init(&mtx_data, NULL);
 
@@ -41,12 +43,6 @@ Peer::__init(Torrent* t)
 	havePiece.reserve(t->getNumPieces());
 	for (unsigned int i = 0; i < t->getNumPieces(); i++)
 		havePiece.push_back(false);
-
-	/*
-	 * If we initialize a peer, assume they are not snubbed; this gaves them nice
-	 * chance to be considered for sending data.
-	 */
-	snubbedLeftoverCounter = PEER_SNUBBED_SECONDS;
 }
 
 Peer::Peer(Torrent* t, std::string peer_id, std::string peer_host, uint16_t peer_port)
@@ -108,9 +104,7 @@ Peer::receive(const uint8_t* data, uint32_t data_len)
 		 getEndpoint().c_str());
 		return true;
 	}
-
-	/* Immediately reset the snubbed counter */
-	snubbedLeftoverCounter = PEER_SNUBBED_SECONDS;
+	lastTime = time(NULL);
 
 	/*
 	 * Need to store the peer's data now. First of all, try to use the chunk from
@@ -680,15 +674,17 @@ Peer::timer() {
 	/* Reset the peer's received/transmitter counters */
 	rx_bytes = 0; tx_bytes = 0;
 
-	/* Decay the snubbed counter; if it reached zero, the peer is snubbed */
-	if (snubbedLeftoverCounter > 0)
-		snubbedLeftoverCounter--;
+	/* If we are inactive for too long, pull the plug */
+	if (time(NULL) > lastTime + PEER_KICK_SECONDS && !terminating) {
+		TRACE(NETWORK, "kicking peer due to inactivity: peer=%s", getEndpoint().c_str());
+		shutdown();
+	}
 }
 
 bool
 Peer::isPeerSnubbed()
 {
-	return (snubbedLeftoverCounter == 0);
+	return (time(NULL) > lastTime + PEER_SNUBBED_SECONDS);
 }
 	
 bool

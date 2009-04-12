@@ -16,6 +16,9 @@ class SenderRequest;
 //! \brief Amount of seconds that must pass before we snub a peer
 #define PEER_SNUBBED_SECONDS 30
 
+//! \brief Amount of seconds that must pass become we kick a peer
+#define PEER_KICK_SECONDS 120
+
 /*! \brief Length of the buffer used to cache incomplete commands
  *
  *  This should be 2 * max command length.
@@ -307,12 +310,8 @@ private:
 	//! \brief Timestamp of peer launch
 	time_t launchTime;
 
-	/*! \brief Amount of seconds this peer has left before it's snubbed.
-	 *
-	 *  A snubbed peer is a peer that hasn't sent any block
-	 *  in the last 30 seconds.
-	 */
-	unsigned int snubbedLeftoverCounter;
+	//! \brief Timestamp when we last heard from the peer
+	time_t lastTime;
 
 	//! \brief Total number of pieces this peer has
 	unsigned int numPeerPieces;
