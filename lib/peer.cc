@@ -482,7 +482,7 @@ Peer::claimInterest()
 		return;
 
 	queueMessage(PEER_MSGID_INTERESTED, NULL, 0);
-	TRACE(PROTOCOL, "expressed interested in peer %p", this);
+	TRACE(PROTOCOL, "expressed interested in peer=%s", getEndpoint().c_str());
 	am_interested = true;
 }
 
@@ -494,7 +494,7 @@ Peer::revokeInterest()
 		return;
 
 	queueMessage(PEER_MSGID_NOTINTERESTED, NULL, 0);
-	TRACE(PROTOCOL, "revoked interested in peer %p", this);
+	TRACE(PROTOCOL, "revoked interested in peer=%s", getEndpoint().c_str());
 	am_interested = false;
 }
 
