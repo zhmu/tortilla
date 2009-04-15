@@ -14,7 +14,7 @@
 #define TORRENT_CHUNK_SIZE 16384
 
 //! \brief Maximum number of requested pieces per client
-#define TORRENT_PEER_MAX_REQUESTS 5
+#define TORRENT_PEER_MAX_REQUESTS 10
 
 //! \brief Length of a peer ID
 #define TORRENT_PEERID_LEN 20
@@ -34,8 +34,8 @@
 class Connection;
 class Peer;
 class Overseer;
-class SenderRequest;
 class PendingPeer;
+class SenderRequest;
 
 typedef std::list<Peer*> PeerList;
 
@@ -438,18 +438,6 @@ private:
 
 	//! \brief List of pending peers we may try to use
 	std::list<PendingPeer*> /* [M=data] */ pendingPeers;
-};
-
-class PendingPeer {
-public:
-	PendingPeer(Torrent* t, std::string ip, uint16_t port, std::string peerid);
-
-	Peer* connect();
-
-private:
-	Torrent* torrent;
-	std::string ip, peerid;
-	uint16_t port;
 };
 
 

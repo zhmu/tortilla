@@ -9,6 +9,7 @@
 #include "tortilla/exceptions.h"
 #include "tortilla/metadata.h"
 #include "tortilla/sha1.h"
+#include "tortilla/http.h"
 #include "tortilla/overseer.h"
 #include "tortilla/tracer.h"
 #include "tortilla/torrent.h"
@@ -55,7 +56,7 @@ main(int argc, char** argv)
 	//overseer = new Overseer(1024 + rand() % 10000);
 	overseer = new Overseer(4000);
 	interface = new Interface(overseer);
-//	overseer->setUploadRate(16 * 1024);
+	overseer->setUploadRate(16 * 1024);
 
 	/*
 	 * Add the torrents one by one; we won't need the metadata
@@ -63,8 +64,9 @@ main(int argc, char** argv)
 	 */
 	for (vector<Metadata*>::iterator it = metadatas.begin();
 	     it != metadatas.end(); it++) {
-		overseer->addTorrent(new Torrent(overseer, *it));
-		delete *it;
+		Metadata* md = *it;
+		overseer->addTorrent(new Torrent(overseer, md));
+		delete md;
 	}
 
 	signal(SIGINT, sigint);
@@ -77,6 +79,7 @@ main(int argc, char** argv)
 	delete interface;
 	delete overseer;
 	delete tracer;
+	HTTP::cleanup();
 	return 0;
 }
 

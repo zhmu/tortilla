@@ -82,6 +82,8 @@ Peer::~Peer()
 			lostPieces.push_back(i);
 	torrent->callbackPiecesRemoved(this, lostPieces);
 	pthread_mutex_destroy(&mtx_data);
+
+	delete connection;
 }
 
 #define DATA_LEFT \
