@@ -39,6 +39,7 @@ HTTP::get(string url, map<string, string> params)
 		value = curl_easy_escape(curl, (*it).second.c_str(), 0);
 		if (value == NULL) {
 			/* Unlikely, yet we'd better check for it */
+			curl_easy_cleanup(curl);
 			throw HTTPException("unable to escape parameters");
 		}
 
@@ -60,9 +61,16 @@ HTTP::get(string url, map<string, string> params)
 	curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
 
 	CURLcode cc = curl_easy_perform(curl);
+	curl_easy_cleanup(curl);
 	if (cc != 0)
 		throw HTTPException("unable to talk to tracker");
 	return s;
+}
+
+void
+HTTP::cleanup()
+{
+	curl_global_cleanup();
 }
 
 /* vim:set ts=2 sw=2: */

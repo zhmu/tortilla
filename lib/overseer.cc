@@ -72,6 +72,7 @@ Overseer::~Overseer()
 		torrents.erase(it);
 	}
 
+	delete incoming;
 	delete hasher;
 	delete sender;
 

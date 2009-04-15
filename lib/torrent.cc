@@ -773,12 +773,17 @@ Torrent::callbackCompleteChunk(Peer* p, unsigned int piece, uint32_t offset, con
 	downloaded += len;
 
 	/* See if we have all chunks; if so, the piece is in */
+	bool full = true;
 	for (unsigned int i = 0; i < calculateChunksInPiece(piece); i++)
 		if (!haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + i]) {
-			UNLOCK(data);
-			return;
+			full = false;
+			break;
 		}
 	UNLOCK(data);
+
+	scheduleRequests();
+	if (!full)
+		return;
 
 	/* Yay! */
 	TRACE(TORRENT, "piece completed: piece=%u", piece);
@@ -932,6 +937,10 @@ Torrent::readChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size_t
 			break;
 		}
 		absolutePos -= files[fileIndex]->getLength();
+	}
+	if (f == NULL) {
+		TRACE(TORRENT, "readchunk: piece=%u,offset=%u,len=%u, abspos=%lu", piece, offset, length, absolutePos);
+		assert(0);
 	}
 	assert(f != NULL);
 

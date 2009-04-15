@@ -14,7 +14,7 @@
 #define TORRENT_CHUNK_SIZE 16384
 
 //! \brief Maximum number of requested pieces per client
-#define TORRENT_PEER_MAX_REQUESTS 5
+#define TORRENT_PEER_MAX_REQUESTS 10
 
 //! \brief Length of a peer ID
 #define TORRENT_PEERID_LEN 20
