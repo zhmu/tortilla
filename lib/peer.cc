@@ -189,7 +189,7 @@ Peer::receive(const uint8_t* data, uint32_t data_len)
 		if (len == 0) {
 			/* Keepalive; skip the length bytes and continue */
 			command_buffer_readpos = (command_buffer_readpos + 4) % PEER_BUFFER_SIZE;
-			if (command_buffer_readpos == command_buffer_readpos) {
+			if (command_buffer_readpos == command_buffer_writepos) {
 				command_buffer_readpos = 0; command_buffer_writepos = 0;
 				break;
 			}
