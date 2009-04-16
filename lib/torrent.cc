@@ -523,9 +523,7 @@ Torrent::go()
 		 */
 		struct timeval tv;
 		tv.tv_sec = 0; tv.tv_usec = 5000;
-		TRACE(NETWORK, "waiting for select");
 		int n = select(maxfd + 1, &readfds, &writefds, (fd_set*)NULL, &tv);
-		TRACE(NETWORK, "select OK, n=%u", n);
 		if (n == 0)
 			continue;
 

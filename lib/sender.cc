@@ -215,10 +215,10 @@ Sender::process()
 			/*
 			 * Ask the peer to process.
 			 */
-			uint32_t amount = request->getPeer()->processSenderRequest(request, cur_tx);
+			ssize_t amount = request->getPeer()->processSenderRequest(request, cur_tx);
 
 			pthread_mutex_lock(&mtx_data);
-			if (tx_left > 0)
+			if (tx_left > 0 && amount > 0)
 				tx_left -= amount;
 			cur_tx = tx_left;
 			pthread_mutex_unlock(&mtx_data);
@@ -240,7 +240,7 @@ Sender::process()
 				 *
 				 * For now, if the data wasn't accepted, put it at the end of the queue.
 				 */
-				if (amount == 0) {
+				if (amount == -1) {
 					WLOCK(queue);
 					requests.pop_front();
 					requests.push_back(request);

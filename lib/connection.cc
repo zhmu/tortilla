@@ -105,6 +105,7 @@ Connection::Connection(int s, struct sockaddr* soa, socklen_t slen)
 ssize_t
 Connection::write(const void* buf, size_t len)
 {
+#if 0
 	/*
 	 * Try a maximum of one second to write; if this fails, don't try to write to
 	 * the socket.
@@ -118,6 +119,7 @@ Connection::write(const void* buf, size_t len)
 		return 0;
 	/* We cannot be connecting if this worked */
 	connecting = false;
+#endif
 	return ::write(fd, buf, len);
 }
 

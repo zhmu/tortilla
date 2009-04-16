@@ -136,7 +136,7 @@ public:
 	 *
 	 *  If the result had to be split, the resulting request will be modified.
 	 */
-	uint32_t processSenderRequest(SenderRequest* request, uint32_t max_length);
+	ssize_t processSenderRequest(SenderRequest* request, uint32_t max_length);
 
 	//! \brief Must be called every second
 	void timer();

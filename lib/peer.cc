@@ -667,7 +667,7 @@ Peer::sendBitfield()
 		TRACE(PROTOCOL, "sent our bitfield: peer=%s, available=%u", getEndpoint().c_str(), numAvailable);
 }
 
-uint32_t
+ssize_t
 Peer::processSenderRequest(SenderRequest* request, uint32_t max_length)
 {
 	uint32_t sending_len = request->getMessageLength();
@@ -677,9 +677,9 @@ Peer::processSenderRequest(SenderRequest* request, uint32_t max_length)
 
 	ssize_t written = connection->write(request->getMessage(), sending_len);
 	if (written < 0)
-		return 0;
+		return -1;
 	if (request->isCancelled())
-		return 0;
+		return -2;
 
 	/* XXX only increment upload if we are uploading pieces */
 	torrent->incrementUploadedBytes(written);
