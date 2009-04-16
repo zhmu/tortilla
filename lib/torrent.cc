@@ -523,7 +523,9 @@ Torrent::go()
 		 */
 		struct timeval tv;
 		tv.tv_sec = 0; tv.tv_usec = 5000;
+		TRACE(NETWORK, "waiting for select");
 		int n = select(maxfd + 1, &readfds, &writefds, (fd_set*)NULL, &tv);
+		TRACE(NETWORK, "select OK, n=%u", n);
 		if (n == 0)
 			continue;
 
@@ -579,7 +581,8 @@ Torrent::callbackPiecesAdded(Peer* p, vector<unsigned int>& pieces)
 	}
 	UNLOCK(data);
 
-	scheduleRequests();
+	/* Use this to signal interest in a peer */
+	processPeerStatus();
 }
 
 void
@@ -596,7 +599,7 @@ Torrent::callbackPiecesRemoved(Peer* p, vector<unsigned int>& pieces)
 }
 
 void
-Torrent::scheduleRequests()
+Torrent::schedulePeerRequests(Peer* p)
 {
 	if (complete)
 		return;
@@ -606,45 +609,25 @@ Torrent::scheduleRequests()
 	 */
 	LOCK(data);
 	for (unsigned int i = 0; i < numPieces && !terminating; i++) {
-		if (!havePiece[i] && pieceCardinality[i] > 0) {
-			if (!endgame_mode && queuedPiece[i].size() == 0) {
-				/*
-				 * This piece is of interest! Pick a peer, and if possible, give it the
-				 * request.
-				 */
-				Peer* p = findPeerForPiece(i);
-				assert(p != NULL);
-				assert(!p->haveRequestedPiece(i));
-				if (p->getNumRequests() >= TORRENT_PEER_MAX_REQUESTS)
-					continue;
-				p->claimInterest();
-				p->requestPiece(i);
-				TRACE(TORRENT, "requesting piece from peer %p, piece=%i", p, i);
-				queuedPiece[i].push_back(p);
-				continue;
-			}
+		if (havePiece[i] || !p->hasPiece(i) || p->haveRequestedPiece(i))
+			continue;
 
-			if (!endgame_mode)
-				continue;
+		/*
+		 * We don't have the peer, but this peer does. Find a piece, and go
+		 * request.
+		 */
+		assert(p->isInterested());
 
-			/*
-			 * We don't have this piece, yet someone else does. We are doing
-			 * endgame mode, so ask anyone who has it for this piece.
-			 */
-			RLOCK(peers);
-			for (vector<Peer*>::iterator it = peers.begin();
-					 it != peers.end(); it++) {
-				Peer* p = *it;
-				if (!p->hasPiece(i) || p->haveRequestedPiece(i))
-					continue;
+		/* Don't flood a single peer with requests */
+		if (p->getNumRequests() >= TORRENT_PEER_MAX_REQUESTS)
+			break;
 
-				p->claimInterest();
-				p->requestPiece(i);
-				TRACE(TORRENT, "requesting piece in endgame mode from peer %p, piece=%i", p, i);
-				queuedPiece[i].push_back(p);
-			}
-			RWUNLOCK(peers);
-		}
+		p->claimInterest();
+		p->requestPiece(i);
+		TRACE(TORRENT, "requesting piece from peer=%s, piece=%i",
+		 p->getEndpoint().c_str(), i);
+		queuedPiece[i].push_back(p);
+		break;
 	}
 	UNLOCK(data);
 }
@@ -696,9 +679,6 @@ Torrent::callbackCompletePiece(Peer* p, unsigned int piece)
 	 * we have to refetch the piece or accept that we think it's fine.
 	 */
 	scheduleHashing(piece);
-
-	/* Try more! */
-	scheduleRequests();
 }
 
 unsigned int
@@ -764,7 +744,7 @@ Torrent::callbackCompleteChunk(Peer* p, unsigned int piece, uint32_t offset, con
 		}
 	UNLOCK(data);
 
-	scheduleRequests();
+	schedulePeerRequests(p);
 	if (!full)
 		return;
 
@@ -803,13 +783,13 @@ Torrent::callbackCompleteHashing(unsigned int piece, bool result)
 	hashingPiece[piece] = false;
 	if (!result) {
 		/*
-		 * We got a corrupted piece! Mark it as not-available and attempt to
-		 * request it again from someone else. XXX we should identify and ban
-		 * seeders that provide us with bad content.
+		 * We got a corrupted piece! Mark it as not-available; we'll automatically
+		 * reschedule this piece again later.
+		 *
+		 * XXX we should identify and ban seeders that provide us with bad content.
 		 */
 		havePiece[piece] = false;
 		UNLOCK(data);
-		scheduleRequests();
 		return;
 	}
 
@@ -844,7 +824,7 @@ Torrent::callbackCompleteHashing(unsigned int piece, bool result)
 	RWUNLOCK(peers);
 
 	/* Try to use this as an attempt to signal disinterest in peers */
-	processCurrentPeers();
+	processPeerStatus();
 
 	/* If we have all pieces, rejoice */
 	LOCK(data);
@@ -961,7 +941,7 @@ Torrent::callbackCompleteTorrent()
 	complete = true;
 
 	/* Kick anyone who is also a seeder */
-	processCurrentPeers();
+	processPeerStatus();
 }
 
 void
@@ -1034,32 +1014,6 @@ Torrent::getRateCounters(uint32_t* rx, uint32_t* tx)
 	*rx = rx_rate; *tx = tx_rate;
 }
 
-Peer*
-Torrent::findPeerForPiece(uint32_t piece)
-{
-	/*
-	 * Pick a random peer that has this piece and go. This is O(|peers|)), but we
-	 * will will limit the number of peers eventually so this is fine XXX
-	 *
-	 * Note, this assumed the DATA mutex is locked!
-	 *
-	 */
-	Peer* p = NULL;
-	RLOCK(peers);
-	unsigned int peer_num = rand() % pieceCardinality[piece];
-	for (vector<Peer*>::iterator it = peers.begin();
-	     it != peers.end(); it++) {
-		if (!(*it)->hasPiece(piece))
-			continue;
-		if (peer_num-- == 0) {
-			p = (*it);
-			break;
-		}
-	}
-	RWUNLOCK(peers);
-	return p;
-}
-
 class peervector_matches {
 public:
 	peervector_matches(Peer* p) { peer = p; }
@@ -1086,12 +1040,6 @@ Torrent::callbackPeerGone(Peer* p)
 
 	/* Get rid of any pieces being uploaded to this peer */
 	overseer->dequeuePeer(p);
-
-	/* Try to schedule requests to fill the void
-	 *
-	 * XXX don't reschedule here
-	scheduleRequests();
-	*/
 }
 
 const uint8_t*
@@ -1300,7 +1248,19 @@ Torrent::callbackPeerChangedInterest(Peer* p)
 }
 
 void
-Torrent::processCurrentPeers()
+Torrent::callbackPeerChangedChoking(Peer* p)
+{
+	if (p->isChoking())
+		return;
+
+	/*
+	 * We are unchoked! Fill up the peer with requests.
+	 */
+	schedulePeerRequests(p);
+}
+
+void
+Torrent::processPeerStatus()
 {
 	LOCK(data); RLOCK(peers);
 
@@ -1308,12 +1268,20 @@ Torrent::processCurrentPeers()
 	     it != peers.end(); it++) {
 		Peer* p = (*it);
 
+		/*
+		 * If this peer is a seeder and so we are, kick him; no point staying
+		 * connected anyway.
+		 */
 		if (complete && p->isSeeder()) {
 			TRACE(TORRENT, "kicking seeder peer=%s", p->getEndpoint().c_str());
 			p->shutdown();
 			continue;
 		}
 
+		/*
+		 * For every peer, see if they have stuff we want. If so, claim interest;
+		 * if not, revoke it.
+		 */
 		bool haveStuff = false;
 		for (unsigned int i = 0; i < numPieces; i++)
 			if (!havePiece[i] && p->hasPiece(i)) {
@@ -1321,9 +1289,7 @@ Torrent::processCurrentPeers()
 				break;
 			}
 
-		if (!haveStuff) {
-			p->revokeInterest();
-		}
+		haveStuff ? p->claimInterest() : p->revokeInterest();
 	}
 
 	RWUNLOCK(peers); UNLOCK(data);

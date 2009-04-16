@@ -11,6 +11,7 @@
 class Torrent;
 class SenderRequest;
 
+//! \brief This is the number of requests we attempt to keep on the wire
 #define PEER_MAX_OUTSTANDING_REQUESTS	20
 
 //! \brief Amount of seconds that must pass before we snub a peer

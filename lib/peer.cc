@@ -324,6 +324,7 @@ Peer::msgChoke()
 	TRACE(PROTOCOL, "choke: peer=%s", getEndpoint().c_str());
 	am_choked = true;
 
+	torrent->callbackPeerChangedChoking(this);
 	return false;
 }
 
@@ -337,6 +338,11 @@ Peer::msgUnchoke()
 	 * the first few.
 	 */
 	am_choked = false;
+	torrent->callbackPeerChangedChoking(this);
+
+	/*
+	 * Attempt to send requested; the callback should have given us some.
+	 */
 	sendPieceRequest();
 	return false;
 }
@@ -450,13 +456,18 @@ Peer::msgPiece(const uint8_t* msg, uint32_t len)
 	UNLOCK(data);
 
 	if (len > TORRENT_CHUNK_SIZE || begin % TORRENT_CHUNK_SIZE != 0) {
-		/* Not what we hoped for... XXX we need to alter the peers trust factor */
+		/*
+		 * Not what we hoped for... try again.
+		 *
+		 * XXX we need to alter the peers trust factor? Just ditch the peer? Or
+		 * reschedule.
+		 */
 		sendPieceRequest();
 		return false;
 	}
 	torrent->callbackCompleteChunk(this, index, begin, data, len);
 
-	/* Thanks! Try to get more! */
+	/* Thanks! Try to get more - we assume the callback updates our request buffer */
 	sendPieceRequest();
 	return false;
 }
@@ -580,7 +591,6 @@ Peer::sendPieceRequest()
 		WRITE_UINT32(msg, 0, piece);
 		WRITE_UINT32(msg, 4, missingChunk * TORRENT_CHUNK_SIZE);
 		WRITE_UINT32(msg, 8, request_length);
-		torrent->setChunkRequested(piece, missingChunk, true);
 		queueMessage(PEER_MSGID_REQUEST, msg, 12);
 		TRACE(PROTOCOL, "sent request: peer=%s, piece=%u, offset=%u, length=%u", getEndpoint().c_str(), piece, missingChunk * TORRENT_CHUNK_SIZE, request_length);
 

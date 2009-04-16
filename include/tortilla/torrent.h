@@ -13,8 +13,11 @@
 //! \brief A chunk is an atomically transferable piece of data between peers
 #define TORRENT_CHUNK_SIZE 16384
 
-//! \brief Maximum number of requested pieces per client
-#define TORRENT_PEER_MAX_REQUESTS 10
+/*! \brief Maximum number of requested pieces per client
+ *
+ *  XXX 1 is an experiment.
+ */
+#define TORRENT_PEER_MAX_REQUESTS 1
 
 //! \brief Length of a peer ID
 #define TORRENT_PEERID_LEN 20
@@ -210,6 +213,9 @@ protected:
 	//! \brief Called by a peer if it changes interest
 	void callbackPeerChangedInterest(Peer* p);
 
+	//! \brief Called by a peer if it becomes choked or unchoked
+	void callbackPeerChangedChoking(Peer* p);
+
 	/*! \brief Go, speedracer, go -- handles the torrent activites
 	 *
  	 *  This generally resides in an own thread.
@@ -247,12 +253,13 @@ protected:
 
 	/*! \brief Handle status update to peers
 	 *
-	 *  This function will inform peers that do not have any pieces we 
-	 *  want that we lost interest in them. If we are a seeder, we
-	 *  ditch anyone who is also a seeder to give leechers a better
-	 *  chance of getting a seeder (we don't need the slot anyway)
+	 *  This function will update all connected peers that we have gained
+	 *  or lost interest in them. It will also attempt to ditch anyone who
+	 *  is also a seeder to give leechers a better chance of getting a
+	 *  seeder (plus, there's nothing we gain by connecting to a seeder
+	 *  when we have all data anyway)
 	 */
-	void processCurrentPeers();
+	void processPeerStatus();
 
 private:
 	/*! \brief Contact the tracker
@@ -277,8 +284,12 @@ private:
 	 */
 	void handleTracker(std::string event = "");
 
-	//! \brief Ask for new pieces from each peer
-	void scheduleRequests();
+	/*! \brief Ask for new pieces from a peer
+	 *  \param p Peer to use
+	 *
+	 *  This should be called when a peer gives us the go-ahead.
+	 */
+	void schedulePeerRequests(Peer* p);
 
 	//! \brief Request hashing of a piece
 	void scheduleHashing(unsigned int piece);
@@ -287,12 +298,6 @@ private:
 	 *  \param i Integer to use
 	 */
 	std::string convertInteger(uint64_t i);
-
-	/*! \brief Finds a peer to download a piece from
-	 *  \param piece Piece to download
-	 *  \return Peer that has the piece, or NULL if no peers have it
-	 */
-	Peer* findPeerForPiece(uint32_t piece);
 
 	//! \brief Runs the optimistic unchoking algorithm
 	void handleUnchokingAlgorithm();
