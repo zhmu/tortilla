@@ -346,8 +346,8 @@ Overseer::handleIncomingConnection(Connection* c)
 		 * rid of it before we nuke the peer, or Bad Things Will Happen.
 		 */
 		sender->removeRequestsFromPeer(p);
-		delete p;
 		TRACE(NETWORK, "handshake aborted: connection=%p,peer=%s is us", c, c->getEndpoint().c_str());
+		delete p;
 		return;
 	}
 	p->setPeerID(peer);
