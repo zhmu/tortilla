@@ -41,6 +41,15 @@ SenderRequest::SenderRequest(Peer* p, uint8_t msg, const uint8_t* data, uint32_t
 	memcpy((message + 5), data, len);
 }
 
+SenderRequest::SenderRequest(Peer* p, const uint8_t* data, uint32_t len)
+{
+	peer = p; length = len; skip_num = 0; piece = 0; offset = 0; piece_length = 0;
+	cancelled = false;
+
+	message = new uint8_t[length];
+	memcpy(message, data, len);
+}
+
 #undef WRITE_UINT32
 
 const uint8_t* 
@@ -108,6 +117,17 @@ Sender::enqueueMessage(Peer* p, uint8_t msg, uint8_t* data, uint32_t len)
 {
 	WLOCK(queue);
 	requests.push_back(new SenderRequest(p, msg, data, len));
+	RWUNLOCK(queue);
+
+	/* Awaken! */
+	pthread_cond_signal(&cv_queue);
+}
+
+void
+Sender::enqueueRawMessage(Peer* p, uint8_t* data, uint32_t len)
+{
+	WLOCK(queue);
+	requests.push_back(new SenderRequest(p, data, len));
 	RWUNLOCK(queue);
 
 	/* Awaken! */
@@ -206,6 +226,10 @@ Sender::process()
 			if (request == NULL)
 				/* Queue is empty; try again later */
 				break;
+			if (request->getPeer()->areConnecting()) {
+				/* Peer isn't ready */
+				continue;
+			}
 
 			/* Fetch the amount of data we may still transfer */
 			pthread_mutex_lock(&mtx_data);

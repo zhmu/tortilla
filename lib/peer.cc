@@ -55,7 +55,6 @@ Peer::Peer(Torrent* t, std::string peer_id, std::string peer_host, uint16_t peer
 	/* Send our handshake and wait for the other party to complete the procedure */
 	sendHandshake();
 	handshaking = true;
-	sendBitfield();
 	launchTime = time(NULL);
 }
 
@@ -134,18 +133,28 @@ Peer::receive(const uint8_t* data, uint32_t data_len)
 			/* Only continue if we have at least the entire handshake string */
 			int pstrlen = strlen(PEER_PSTR);
 			uint32_t handshake_len = 1 + pstrlen + 8 + TORRENT_HASH_LEN + TORRENT_HASH_LEN;
-			if (data_left < handshake_len)
-				return true;
+			if (data_left < handshake_len) {
+				TRACE(PROTOCOL, "receive: peer=%s only has %u bytes, %u required, waiting",
+				 getEndpoint().c_str(), data_left, handshake_len);
+				return false;
+			}
 
 			/* XXX we assume the buffer doesn't wrap yet */
 			data = (uint8_t*)(command_buffer + command_buffer_readpos);
-			if (data[0] != pstrlen)
+			if (data[0] != pstrlen) {
+				TRACE(PROTOCOL, "receive: peer=%s sent illegal header length %u (!= %u), dropping",
+				 getEndpoint().c_str(), data[0], pstrlen);
 				return true;
-			if (memcmp((data + 1), PEER_PSTR, pstrlen))
+			}
+			if (memcmp((data + 1), PEER_PSTR, pstrlen)) {
+				TRACE(PROTOCOL, "receive: peer=%s sent wrong protocol string, dropping", getEndpoint().c_str());
 				return true;
+			}
 			/* XXX ignore 8 feature bytes for now */
-			if (memcmp((uint8_t*)(data + 1 + pstrlen + 8), torrent->getInfoHash(), TORRENT_HASH_LEN))
+			if (memcmp((uint8_t*)(data + 1 + pstrlen + 8), torrent->getInfoHash(), TORRENT_HASH_LEN)) {
+				TRACE(PROTOCOL, "receive: peer=%s sent wrong info hash, dropping", getEndpoint().c_str());
 				return true;
+			}
 
 			/*
 		 	 * Check whether the peer ID is us - i.e. we are connecting to ourselves! If this is the
@@ -165,6 +174,9 @@ Peer::receive(const uint8_t* data, uint32_t data_len)
 			handshaking = false;
 			command_buffer_readpos = (command_buffer_readpos + handshake_len) % PEER_BUFFER_SIZE;
 			data_left -= handshake_len;
+
+			/* Handshaking is done - send our bitfield, if needed */
+			sendBitfield();
 		}
 
 		/* Only try something if we have at least the length */
@@ -601,14 +613,6 @@ Peer::sendPieceRequest()
 }
 
 void
-Peer::send(const uint8_t* data, size_t len)
-{
-	/* Off it goes, to the other side... */
-	connection->write((const char*)data, len);
-	tx_bytes += len;
-}
-
-void
 Peer::sendHandshake()
 {
 	/*
@@ -629,7 +633,7 @@ Peer::sendHandshake()
 	handshake += my_id;
 
 	/* Hi! */
-	send((const uint8_t*)handshake.c_str(), handshake.size());
+	torrent->queueRawMessage(this, (uint8_t*)handshake.c_str(), handshake.size());
 	TRACE(PROTOCOL, "sent our handshake: peer=%s, size=%u",
 	 getEndpoint().c_str(), handshake.size());
 }

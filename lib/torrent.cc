@@ -509,11 +509,9 @@ Torrent::go()
 			Peer* p = *it;
 			int fd = p->getFD();
 			if (maxfd < fd) maxfd = fd;
-			if (p->areConnecting()) {
+			if (p->areConnecting())
 				FD_SET(fd, &writefds);
-			} else {
-				FD_SET(fd, &readfds);
-			}
+			FD_SET(fd, &readfds);
 		}
 		RWUNLOCK(peers);
 
@@ -1088,6 +1086,12 @@ void
 Torrent::queueMessage(Peer* p, uint8_t msg, uint8_t* data, uint32_t len)
 {
   overseer->enqueueMessage(p, msg, data, len);
+}
+
+void
+Torrent::queueRawMessage(Peer* p, uint8_t* data, uint32_t len)
+{
+  overseer->enqueueRawMessage(p, data, len);
 }
 
 void

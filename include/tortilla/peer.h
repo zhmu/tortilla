@@ -260,12 +260,6 @@ private:
 	//! \brief Send request for a piece, if any
 	void sendPieceRequest();
 
-	/*! \brief Sends data to peer
-	 *  \param data Data to send
-	 *  \param len Length of the data, in bytes
-	 */
-	void send(const uint8_t* data, size_t len);
-
 	//! \brief Are we choked?
 	bool am_choked;
 

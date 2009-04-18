@@ -86,6 +86,9 @@ protected:
 	//! \brief Enqueue a message
 	void enqueueMessage(Peer* p, uint8_t msg, uint8_t* data, uint32_t len);
 
+	//! \brief Enqueue a raw message
+	void enqueueRawMessage(Peer* p, uint8_t* data, uint32_t len);
+
 	//! \brief Dequeues all requests for a peer
 	void dequeuePeer(Peer* p);
 

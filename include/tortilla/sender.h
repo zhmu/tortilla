@@ -16,6 +16,9 @@ public:
 	//! \brief Constructs a request to send a message
 	SenderRequest(Peer* p, uint8_t msg, const uint8_t* data, uint32_t len);
 
+	//! \brief Constructs a request to send raw data
+	SenderRequest(Peer* p, const uint8_t* data, uint32_t len);
+
 	//! \brief Obliterates the request
 	~SenderRequest();
 
@@ -109,6 +112,9 @@ public:
 
 	//! \brief Queue a message
 	void enqueueMessage(Peer* p, uint8_t msg, uint8_t* data, uint32_t len);
+
+	//! \brief Queue a raw message
+	void enqueueRawMessage(Peer* p, uint8_t* data, uint32_t len);
 
 	//! \brief Cancels a piece request
 	void dequeuePieceRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len);

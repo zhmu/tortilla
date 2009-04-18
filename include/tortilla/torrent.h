@@ -240,6 +240,9 @@ protected:
 	//! \brief Queue the message for transmission
 	void queueMessage(Peer* p, uint8_t msg, uint8_t* data, uint32_t len);
 
+	//! \brief Queue the raw message for transmission
+	void queueRawMessage(Peer* p, uint8_t* data, uint32_t len);
+
 	/*! \brief Retrieves a piece from the output files
 	 *  \param piece Piece number to read
 	 *  \param offset Byte offset within piece
