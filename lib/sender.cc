@@ -130,14 +130,20 @@ Sender::process()
 			break;
 
 		while (!terminating) {
-			/* Try to fetch a request from the queue */
+			/*
+			 * Try to fetch a request from the queue. The seemingly odd pop_front()
+			 * calls serve a special purpose: the requests queue must always contain
+			 * the active requests, _including the current request_! This is because
+			 * such a request should still be cancelled if a peer is removed from the
+			 * peers list by the Torrent object.
+			 */
 			WLOCK(queue);
 			SenderRequest* request = NULL;
 			while (!requests.empty()) {
 				request = requests.front();
-				requests.pop_front();
 				if (!request->isCancelled())
 					break;
+				requests.pop_front();
 				delete request;
 				request = NULL;
 			}
@@ -155,6 +161,7 @@ Sender::process()
 				if ( request->getPeer()->areConnecting() ||
 						(request->getPeer()->wasLastSendIncomplete() && !request->isPartialRequest())) {
 					WLOCK(queue);
+					requests.pop_front();
 					requests.push_back(request);
 					RWUNLOCK(queue);
 					continue;
@@ -181,6 +188,9 @@ Sender::process()
 			 * Otherwise, just get rid of it.
 			 */
 			if (request->getMessageLength() == 0) {
+				WLOCK(queue);
+				requests.pop_front();
+				RWUNLOCK(queue);
 				delete request;
 			} else {
 				/*
@@ -192,6 +202,7 @@ Sender::process()
 				 */
 				if (!request->isCancelled()) {
 					WLOCK(queue);
+					requests.pop_front();
 					requests.push_back(request);
 					RWUNLOCK(queue);
 				}
