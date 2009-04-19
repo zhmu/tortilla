@@ -351,11 +351,6 @@ Peer::msgUnchoke()
 	 */
 	am_choked = false;
 	torrent->callbackPeerChangedChoking(this);
-
-	/*
-	 * Attempt to send requested; the callback should have given us some.
-	 */
-	sendPieceRequest();
 	return false;
 }
 
@@ -474,13 +469,10 @@ Peer::msgPiece(const uint8_t* msg, uint32_t len)
 		 * XXX we need to alter the peers trust factor? Just ditch the peer? Or
 		 * reschedule.
 		 */
-		sendPieceRequest();
+		torrent->schedulePeerRequests(this);
 		return false;
 	}
 	torrent->callbackCompleteChunk(this, index, begin, data, len);
-
-	/* Thanks! Try to get more - we assume the callback updates our request buffer */
-	sendPieceRequest();
 	return false;
 }
 
@@ -524,12 +516,6 @@ Peer::revokeInterest()
 }
 
 void
-Peer::requestPiece(unsigned int num)
-{
-	requestedPieces.push_back(num);
-}
-
-void
 Peer::queueMessage(uint8_t msg, const uint8_t* buf, size_t len)
 {
 	assert(buf == NULL || len > 0);
@@ -543,43 +529,27 @@ Peer::hasPiece(unsigned int num)
 	return havePiece[num];
 }
 
-unsigned int
-Peer::getNumRequests()
+int
+Peer::sendPieceRequest(unsigned int piece)
 {
-	return requestedPieces.size();
-}
+	int numRequested = 0;
 
-void
-Peer::sendPieceRequest()
-{
-	/*
-	 * If we are choked, there's no reason to try to send requests, so don't do
-	 * it.
-	 */
-	if (am_choked)
-		return;
+	assert(!am_choked);
 
 	/* Don't flood a peer with requests */
 	if (chunk_requests.size() >= PEER_MAX_OUTSTANDING_REQUESTS)
-		return;
+		return -1;
 
-	while (requestedPieces.size() > 0 && chunk_requests.size() < PEER_MAX_OUTSTANDING_REQUESTS) {
-		unsigned int piece = requestedPieces.front();
-
+	while (chunk_requests.size() < PEER_MAX_OUTSTANDING_REQUESTS) {
 		/* If we are requesting a piece, the peer should have it */
 		assert(havePiece[piece] == true);
 
 		/*
 		 * Find the first chunk of this piece we are missing.
 		 */
-		int missingChunk = torrent->getMissingChunk(piece);
-		if (missingChunk < 0) {
-			/* We have the entire chunk - nuke it from the list */
-			requestedPieces.pop_front();
-
-			/* Try the next chunk */
-			continue;
-		}
+		int missingChunk = torrent->getMissingChunk(piece, true);
+		if (missingChunk < 0)
+			break;
 
 		/* If we have there piece here, we fail! */
 		assert(torrent->havePiece[piece] == false);
@@ -609,7 +579,9 @@ Peer::sendPieceRequest()
 		LOCK(data);
 		chunk_requests.push_back(OutstandingChunkRequest(piece, missingChunk * TORRENT_CHUNK_SIZE, request_length));
 		UNLOCK(data);
+		numRequested++;
 	}
+	return numRequested;
 }
 
 void
@@ -791,17 +763,6 @@ Peer::getAverageRate(uint32_t* rx, uint32_t* tx)
 		*rx = rx_total;
 		*tx = tx_total;
 	}
-}
-
-bool
-Peer::haveRequestedPiece(unsigned int num)
-{
-	for (std::list<unsigned int>::iterator it = requestedPieces.begin();
-	     it != requestedPieces.end(); it++) {
-		if (*it == num)
-			return true;
-	}
-	return false;
 }
 
 void

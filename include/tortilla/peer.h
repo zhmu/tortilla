@@ -63,6 +63,7 @@ private:
 /*! \brief A single bittorrent peer
  */
 class Peer {
+friend class Torrent;
 public:	
 	/*! \brief Constructs a new peer object for an outgoing connection
 	 *  \param t Torrent the peer is connected to
@@ -92,9 +93,6 @@ public:
 	//! \brief Retrieve the piece map of the peer
 	std::vector<bool>& getPieceMap() { return havePiece; }
 
-	//! \brief How much pieces has this peer requested?
-	unsigned int getNumRequests();
-
 	//! \brief Retrieve the peer ID
 	std::string getPeerID() { return peerID; }
 
@@ -108,9 +106,6 @@ public:
 	 *  \param num Piece to request
 	 */
 	void requestPiece(unsigned int num);
-
-	//! \brief Have we requested a piece from this peer?
-	bool haveRequestedPiece(unsigned int num);
 
 	/*! \brief Called if we should cancel a piece from this peer
 	 *  \param num Piece to cancel
@@ -245,6 +240,16 @@ protected:
 	 */
 	void sendBitfield();
 
+	/*! \brief Send requests for chunks in piece
+	 *  \param piece Piece to request
+	 *  \returns Number of requested chunks
+	 *
+	 *  This function returns -1 if too much requests were outstanding, otherwise
+	 *  the number of requests is returned. Zero indicates the entire chunk is
+	 *  already requested.
+	 */
+	int sendPieceRequest(unsigned int piece);
+
 private:
 	/*! \brief Initializes basic peer parameters based on a torrent
 	 *  \param t Torrent the peer is connected to
@@ -256,9 +261,6 @@ private:
 
 	//! \brief Construct a request
 	std::string constructRequest(uint32_t index, uint32_t begin, uint32_t length);
-
-	//! \brief Send request for a piece, if any
-	void sendPieceRequest();
 
 	//! \brief Are we choked?
 	bool am_choked;
@@ -277,9 +279,6 @@ private:
 
 	//! \brief Which pieces does this peer have?
 	std::vector<bool> havePiece;
-
-	//! \brief Which pieces are we requesting from this peer?
-	std::list<unsigned int> requestedPieces;
 
 	//! \brief ID of the peer
 	std::string peerID;

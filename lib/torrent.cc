@@ -603,9 +603,11 @@ Torrent::schedulePeerRequests(Peer* p)
 	/*
 	 * XXX this algorithm should schedule a piece more randomly
 	 */
-	LOCK(data);
 	for (unsigned int i = 0; i < numPieces && !terminating; i++) {
-		if (havePiece[i] || !p->hasPiece(i) || p->haveRequestedPiece(i))
+		LOCK(data);
+		bool b = havePiece[i] || !p->hasPiece(i);
+		UNLOCK(data);
+		if (b)
 			continue;
 
 		/*
@@ -614,18 +616,19 @@ Torrent::schedulePeerRequests(Peer* p)
 		 */
 		assert(p->isInterested());
 
-		/* Don't flood a single peer with requests */
-		if (p->getNumRequests() >= TORRENT_PEER_MAX_REQUESTS)
-			break;
+		int result = p->sendPieceRequest(i);
+		if (result > 0) {
+			TRACE(TORRENT, "requested piece from peer=%s, piece=%i, num=%i",
+			 p->getEndpoint().c_str(), i, result);
 
-		p->claimInterest();
-		p->requestPiece(i);
-		TRACE(TORRENT, "requesting piece from peer=%s, piece=%i",
-		 p->getEndpoint().c_str(), i);
-		queuedPiece[i].push_back(p);
-		break;
+			/* If needed, add ourselves to the list of peers fetching this piece */
+			LOCK(data);
+			if (find(queuedPiece[i].begin(), queuedPiece[i].end(), p) == queuedPiece[i].end())
+				queuedPiece[i].push_back(p);
+			UNLOCK(data);
+			break;
+		}
 	}
-	UNLOCK(data);
 }
 
 std::string
@@ -637,7 +640,7 @@ Torrent::convertInteger(uint64_t i)
 }
 
 int
-Torrent::getMissingChunk(unsigned int piece)
+Torrent::getMissingChunk(unsigned int piece, bool flag)
 {
 	assert (piece < numPieces);
 
@@ -652,6 +655,8 @@ Torrent::getMissingChunk(unsigned int piece)
 	for (unsigned int j = 0; j < calculateChunksInPiece(piece); j++)
 		if (!haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j] &&
 			  !haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j]) {
+				if (flag)
+			  	haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j] = true;
 				UNLOCK(data);
 				return j;
 		}
@@ -668,6 +673,7 @@ Torrent::callbackCompletePiece(Peer* p, unsigned int piece)
 
 	LOCK(data);
 	havePiece[piece] = true;
+	queuedPiece[piece].clear();
 	UNLOCK(data);
 
 	/*
@@ -707,6 +713,7 @@ Torrent::callbackCompleteChunk(Peer* p, unsigned int piece, uint32_t offset, con
 		 * data alltogether.
 		 */
 		UNLOCK(data);
+		schedulePeerRequests(p);
 		return;
 	}
 	UNLOCK(data);
@@ -747,17 +754,6 @@ Torrent::callbackCompleteChunk(Peer* p, unsigned int piece, uint32_t offset, con
 	/* Yay! */
 	TRACE(TORRENT, "piece completed: piece=%u", piece);
 	callbackCompletePiece(p, piece);
-}
-
-void
-Torrent::setChunkRequested(unsigned int piece, unsigned int chunk, bool requested)
-{
-	assert (piece < numPieces);
-	assert (chunk < pieceLen / TORRENT_CHUNK_SIZE);
-
-	LOCK(data);
-	haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + chunk] = requested;
-	UNLOCK(data);
 }
 
 bool

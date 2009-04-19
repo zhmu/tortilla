@@ -123,12 +123,10 @@ public:
 
 	/*! \brief Returns the first chunk we don't have of a piece
 	 *  \param piece Piece to check
+	 *  \param flag If true, mark the chunk as being requested
 	 *  \returns The missing piece, or -1 if we have all
 	 */
-	int getMissingChunk(unsigned int piece);
-
-	/*! \brief Set a chunk as requested or not */
-	void setChunkRequested(unsigned int piece, unsigned int chunk, bool requested);
+	int getMissingChunk(unsigned int piece, bool flag = true);
 
 	//! \brief Do we have a piece?
 	bool hasPiece(unsigned int piece);
@@ -264,6 +262,13 @@ protected:
 	 */
 	void processPeerStatus();
 
+	/*! \brief Ask for new pieces from a peer
+	 *  \param p Peer to use
+	 *
+	 *  This should be called when a peer gives us the go-ahead.
+	 */
+	void schedulePeerRequests(Peer* p);
+
 private:
 	/*! \brief Contact the tracker
 	 *  \param event Event to report to the tracker
@@ -286,13 +291,6 @@ private:
 	 *  \param event Event to report to the tracker, if any
 	 */
 	void handleTracker(std::string event = "");
-
-	/*! \brief Ask for new pieces from a peer
-	 *  \param p Peer to use
-	 *
-	 *  This should be called when a peer gives us the go-ahead.
-	 */
-	void schedulePeerRequests(Peer* p);
 
 	//! \brief Request hashing of a piece
 	void scheduleHashing(unsigned int piece);
