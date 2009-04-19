@@ -107,14 +107,8 @@ public:
 	//! \brief Destroys the uploader
 	~Sender();
 
-	//! \brief Queue a piece sender request
-	void enqueuePieceRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len);
-
-	//! \brief Queue a message
-	void enqueueMessage(Peer* p, uint8_t msg, uint8_t* data, uint32_t len);
-
-	//! \brief Queue a raw message
-	void enqueueRawMessage(Peer* p, uint8_t* data, uint32_t len);
+	//! \brief Queue a sender request
+	void enqueueSenderRequest(SenderRequest* sr);
 
 	//! \brief Cancels a piece request
 	void dequeuePieceRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len);

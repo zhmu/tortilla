@@ -102,32 +102,10 @@ Sender::~Sender()
 }
 
 void
-Sender::enqueuePieceRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len)
+Sender::enqueueSenderRequest(SenderRequest* sr)
 {
 	WLOCK(queue);
-	requests.push_back(new SenderRequest(p, piece, begin, len));
-	RWUNLOCK(queue);
-
-	/* Awaken! */
-	pthread_cond_signal(&cv_queue);
-}
-
-void
-Sender::enqueueMessage(Peer* p, uint8_t msg, uint8_t* data, uint32_t len)
-{
-	WLOCK(queue);
-	requests.push_back(new SenderRequest(p, msg, data, len));
-	RWUNLOCK(queue);
-
-	/* Awaken! */
-	pthread_cond_signal(&cv_queue);
-}
-
-void
-Sender::enqueueRawMessage(Peer* p, uint8_t* data, uint32_t len)
-{
-	WLOCK(queue);
-	requests.push_back(new SenderRequest(p, data, len));
+	requests.push_back(sr);
 	RWUNLOCK(queue);
 
 	/* Awaken! */

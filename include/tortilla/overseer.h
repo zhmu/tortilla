@@ -74,20 +74,14 @@ protected:
 	//! \brief Seperate thread handling torrent silicon heartbeat
 	void heartbeatThread();
 
-	//! \brief Queue a peer upload request
-	void enqueueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len);
+	//! \brief Queue a request in the sender thread
+	void enqueueSenderRequest(SenderRequest* sr);
 
 	//! \brief Cancels a peer upload request
 	void dequeueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len);
 
 	//! \brief Cancels requests to upload a specific chunk
 	void dequeueRequestForChunk(Torrent* t, uint32_t piece, uint32_t begin, uint32_t len);
-
-	//! \brief Enqueue a message
-	void enqueueMessage(Peer* p, uint8_t msg, uint8_t* data, uint32_t len);
-
-	//! \brief Enqueue a raw message
-	void enqueueRawMessage(Peer* p, uint8_t* data, uint32_t len);
 
 	//! \brief Dequeues all requests for a peer
 	void dequeuePeer(Peer* p);

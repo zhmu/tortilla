@@ -1068,7 +1068,7 @@ void
 Torrent::queueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len)
 {
 	assert(piece < numPieces);
-	overseer->enqueueUploadRequest(p, piece, begin, len);
+	overseer->enqueueSenderRequest(new SenderRequest(p, piece, begin, len));
 }
 
 void
@@ -1081,13 +1081,13 @@ Torrent::dequeueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t 
 void
 Torrent::queueMessage(Peer* p, uint8_t msg, uint8_t* data, uint32_t len)
 {
-  overseer->enqueueMessage(p, msg, data, len);
+  overseer->enqueueSenderRequest(new SenderRequest(p, msg, data, len));
 }
 
 void
 Torrent::queueRawMessage(Peer* p, uint8_t* data, uint32_t len)
 {
-  overseer->enqueueRawMessage(p, data, len);
+  overseer->enqueueSenderRequest(new SenderRequest(p, data, len));
 }
 
 void

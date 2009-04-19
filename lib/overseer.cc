@@ -213,21 +213,15 @@ Overseer::waitHashingComplete()
 }
 
 void
-Overseer::enqueueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len)
+Overseer::enqueueSenderRequest(SenderRequest* sr)
 {
-	sender->enqueuePieceRequest(p, piece, begin, len);
+	sender->enqueueSenderRequest(sr);
 }
 
 void
 Overseer::dequeueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len)
 {
 	sender->dequeuePieceRequest(p, piece, begin, len);
-}
-
-void
-Overseer::enqueueMessage(Peer* p, uint8_t msg, uint8_t* data, uint32_t len)
-{
-	sender->enqueueMessage(p, msg, data, len);
 }
 
 void
