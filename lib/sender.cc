@@ -182,10 +182,11 @@ Sender::dequeueRequestForChunk(Torrent* t, uint32_t piece, uint32_t begin, uint3
 		    sr->getPiece() == piece &&
 		    sr->getOffset() == begin &&
 		    sr->getPieceLength() == len &&
-		    !sr->haveData())
+		    !sr->haveData()) {
 TRACE(NETWORK, "cancelled request for chunk: torrent=%p, piece=%u, begin=%u, len=%u",
 	t, piece, begin, len);
 			sr->cancel();
+		}
 	}
 	RWUNLOCK(queue);
 }
@@ -216,10 +217,10 @@ Sender::process()
 			SenderRequest* request = NULL;
 			while (!requests.empty()) {
 				request = requests.front();
+				requests.pop_front();
 				if (!request->isCancelled())
 					break;
 				delete request;
-				requests.pop_front();
 				request = NULL;
 			}
 			RWUNLOCK(queue);
@@ -228,6 +229,9 @@ Sender::process()
 				break;
 			if (request->getPeer()->areConnecting()) {
 				/* Peer isn't ready */
+				WLOCK(queue);
+				requests.push_back(request);
+				RWUNLOCK(queue);
 				continue;
 			}
 
@@ -252,10 +256,7 @@ Sender::process()
 			 * Otherwise, just get rid of it.
 			 */
 			if (request->getMessageLength() == 0) {
-				WLOCK(queue);
 				delete request;
-				requests.pop_front();
-				RWUNLOCK(queue);
 			} else {
 				/*
 				 * XXX We didn't transfer this chunk in a single go; this means we
@@ -266,7 +267,6 @@ Sender::process()
 				 */
 				if (amount == -1) {
 					WLOCK(queue);
-					requests.pop_front();
 					requests.push_back(request);
 					RWUNLOCK(queue);
 				}
