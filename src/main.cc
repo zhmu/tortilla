@@ -19,7 +19,6 @@ using namespace std;
 
 Interface* interface = NULL;
 Overseer* overseer = NULL;
-Tracer* tracer = NULL;	
 
 void
 sigint(int s)
@@ -31,7 +30,6 @@ int
 main(int argc, char** argv)
 {
 	srand(time(NULL));
-	tracer = new Tracer();
 
 	/* XXX */
 	signal(SIGPIPE, SIG_IGN);
@@ -54,7 +52,8 @@ main(int argc, char** argv)
 
 	/* XXX handle it if the connection burns */
 	//overseer = new Overseer(1024 + rand() % 10000);
-	overseer = new Overseer(4000);
+	Tracer* tracer = new Tracer();
+	overseer = new Overseer(4000, tracer);
 	interface = new Interface(overseer);
 	overseer->setUploadRate(16 * 1024);
 

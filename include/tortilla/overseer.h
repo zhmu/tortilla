@@ -8,6 +8,8 @@
 #ifndef __OVERSEER_H__
 #define __OVERSEER_H__
 
+class Tracer;
+
 /*! \brief Responsible for overseeing all torrents
  */
 class Overseer {
@@ -18,8 +20,9 @@ friend class Torrent;
 public:
 	/*! \brief Constructs a new overseer
 	 *  \param portnr TCP port number to use for incoming connections
+	 *  \param tr Tracer object to use, or NULL
 	 */
-	Overseer(unsigned int portnr);
+	Overseer(unsigned int portnr, Tracer* tr);
 
 	//! \brief Destroys the overseer and all torrents it manages
 	~Overseer();
@@ -63,6 +66,9 @@ public:
 
 	//! \brief Retrieve the upload rate, in bytes/second
 	inline uint32_t getUploadRate() { return upload_rate; }
+
+	//! \brief Retrieve our tracer object
+	Tracer* getTracer() { return tracer; } 
 
 protected:
 	//! \brief Seperate thread handling bandwidth monitoring
@@ -134,6 +140,9 @@ private:
 	 *  Zero indicates unlimited.
 	 */
 	uint32_t upload_rate;
+
+	//! \brief Tracer object used
+	Tracer* tracer;
 };
 
 #endif /* __OVERSEER_H__ */

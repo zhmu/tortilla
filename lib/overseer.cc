@@ -9,8 +9,7 @@
 
 using namespace std;
 
-extern std::string formatHex(const uint8_t* hex, unsigned int len);
-
+#define TRACER (tracer)
 #define OVERSEER_THREAD(x) \
 void* \
 x ## _thread(void* ptr) \
@@ -23,9 +22,9 @@ OVERSEER_THREAD(bandwidth);
 OVERSEER_THREAD(listener);
 OVERSEER_THREAD(heartbeat);
 
-Overseer::Overseer(unsigned int portnum)
+Overseer::Overseer(unsigned int portnum, Tracer* tr)
 {
-	terminating = false; port = portnum;
+	terminating = false; port = portnum; tracer = tr;
 
 	/*
 	 * Construct our peer ID; we do this in Azureus style and hereby claim the
@@ -38,7 +37,7 @@ Overseer::Overseer(unsigned int portnum)
 	for (int i = 7; i < TORRENT_PEERID_LEN; i++)
 		peerid[i] = rand() % 26 + 'a';
 
-	hasher = new Hasher();
+	hasher = new Hasher(this);
 	sender = new Sender(this);
 	incoming = new Connection(port);
 

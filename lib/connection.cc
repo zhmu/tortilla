@@ -8,7 +8,6 @@
 #include <iostream>
 #include "exceptions.h"
 #include "connection.h"
-#include "tracer.h"
 
 using namespace std;
 
@@ -82,7 +81,6 @@ Connection::Connection(uint16_t port)
 
 	if (listen(fd, 5) < 0)
 		throw ConnectionException("listen(): " + string(strerror(errno)));
-	TRACE(NETWORK, "listening: port=%u", port);
 }
 
 Connection::Connection(int s, struct sockaddr* soa, socklen_t slen)

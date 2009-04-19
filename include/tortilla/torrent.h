@@ -39,6 +39,7 @@ class Peer;
 class Overseer;
 class PendingPeer;
 class SenderRequest;
+class Tracer;
 
 typedef std::list<Peer*> PeerList;
 
@@ -179,6 +180,9 @@ public:
 
 	//! \brief Retrieve the number of pending peers
 	unsigned int getNumPendingPeers();
+
+	//! \brief Retrieve the tracer object to use
+	Tracer* getTracer();
 
 	/*! \brief Retrieve details on all pieces */
 	std::vector<PieceInfo> getPieceDetails();

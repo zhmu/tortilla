@@ -2,10 +2,13 @@
 #include <string.h>
 #include <algorithm>
 #include "hasher.h"
+#include "overseer.h"
 #include "tracer.h"
 #include "sha1.h"
 
 using namespace std;
+
+#define TRACER (overseer->getTracer())
 
 void*
 hasher_thread(void* ptr)
@@ -14,9 +17,9 @@ hasher_thread(void* ptr)
 	return NULL;
 }
 
-Hasher::Hasher()
+Hasher::Hasher(Overseer* o)
 {
-	terminating = false;
+	terminating = false; overseer = o;
 
 	pthread_mutex_init(&mtx, NULL);
 	pthread_cond_init(&cv, NULL);

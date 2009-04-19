@@ -27,6 +27,8 @@ using namespace std;
 	           (((ptr)[(offs) + 2]) <<  8) | \
 	           (((ptr)[(offs) + 3])      ))
 
+#define TRACER (getTorrent()->getTracer())
+
 void
 Peer::__init(Torrent* t)
 {

@@ -4,6 +4,8 @@
 #include "torrent.h"
 #include "tracer.h"
 
+#define TRACER (torrent->getTracer())
+
 PendingPeer::PendingPeer(Torrent* t, std::string ip, uint16_t port, std::string peerid)
 {
 	this->torrent = t; this->ip = ip; this->port = port; this->peerid = peerid;

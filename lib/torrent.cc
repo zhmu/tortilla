@@ -33,6 +33,8 @@ using namespace std;
 #define WLOCK(x)    pthread_rwlock_wrlock(&rwl_## x);
 #define RWUNLOCK(x) pthread_rwlock_unlock(&rwl_## x);
 
+#define TRACER (overseer->getTracer())
+
 Torrent::Torrent(Overseer* o, Metadata* md)
 {
 	overseer = o; downloaded = 0; uploaded = 0; left = 0;
@@ -1372,6 +1374,11 @@ Torrent::getNumPendingPeers()
 	num = pendingPeers.size();
 	UNLOCK(data);
 	return num;
+}
+
+Tracer*
+Torrent::getTracer() {
+	return overseer->getTracer();
 }
 
 /* vim:set ts=2 sw=2: */

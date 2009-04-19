@@ -103,11 +103,8 @@ Sender::dequeueRequestForChunk(Torrent* t, uint32_t piece, uint32_t begin, uint3
 		    sr->getPiece() == piece &&
 		    sr->getOffset() == begin &&
 		    sr->getPieceLength() == len &&
-		    !sr->haveData()) {
-TRACE(NETWORK, "cancelled request for chunk: torrent=%p, piece=%u, begin=%u, len=%u",
-	t, piece, begin, len);
+		    !sr->haveData())
 			sr->cancel();
-		}
 	}
 	RWUNLOCK(queue);
 }

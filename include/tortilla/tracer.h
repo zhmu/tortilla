@@ -46,9 +46,8 @@ private:
 	pthread_mutex_t mtx;
 };
 
-extern Tracer* tracer;
-
 #define TRACE(t,format,args...) \
-	tracer->trace(TRACER_TYPE_ ## t, format, ## args)
+	if ((TRACER) != NULL) \
+		(TRACER)->trace(TRACER_TYPE_ ## t, format, ## args)
 
 #endif /* __TRACER_H__ */

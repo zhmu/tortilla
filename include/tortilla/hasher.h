@@ -22,12 +22,16 @@ private:
 	unsigned int piecenum;
 };
 
+class Overseer;
+
 //! \brief Implements a hashing thread, which checks the torrent contents hash
 class Hasher {
 friend	void* hasher_thread(void* ptr);
 public:
-	//! \brief Construct a new hasher thread
-	Hasher();
+	/*! \brief Construct a new hasher thread
+	 *  \param o Overseer we belong to
+	 */
+	Hasher(Overseer* o);
 
 	/*! \brief Destructs the hasher
 	 *
@@ -67,6 +71,9 @@ private:
 
 	//! \brief Are we terminating?
 	bool terminating;
+
+	//! \brief Overseer we are bound to
+	Overseer* overseer;
 };
 
 #endif /* __HASHER_H__ */
