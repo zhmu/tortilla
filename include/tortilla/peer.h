@@ -184,6 +184,9 @@ public:
 	//! \brief Retrieve the endpoint in human-readable notation
 	std::string getEndpoint() { return connection->getEndpoint(); }
 
+	//! \brief Retrieve the peer ID in human-readable notation
+	std::string getID();
+
 	//! \brief Retrieves the torrent corresponding to this peer
 	Torrent* getTorrent() { return torrent; }
 

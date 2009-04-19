@@ -619,7 +619,7 @@ Torrent::schedulePeerRequests(Peer* p)
 		int result = p->sendPieceRequest(i);
 		if (result > 0) {
 			TRACE(TORRENT, "requested piece from peer=%s, piece=%i, num=%i",
-			 p->getEndpoint().c_str(), i, result);
+			 p->getID().c_str(), i, result);
 
 			/* If needed, add ourselves to the list of peers fetching this piece */
 			LOCK(data);
@@ -1149,7 +1149,7 @@ Torrent::handleUnchokingAlgorithm()
 	for (unsigned int i = 0; i < uiPeers.size(); i++) {
 		char mn[128];
 		snprintf(mn, sizeof mn, "%s(%u/%u)",
-		 uiPeers[i]->getEndpoint().c_str(),
+		 uiPeers[i]->getID().c_str(),
 		 uiPeers[i]->getRxRate(), uiPeers[i]->getTxRate());
 		strncat(bla, mn, sizeof bla);
 	}
@@ -1271,7 +1271,7 @@ Torrent::processPeerStatus()
 		 * connected anyway.
 		 */
 		if (complete && p->isSeeder()) {
-			TRACE(TORRENT, "kicking seeder peer=%s", p->getEndpoint().c_str());
+			TRACE(TORRENT, "kicking seeder peer=%s", p->getID().c_str());
 			p->shutdown();
 			continue;
 		}

@@ -345,7 +345,7 @@ Overseer::handleIncomingConnection(Connection* c)
 		return;
 	}
 	p->setPeerID(peer);
-	TRACE(NETWORK, "handshake completed: connection=%p,peer=%s", c, p->getEndpoint().c_str());
+	TRACE(NETWORK, "handshake completed: connection=%p,peer=%s", c, p->getID().c_str());
 
 	/* We accept! We have no choice! */
 	t->addPeer(p);

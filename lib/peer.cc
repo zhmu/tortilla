@@ -103,7 +103,7 @@ Peer::receive(const uint8_t* data, uint32_t data_len)
 	 */
 	if (((PEER_BUFFER_SIZE - command_buffer_writepos) + command_buffer_readpos) < data_len) {
 		TRACE(NETWORK, "out of space to store data received from peer=%s, closing connection",
-		 getEndpoint().c_str());
+		 getID().c_str());
 		return true;
 	}
 	lastTime = time(NULL);
@@ -135,7 +135,7 @@ Peer::receive(const uint8_t* data, uint32_t data_len)
 			uint32_t handshake_len = 1 + pstrlen + 8 + TORRENT_HASH_LEN + TORRENT_HASH_LEN;
 			if (data_left < handshake_len) {
 				TRACE(PROTOCOL, "receive: peer=%s only has %u bytes, %u required, waiting",
-				 getEndpoint().c_str(), data_left, handshake_len);
+				 getID().c_str(), data_left, handshake_len);
 				return false;
 			}
 
@@ -143,16 +143,16 @@ Peer::receive(const uint8_t* data, uint32_t data_len)
 			data = (uint8_t*)(command_buffer + command_buffer_readpos);
 			if (data[0] != pstrlen) {
 				TRACE(PROTOCOL, "receive: peer=%s sent illegal header length %u (!= %u), dropping",
-				 getEndpoint().c_str(), data[0], pstrlen);
+				 getID().c_str(), data[0], pstrlen);
 				return true;
 			}
 			if (memcmp((data + 1), PEER_PSTR, pstrlen)) {
-				TRACE(PROTOCOL, "receive: peer=%s sent wrong protocol string, dropping", getEndpoint().c_str());
+				TRACE(PROTOCOL, "receive: peer=%s sent wrong protocol string, dropping", getID().c_str());
 				return true;
 			}
 			/* XXX ignore 8 feature bytes for now */
 			if (memcmp((uint8_t*)(data + 1 + pstrlen + 8), torrent->getInfoHash(), TORRENT_HASH_LEN)) {
-				TRACE(PROTOCOL, "receive: peer=%s sent wrong info hash, dropping", getEndpoint().c_str());
+				TRACE(PROTOCOL, "receive: peer=%s sent wrong info hash, dropping", getID().c_str());
 				return true;
 			}
 
@@ -162,7 +162,7 @@ Peer::receive(const uint8_t* data, uint32_t data_len)
 		 	 * head.
 			 */
 			if (!memcmp((uint8_t*)(data + 1 + pstrlen + 8 + TORRENT_HASH_LEN), torrent->getPeerID(), TORRENT_HASH_LEN)) {
-				TRACE(PROTOCOL, "handshaking: peer=%s is us, dropping connection!", getEndpoint().c_str());
+				TRACE(PROTOCOL, "handshaking: peer=%s is us, dropping connection!", getID().c_str());
 				return true;
 			}
 
@@ -333,7 +333,7 @@ Peer::receive(const uint8_t* data, uint32_t data_len)
 bool
 Peer::msgChoke()
 {
-	TRACE(PROTOCOL, "choke: peer=%s", getEndpoint().c_str());
+	TRACE(PROTOCOL, "choke: peer=%s", getID().c_str());
 	am_choked = true;
 
 	torrent->callbackPeerChangedChoking(this);
@@ -343,7 +343,7 @@ Peer::msgChoke()
 bool
 Peer::msgUnchoke()
 {
-	TRACE(PROTOCOL, "unchoke: peer=%s", getEndpoint().c_str());
+	TRACE(PROTOCOL, "unchoke: peer=%s", getID().c_str());
 
 	/*
 	 * We are unchoked! This means we can request pieces from this peer; so send
@@ -357,7 +357,7 @@ Peer::msgUnchoke()
 bool
 Peer::msgInterested()
 {
-	TRACE(PROTOCOL, "interested: peer=%s", getEndpoint().c_str());
+	TRACE(PROTOCOL, "interested: peer=%s", getID().c_str());
 
 	peer_interested = true;
 	torrent->callbackPeerChangedInterest(this);
@@ -367,7 +367,7 @@ Peer::msgInterested()
 bool
 Peer::msgNotInterested()
 {
-	TRACE(PROTOCOL, "notinterested: peer=%s", getEndpoint().c_str());
+	TRACE(PROTOCOL, "notinterested: peer=%s", getID().c_str());
 
 	peer_interested = false;
 	torrent->callbackPeerChangedInterest(this);
@@ -381,7 +381,7 @@ Peer::msgHave(const uint8_t* msg, uint32_t len)
 		return true;
 
 	uint32_t index = READ_UINT32(msg, 0);
-	TRACE(PROTOCOL, "have: peer=%s,piece=%u", getEndpoint().c_str(), index);
+	TRACE(PROTOCOL, "have: peer=%s,piece=%u", getID().c_str(), index);
 	if (index >= torrent->getNumPieces())
 		return true;
 
@@ -424,7 +424,7 @@ Peer::msgBitfield(const uint8_t* msg, uint32_t len)
 			numPeerPieces++;
 		}
 	}
-	TRACE(PROTOCOL, "bitfield: peer=%s, pieces=%u", getEndpoint().c_str(), numPeerPieces);
+	TRACE(PROTOCOL, "bitfield: peer=%s, pieces=%u", getID().c_str(), numPeerPieces);
 
 	/* Inform the torrent class of all added pieces */
 	torrent->callbackPiecesAdded(this, newPieces);
@@ -440,7 +440,7 @@ Peer::msgRequest(const uint8_t* msg, uint32_t len)
 	uint32_t index = READ_UINT32(msg, 0);
 	uint32_t begin = READ_UINT32(msg, 4);
 	uint32_t length = READ_UINT32(msg, 8);
-	TRACE(PROTOCOL, "request: peer=%s, index=%u, begin=%u, length=%u", getEndpoint().c_str(), index, begin, length);
+	TRACE(PROTOCOL, "request: peer=%s, index=%u, begin=%u, length=%u", getID().c_str(), index, begin, length);
 
 	torrent->queueUploadRequest(this, index, begin, length);
 	return false;
@@ -456,7 +456,7 @@ Peer::msgPiece(const uint8_t* msg, uint32_t len)
 	uint32_t begin = READ_UINT32(msg, 4);
 	const uint8_t* data = (msg + 8);
 	len -= 8;
-	TRACE(PROTOCOL, "piece: peer=%s, index=%u, begin=%u, length=%u", getEndpoint().c_str(), index, begin, len);
+	TRACE(PROTOCOL, "piece: peer=%s, index=%u, begin=%u, length=%u", getID().c_str(), index, begin, len);
 
 	LOCK(data);
 	chunk_requests.remove(OutstandingChunkRequest(index, begin, len));
@@ -485,7 +485,7 @@ Peer::msgCancel(const uint8_t* msg, uint32_t len)
 	uint32_t index = READ_UINT32(msg, 0);
 	uint32_t begin = READ_UINT32(msg, 4);
 	uint32_t length = READ_UINT32(msg, 8);
-	TRACE(PROTOCOL, "cancel: peer=%s, index=%u, begin=%u, length=%u", getEndpoint().c_str(), index, begin, length);
+	TRACE(PROTOCOL, "cancel: peer=%s, index=%u, begin=%u, length=%u", getID().c_str(), index, begin, length);
 	
 	torrent->dequeueUploadRequest(this, index, begin, length);
 	return false;
@@ -499,7 +499,7 @@ Peer::claimInterest()
 		return;
 
 	queueMessage(PEER_MSGID_INTERESTED, NULL, 0);
-	TRACE(PROTOCOL, "expressed interested in peer=%s", getEndpoint().c_str());
+	TRACE(PROTOCOL, "expressed interested in peer=%s", getID().c_str());
 	am_interested = true;
 }
 
@@ -511,7 +511,7 @@ Peer::revokeInterest()
 		return;
 
 	queueMessage(PEER_MSGID_NOTINTERESTED, NULL, 0);
-	TRACE(PROTOCOL, "revoked interested in peer=%s", getEndpoint().c_str());
+	TRACE(PROTOCOL, "revoked interested in peer=%s", getID().c_str());
 	am_interested = false;
 }
 
@@ -574,7 +574,7 @@ Peer::sendPieceRequest(unsigned int piece)
 		WRITE_UINT32(msg, 4, missingChunk * TORRENT_CHUNK_SIZE);
 		WRITE_UINT32(msg, 8, request_length);
 		queueMessage(PEER_MSGID_REQUEST, msg, 12);
-		TRACE(PROTOCOL, "sent request: peer=%s, piece=%u, offset=%u, length=%u", getEndpoint().c_str(), piece, missingChunk * TORRENT_CHUNK_SIZE, request_length);
+		TRACE(PROTOCOL, "sent request: peer=%s, piece=%u, offset=%u, length=%u", getID().c_str(), piece, missingChunk * TORRENT_CHUNK_SIZE, request_length);
 
 		LOCK(data);
 		chunk_requests.push_back(OutstandingChunkRequest(piece, missingChunk * TORRENT_CHUNK_SIZE, request_length));
@@ -607,7 +607,7 @@ Peer::sendHandshake()
 	/* Hi! */
 	torrent->queueRawMessage(this, (uint8_t*)handshake.c_str(), handshake.size());
 	TRACE(PROTOCOL, "sent our handshake: peer=%s, size=%u",
-	 getEndpoint().c_str(), handshake.size());
+	 getID().c_str(), handshake.size());
 }
 
 
@@ -640,7 +640,7 @@ Peer::sendBitfield()
 	delete[] bitfield;
 
 	if (numAvailable > 0)
-		TRACE(PROTOCOL, "sent our bitfield: peer=%s, available=%u", getEndpoint().c_str(), numAvailable);
+		TRACE(PROTOCOL, "sent our bitfield: peer=%s, available=%u", getID().c_str(), numAvailable);
 }
 
 ssize_t
@@ -684,7 +684,7 @@ Peer::timer() {
 
 	/* If we are inactive for too long, pull the plug */
 	if (time(NULL) > lastTime + PEER_KICK_SECONDS && !terminating) {
-		TRACE(NETWORK, "kicking peer due to inactivity: peer=%s", getEndpoint().c_str());
+		TRACE(NETWORK, "kicking peer due to inactivity: peer=%s", getID().c_str());
 		shutdown();
 	}
 }
@@ -710,7 +710,7 @@ Peer::unchoke()
 	assert (peer_choked);
 
 	queueMessage(PEER_MSGID_UNCHOKE, NULL, 0);
-	TRACE(PROTOCOL, "sent unchoke: peer=%s", getEndpoint().c_str());
+	TRACE(PROTOCOL, "sent unchoke: peer=%s", getID().c_str());
 	peer_choked = false;
 }
 
@@ -720,7 +720,7 @@ Peer::choke()
 	assert (!peer_choked);
 
 	queueMessage(PEER_MSGID_CHOKE, NULL, 0);
-	TRACE(PROTOCOL, "sent choke: peer=%s", getEndpoint().c_str());
+	TRACE(PROTOCOL, "sent choke: peer=%s", getID().c_str());
 	peer_choked = true;
 }
 
@@ -738,7 +738,7 @@ Peer::have(unsigned int piece)
 	uint8_t msg[4];
 	WRITE_UINT32(msg, 0, piece);
 	queueMessage(PEER_MSGID_HAVE, msg, 4);
-	TRACE(PROTOCOL, "sent have: peer=%s, piece=%u", getEndpoint().c_str(), piece);
+	TRACE(PROTOCOL, "sent have: peer=%s, piece=%u", getID().c_str(), piece);
 }
 
 void
@@ -757,7 +757,7 @@ Peer::setPeerID(std::string peer_id)
 void
 Peer::connectionDone()
 {
-	TRACE(NETWORK, "connection completed: peer=%s", getEndpoint().c_str());
+	TRACE(NETWORK, "connection completed: peer=%s", getID().c_str());
 	connection->connectionDone();
 }
 
@@ -794,10 +794,16 @@ Peer::cancelChunk(uint32_t piece, uint32_t offset, uint32_t len)
 		queueMessage(PEER_MSGID_CANCEL, msg, 12);
 		UNLOCK(data);
 		TRACE(TORRENT, "cancelchunk: peer=%s, piece=%u, offset=%u, len=%u, cancelled",
-		 getEndpoint().c_str(), piece, offset, len);
+		 getID().c_str(), piece, offset, len);
 		return;
 	}
 	UNLOCK(data);
+}
+
+std::string
+Peer::getID()
+{
+	return getEndpoint();
 }
 
 #undef WRITE_UINT32
