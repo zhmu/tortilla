@@ -1,3 +1,4 @@
+#include <pthread.h>
 #include <string>
 
 #ifndef __SENDERREQUEST_H__
@@ -21,10 +22,10 @@ public:
 	~SenderRequest();
 
 	//! \brief Retrieve the peer to upload to
-	Peer* const getPeer() { return peer; }
+	Peer* const getPeer();
 
 	//! \brief Is the request cancelled?
-	bool isCancelled() { return cancelled; }
+	bool isCancelled();
 
 	//! \brief Retrieve the data to upload
 	const uint8_t* getMessage();
@@ -56,9 +57,24 @@ public:
 	 *  be available anymore; either way, we should not rely on the
 	 *  peer being available.
 	 */
-	void cancel() { cancelled = true; }
+	void cancel();
+
+	/*! \brief Does this request have to be skipped?
+	 *
+	 *  This must reside in a function here because a request could
+	 *  be cancelled while we are inspecting it; this function applies
+	 *  the proper locking.
+	 */
+	bool mustBeSkipped();
+
+protected:
+	//! \brief Used to initialize the object
+	void __init(Peer* p, uint32_t len);
 
 private:
+	//! \brief Mutex used to lock the request
+	pthread_mutex_t mtx_data;
+
 	//! \brief Peer we should be uploading to
 	Peer* peer;
 
@@ -87,5 +103,6 @@ private:
 	//! \brief Number of bytes to upload
 	uint32_t piece_length;
 };
+
 
 #endif /* __SENDERREQUEST_H__ */
