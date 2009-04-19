@@ -1028,9 +1028,20 @@ Torrent::callbackPeerGone(Peer* p)
 	 *
 	 * Note that this will be called with peers locked anyway!
 	 */
+	LOCK(data);
 	for (unsigned int i = 0; i < queuedPiece.size(); i++) {
 		queuedPiece[i].remove_if(peervector_matches(p));
+
+		/*
+		 * If no pieces are requested here, remove the chunk request. XXX should we
+		 * remember which chunks were requested for which peer?
+		 */
+		if (queuedPiece[i].size() == 0) {
+			for (unsigned int j = 0; j < calculateChunksInPiece(i); j++)
+				haveRequestedChunk[(i * (pieceLen / TORRENT_CHUNK_SIZE)) + j] = false;
+		}
 	}
+	UNLOCK(data);
 
 	/* Get rid of any pieces being uploaded to this peer */
 	overseer->dequeuePeer(p);
