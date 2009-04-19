@@ -549,7 +549,7 @@ Peer::sendPieceRequest(unsigned int piece)
 		/*
 		 * Find the first chunk of this piece we are missing.
 		 */
-		int missingChunk = torrent->getMissingChunk(piece, true);
+		int missingChunk = torrent->getMissingChunk(this, piece);
 		if (missingChunk < 0)
 			break;
 

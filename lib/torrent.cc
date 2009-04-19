@@ -81,12 +81,10 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 
 	/* For now, assume we have no pieces, requested none and are hashing none */
 	havePiece.reserve(numPieces);
-	queuedPiece.reserve(numPieces);
 	hashingPiece.reserve(numPieces);
 	pieceCardinality.reserve(numPieces);
 	for (unsigned int i = 0; i < numPieces; i++) {
 		havePiece.push_back(false);
-		queuedPiece.push_back(PeerList());
 		hashingPiece.push_back(false);
 		pieceCardinality.push_back(0);
 	}
@@ -103,7 +101,7 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 	for (unsigned int i = 0; i < numPieces; i++) {
 		for (unsigned int j = 0; j < pieceLen / TORRENT_CHUNK_SIZE; j++) {
 			haveChunk.push_back(havePiece[i]);
-			haveRequestedChunk.push_back(false);
+			haveRequestedChunk.push_back(PeerList());
 		}
 	}
 
@@ -622,12 +620,6 @@ Torrent::schedulePeerRequests(Peer* p)
 		if (result > 0) {
 			TRACE(TORRENT, "requested piece from peer=%s, piece=%i, num=%i",
 			 p->getID().c_str(), i, result);
-
-			/* If needed, add ourselves to the list of peers fetching this piece */
-			LOCK(data);
-			if (find(queuedPiece[i].begin(), queuedPiece[i].end(), p) == queuedPiece[i].end())
-				queuedPiece[i].push_back(p);
-			UNLOCK(data);
 			break;
 		}
 	}
@@ -642,7 +634,7 @@ Torrent::convertInteger(uint64_t i)
 }
 
 int
-Torrent::getMissingChunk(unsigned int piece, bool flag)
+Torrent::getMissingChunk(Peer* p, unsigned int piece)
 {
 	assert (piece < numPieces);
 
@@ -654,14 +646,18 @@ Torrent::getMissingChunk(unsigned int piece, bool flag)
 	}
 
 	LOCK(data);
-	for (unsigned int j = 0; j < calculateChunksInPiece(piece); j++)
-		if (!haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j] &&
-			  !haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j]) {
-				if (flag)
-			  	haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j] = true;
+	for (unsigned int j = 0; j < calculateChunksInPiece(piece); j++) {
+		if (!haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j])
+			if (!endgame_mode && haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j].size() > 0)
+				continue;
+			if (find(haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j].begin(),
+			         haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j].end(),
+			         p) == haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j].end()) {
+			  haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j].push_back(p);
 				UNLOCK(data);
 				return j;
-		}
+			}
+	}
 	UNLOCK(data);
 
 	return -1;
@@ -675,7 +671,6 @@ Torrent::callbackCompletePiece(Peer* p, unsigned int piece)
 
 	LOCK(data);
 	havePiece[piece] = true;
-	queuedPiece[piece].clear();
 	UNLOCK(data);
 
 	/*
@@ -1033,13 +1028,11 @@ Torrent::callbackPeerGone(Peer* p)
 		queuedPiece[i].remove_if(peervector_matches(p));
 
 		/*
-		 * If no pieces are requested here, remove the chunk request. XXX should we
-		 * remember which chunks were requested for which peer?
+		 * If no pieces are requested here, remove the chunk request. XXX isn't this
+		 * overly expensive??
 		 */
-		if (queuedPiece[i].size() == 0) {
-			for (unsigned int j = 0; j < calculateChunksInPiece(i); j++)
-				haveRequestedChunk[(i * (pieceLen / TORRENT_CHUNK_SIZE)) + j] = false;
-		}
+		for (unsigned int j = 0; j < numPieces * (pieceLen / TORRENT_CHUNK_SIZE); j++)
+			haveRequestedChunk[j].remove_if(peervector_matches(p));
 	}
 	UNLOCK(data);
 
@@ -1325,9 +1318,13 @@ Torrent::getPieceDetails()
 
 	LOCK(data);
 	for (unsigned int i = 0; i < numPieces; i++) {
-		pi.push_back(PieceInfo(
-			i, havePiece[i], hashingPiece[i], queuedPiece[i].size() > 0
-		));
+		bool requested = false;
+		for (unsigned int j = 0; j < calculateChunksInPiece(i); j++)
+			if (haveRequestedChunk[(i * (pieceLen / TORRENT_CHUNK_SIZE)) + j].size() > 0) {
+				requested = true;
+				break;
+			}
+		pi.push_back(PieceInfo(i, havePiece[i], hashingPiece[i], requested));
 	}
 	UNLOCK(data);
 	return pi;

@@ -123,11 +123,11 @@ public:
 	unsigned int getPieceLength() { return pieceLen; }
 
 	/*! \brief Returns the first chunk we don't have of a piece
+	 *  \param p Peer to check
 	 *  \param piece Piece to check
-	 *  \param flag If true, mark the chunk as being requested
 	 *  \returns The missing piece, or -1 if we have all
 	 */
-	int getMissingChunk(unsigned int piece, bool flag = true);
+	int getMissingChunk(Peer* p, unsigned int piece);
 
 	//! \brief Do we have a piece?
 	bool hasPiece(unsigned int piece);
@@ -359,14 +359,14 @@ private:
 	 */
 	std::vector<bool> /* [M=data] */ haveChunk;
 
-	//! \brief Which chunks are requested?
-	std::vector<bool> /* [M=data] */ haveRequestedChunk;
-
-	/*! \brief Which pieces have we queued?
+	/*! \brief Which chunks are requested?
 	 *
-	 *  In this context, queued means we determined who'll get the request
-	 *  once there is space.
+	 *  We keep track per chunk which peers we have requested the chunk of;
+	 *  this is needed in endgame mode, where we don't want to flood a peer
+	 *  with requests.
 	 */
+	std::vector<PeerList> /* [M=data] */ haveRequestedChunk;
+
 	std::vector<PeerList> /* [M=data] */ queuedPiece;
 
 	//! \brief Which pieces are being hashed?
