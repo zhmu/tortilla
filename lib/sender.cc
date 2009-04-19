@@ -227,8 +227,14 @@ Sender::process()
 			if (request == NULL)
 				/* Queue is empty; try again later */
 				break;
-			if (request->getPeer()->areConnecting()) {
-				/* Peer isn't ready */
+
+			/*
+			 * If the peer is still connecting, or if the previous request was
+			 * partial (i.e. we couldn't send all data in one go) but we aren't
+			 * sending the remaining data of it, we should stall the request.
+			 */
+			if ( request->getPeer()->areConnecting() ||
+			    (request->getPeer()->wasLastSendIncomplete() && !request->isPartialRequest())) {
 				WLOCK(queue);
 				requests.push_back(request);
 				RWUNLOCK(queue);
@@ -259,13 +265,13 @@ Sender::process()
 				delete request;
 			} else {
 				/*
-				 * XXX We didn't transfer this chunk in a single go; this means we
-				 * should preferably give some other peer a chance to grab data while
-				 * we delay this peer...
-				 *
-				 * For now, if the data wasn't accepted, put it at the end of the queue.
+				 * We didn't transfer this chunk in a single go; this means we should
+				 * preferably give some other peer a chance to grab data while we delay
+				 * this peer. In order to accomplish this, we just put it at the end of
+				 * the queue and deal with it some other time (if the request was
+				 * partial, we'll skip any request until we find this one again)
 				 */
-				if (amount == -1) {
+				if (!request->isCancelled()) {
 					WLOCK(queue);
 					requests.push_back(request);
 					RWUNLOCK(queue);

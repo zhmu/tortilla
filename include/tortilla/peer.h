@@ -151,6 +151,9 @@ public:
 	//! \brief Are we choking this peer?
 	bool isChoking() { return am_choked; }
 
+	//! \brief Was the last send incomplete?
+	bool wasLastSendIncomplete() { return lastSendIncomplete; }
+
 	//! \brief Compares two peers based on upload rate
 	static bool compareByUpload(Peer* a, Peer* b);
 
@@ -315,6 +318,13 @@ private:
 
 	//! \brief Is this an incoming connection?
 	bool incoming;
+
+	/*! \brief Was the last send incomplete?
+	 *
+	 *  This is used to avoid interleaving of a new message with an
+	 *  incomplete one.
+	 */
+	bool lastSendIncomplete;
 
 	//! \brief Chunks we are currently requesting
 	std::list<OutstandingChunkRequest> chunk_requests;

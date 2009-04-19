@@ -36,7 +36,7 @@ Peer::__init(Torrent* t)
 	/* ensure we don't kick the peer immediately due to timeout */
 	lastTime = time(NULL);
 	numPeerPieces = 0; rx_bytes = 0; tx_bytes = 0;
-	rx_total = 0; tx_total = 0;
+	rx_total = 0; tx_total = 0; lastSendIncomplete = false;
 	peerID = ""; terminating = false;
 	pthread_mutex_init(&mtx_data, NULL);
 
@@ -648,14 +648,24 @@ Peer::processSenderRequest(SenderRequest* request, uint32_t max_length)
 {
 	uint32_t sending_len = request->getMessageLength();
 
-	if (sending_len > max_length && max_length > 0)
+	if (sending_len > max_length && max_length > 0) {
+		/* This will be a partial request */
 		sending_len = max_length;
+		lastSendIncomplete = true;
+	} else {
+		/* We can send the entire data segment in a single go */
+		lastSendIncomplete = false;
+	}
 
 	ssize_t written = connection->write(request->getMessage(), sending_len);
-	if (written < 0)
+
+	/*
+	 * Leave if the write gave an error, or if the request is canceled; this is
+	 * required because there is no guarantee the torrent still exists if the
+	 * request is cancelled.
+	 */
+	if (written < 0 || request->isCancelled())
 		return -1;
-	if (request->isCancelled())
-		return -2;
 
 	/* XXX only increment upload if we are uploading pieces */
 	torrent->incrementUploadedBytes(written);
