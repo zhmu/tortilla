@@ -151,13 +151,14 @@ Sender::process()
 			 * partial (i.e. we couldn't send all data in one go) but we aren't
 			 * sending the remaining data of it, we should stall the request.
 			 */
-			if ( request->getPeer()->areConnecting() ||
-			    (request->getPeer()->wasLastSendIncomplete() && !request->isPartialRequest())) {
-				WLOCK(queue);
-				requests.push_back(request);
-				RWUNLOCK(queue);
-				continue;
-			}
+			if (!request->isCancelled())
+				if ( request->getPeer()->areConnecting() ||
+						(request->getPeer()->wasLastSendIncomplete() && !request->isPartialRequest())) {
+					WLOCK(queue);
+					requests.push_back(request);
+					RWUNLOCK(queue);
+					continue;
+				}
 
 			/* Fetch the amount of data we may still transfer */
 			pthread_mutex_lock(&mtx_data);
