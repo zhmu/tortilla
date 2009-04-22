@@ -214,6 +214,12 @@ Peer::receive(const uint8_t* data, uint32_t data_len)
 			continue;
 		}
 
+		/* If the peer tries to send a crazy amount of data, lose it */
+		if (len > 65536) {
+			TRACE(NETWORK, "receive: peer=%s is sending an extremely long message of %u bytes, closing connection", getID().c_str(), len);
+			return true;
+		}
+
 		/* Find out how much data we have available in this buffer */
 		if (data_left < len + 4 /* 4 because we haven't skipped the header yet! */) {
 			/* We need more data */
