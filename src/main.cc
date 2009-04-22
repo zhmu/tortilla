@@ -19,6 +19,7 @@ using namespace std;
 
 Interface* interface = NULL;
 Overseer* overseer = NULL;
+Tracer* tracer = NULL;
 
 void
 sigint(int s)
@@ -52,10 +53,10 @@ main(int argc, char** argv)
 
 	/* XXX handle it if the connection burns */
 	//overseer = new Overseer(1024 + rand() % 10000);
-	Tracer* tracer = new Tracer();
+	tracer = new Tracer();
 	overseer = new Overseer(4000, tracer);
 	interface = new Interface(overseer);
-	overseer->setUploadRate(16 * 1024);
+	//overseer->setUploadRate(16 * 1024);
 
 	/*
 	 * Add the torrents one by one; we won't need the metadata

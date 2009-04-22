@@ -661,10 +661,6 @@ Peer::processSenderRequest(SenderRequest* request, uint32_t max_length)
 	if (sending_len > max_length && max_length > 0) {
 		/* This will be a partial request */
 		sending_len = max_length;
-		lastSendIncomplete = true;
-	} else {
-		/* We can send the entire data segment in a single go */
-		lastSendIncomplete = false;
 	}
 
 	ssize_t written = connection->write(request->getMessage(), sending_len);
@@ -676,6 +672,14 @@ Peer::processSenderRequest(SenderRequest* request, uint32_t max_length)
 	 */
 	if (written < 0 || request->isCancelled())
 		return -1;
+
+	if (written < sending_len)
+		lastSendIncomplete = true;
+	else if (written == sending_len)
+		lastSendIncomplete = false;
+	else
+		/* Impossible! */
+		assert(0);
 
 	/* XXX only increment upload if we are uploading pieces */
 	torrent->incrementUploadedBytes(written);
