@@ -96,7 +96,9 @@ bool
 Peer::receive(const uint8_t* data, uint32_t data_len)
 {
 	assert (data_len > 0);
+	LOCK(data);
 	rx_bytes += data_len;
+	UNLOCK(data);
 
 	/*
 	 * First of all, check how much data we can still place into the buffer. If we run
@@ -678,11 +680,15 @@ Peer::processSenderRequest(SenderRequest* request, uint32_t max_length)
 
 void
 Peer::timer() {
+	LOCK(data);
+
 	/* Increment the total peer's RX/TX counters */
 	rx_total += rx_bytes; tx_total += tx_bytes;
 
 	/* Reset the peer's received/transmitter counters */
 	rx_bytes = 0; tx_bytes = 0;
+
+	UNLOCK(data);
 
 	/* If we are inactive for too long, pull the plug */
 	if (time(NULL) > lastTime + PEER_KICK_SECONDS && !terminating) {
@@ -768,12 +774,15 @@ Peer::getAverageRate(uint32_t* rx, uint32_t* tx)
 {
 	time_t now = time(NULL);
 
+	LOCK(data);
+	uint64_t cur_rx = rx_total, cur_tx = tx_total;
+	UNLOCK(data);
 	if (now != launchTime) {
-		*rx = rx_total / (now - launchTime);
-		*tx = tx_total / (now - launchTime);
+		*rx = cur_rx / (now - launchTime);
+		*tx = cur_tx / (now - launchTime);
 	} else {
-		*rx = rx_total;
-		*tx = tx_total;
+		*rx = cur_rx;
+		*tx = cur_tx;
 	}
 }
 

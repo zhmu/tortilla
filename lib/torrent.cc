@@ -42,6 +42,7 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 	lastChokingAlgorithm = 0; unchokingRound = 0;
 	optimisticUnchokedPeer = NULL; tracker_key = "";
 	name = ""; endgame_mode = false;
+	rx_rate = 0; tx_rate = 0;
 
 	/* force the thread to contact the tracker */
 	tracker_interval = 0; tracker_min_interval = 0;
@@ -984,23 +985,28 @@ Torrent::updateBandwidth()
 	RLOCK(peers);
 
 	/* XXX we use this to update the snubbed status too! */
-
-	rx_rate = 0; tx_rate = 0;
+	uint32_t rx = 0, tx = 0;
 	for (vector<Peer*>::iterator it = peers.begin();
 	     it != peers.end(); it++) {
 		Peer* p = (*it);
-		rx_rate += p->getRxRate(); tx_rate += p->getTxRate();
+		rx += p->getRxRate(); tx += p->getTxRate();
 
 		p->timer();
 	}
 
 	RWUNLOCK(peers);
+
+	LOCK(data);
+	rx_rate = rx; tx_rate = tx;
+	UNLOCK(data);
 }
 
 void
 Torrent::getRateCounters(uint32_t* rx, uint32_t* tx)
 {
+	LOCK(data);
 	*rx = rx_rate; *tx = tx_rate;
+	UNLOCK(data);
 }
 
 class peervector_matches {
