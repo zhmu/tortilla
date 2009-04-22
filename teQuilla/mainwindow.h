@@ -3,6 +3,8 @@
 
 #include <QtGui/QMainWindow>
 #include "qtorrentstablemodel.h"
+#include "overseer.h"
+#include <QTimer>
 
 namespace Ui
 {
@@ -14,11 +16,16 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    MainWindow(QWidget *parent = 0);
+    MainWindow(Overseer* o, QWidget *parent = 0);
     ~MainWindow();
 
 private:
     Ui::MainWindowClass *ui;
+    Overseer* overseer;
+    QTorrentsTableModel *model;
+    QTimer* timer;
+private slots:
+    void updateModel();
 };
 
 #endif // MAINWINDOW_H

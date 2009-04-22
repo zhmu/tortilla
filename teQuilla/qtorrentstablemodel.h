@@ -3,7 +3,7 @@
 
 #include <QAbstractTableModel>
 #include <QList>
-#include "../include/tortilla/torrent.h"
+#include "torrent.h"
 
 
 class QTorrentsTableModel : public QAbstractTableModel
@@ -17,10 +17,10 @@ public:
 
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const;
     QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const;
-
+    void updateData(std::vector<Torrent*> torrents);
 private:
     typedef QList<QString> torrent_info;
-    QList<torrent_info> table_data;
+    QList<torrent_info*> table_data;
 };
 
 #endif // QTORRENTSTABLEMODEL_H

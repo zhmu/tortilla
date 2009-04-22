@@ -9,6 +9,7 @@ SOURCES += main.cpp \
 HEADERS += mainwindow.h \
     qtorrentstablemodel.h
 FORMS += mainwindow.ui
-LIBS += -L \
-    ../lib \
-    -ltortilla
+INCLUDEPATH += ../include/tortilla
+LIBS += ../lib/libtortilla.a \
+        -lssl -lcurl -lncurses \
+        -I../include/tortilla
