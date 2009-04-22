@@ -673,9 +673,9 @@ Peer::processSenderRequest(SenderRequest* request, uint32_t max_length)
 	if (written < 0 || request->isCancelled())
 		return -1;
 
-	if (written < sending_len)
+	if ((size_t)written < sending_len)
 		lastSendIncomplete = true;
-	else if (written == sending_len)
+	else if ((size_t)written == sending_len)
 		lastSendIncomplete = false;
 	else
 		/* Impossible! */
