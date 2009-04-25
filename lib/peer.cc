@@ -708,7 +708,15 @@ Peer::processSenderQueue(uint32_t max_length)
 		send_queue.pop_front();
 		RWUNLOCK(send_queue);
 
-		LOCK(sending);
+		/*
+		 * Attempt to obtain the sender lock; if this fails, it means the peer is
+		 * exiting, so we should, too!
+		 */
+		if (pthread_mutex_trylock(&mtx_sending) != 0) {
+			assert(terminating);
+			delete request;
+			continue;
+		}
 
 		uint32_t sending_len = request->getMessageLength();
 		if (sending_len > max_length && max_length > 0) {
