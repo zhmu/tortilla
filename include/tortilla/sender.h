@@ -25,23 +25,6 @@ public:
 	//! \brief Destroys the uploader
 	~Sender();
 
-	//! \brief Queue a sender request
-	void enqueueSenderRequest(SenderRequest* sr);
-
-	//! \brief Cancels a piece request
-	void dequeuePieceRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len);
-
-	/*! \brief Cancels a request for a chunk
-	 *
-	 *  This is used in endgame mode; if we have requests queued for a chunk that
-	 *  we have yet to send (i.e. we already have the chunk, but haven't asked the peer to
-	 *  send it), this will cancel such a request.
-	 */
-	void dequeueRequestForChunk(Torrent* t, uint32_t piece, uint32_t begin, uint32_t len);
-
-	//! \brief Remove all requests by a specific peer
-	void removeRequestsFromPeer(Peer* p);
-
 	/*! \brief Set the number of bytes we may upload this interval
 	 *
 	 *  Zero means anything goes.
@@ -52,21 +35,15 @@ protected:
 	//! \brief Handles processing of the queue
 	void process();
 
-private:
-	/*! \brief Mutex protecting the queue
-	 *
-	 *  This is a r/w lock because we need to scan the list from
-	 *  other threads (i.e. the torrent itself may cancel
-	 *  requests) yet the Sender itself modifies the list when
-	 *  requests vanish...
-	 */
-	pthread_rwlock_t rwl_queue;
+	//! \brief Request the sender to process
+	void signal();
 
+private:
 	//! \brief Mutex protecting our local data
 	pthread_mutex_t mtx_data;
 
-	//! \brief Condition variable used to kick the queue
-	pthread_cond_t cv_queue;
+	//! \brief Condition variable used to kick the sender
+	pthread_cond_t cv;
 
 	//! \brief Thread used by the uploader
 	pthread_t thread;
@@ -79,13 +56,6 @@ private:
 	 *  This is protected by mtx_data.
 	 */
 	uint32_t tx_left;
-	
-	/*! \brief Queue of items to be handeled
-	 *
-	 *  This is implemented as a list as we need to remove items when a
-	 *  peer vanishes.
-	 */
-	std::list<SenderRequest*> requests;
 
 	//! \brief Overseer object we belong to
 	Overseer* overseer;

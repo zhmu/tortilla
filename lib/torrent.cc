@@ -498,6 +498,12 @@ Torrent::go()
 				WLOCK(peers);
 				peers.push_back(p);
 				RWUNLOCK(peers);
+
+				/*
+				 * Always force the Sender out of a block here - we added a peer, so it
+ 				 * must be taken into consideration.
+				 */
+				overseer->signalSender();
 			}
 		}
 
@@ -719,18 +725,17 @@ Torrent::callbackCompleteChunk(Peer* p, unsigned int piece, uint32_t offset, con
 	writeChunk(piece, offset, data, len);
 
 	/*
-	 * If anyone else is downloading this chunk, cancel it.
+	 * If anyone else is downloading this chunk, cancel it. Same goes for any
+	 * REQUEST messages we may have queued but not sent.
 	 */
 	RLOCK(peers);
 	for (vector<Peer*>::iterator it = peers.begin();
 	     it != peers.end(); it++) {
 		Peer* p = (*it);
 		p->cancelChunk(piece, offset, len);
+		p->cancelChunkRequest(piece, offset, len);
 	}
 	RWUNLOCK(peers);
-
-	/* If we have requests queued for this chunk, ditch them */
-	overseer->dequeueRequestForChunk(this, piece, offset, len);
 
 	LOCK(data);
 	haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + offset / TORRENT_CHUNK_SIZE] = true;
@@ -1041,9 +1046,6 @@ Torrent::callbackPeerGone(Peer* p)
 			haveRequestedChunk[j].remove_if(peervector_matches(p));
 	}
 	UNLOCK(data);
-
-	/* Get rid of any pieces being uploaded to this peer */
-	overseer->dequeuePeer(p);
 }
 
 const uint8_t*
@@ -1060,6 +1062,12 @@ Torrent::addPeer(Peer* p)
 	WLOCK(peers);
 	peers.push_back(p);
 	RWUNLOCK(peers);
+
+	/*
+	 * Always force the Sender out of a block here - we added a peer, so it
+	 * must be taken into consideration.
+	 */
+	overseer->signalSender();
 }
 
 unsigned int 
@@ -1074,32 +1082,6 @@ Torrent::getNumPiecesHashing()
 	UNLOCK(data);
 
 	return num;
-}
-
-void
-Torrent::queueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len)
-{
-	assert(piece < numPieces);
-	overseer->enqueueSenderRequest(new SenderRequest(p, piece, begin, len));
-}
-
-void
-Torrent::dequeueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len)
-{
-	assert(piece < numPieces);
-	overseer->dequeueUploadRequest(p, piece, begin, len);
-}
-
-void
-Torrent::queueMessage(Peer* p, uint8_t msg, uint8_t* data, uint32_t len)
-{
-  overseer->enqueueSenderRequest(new SenderRequest(p, msg, data, len));
-}
-
-void
-Torrent::queueRawMessage(Peer* p, uint8_t* data, uint32_t len)
-{
-  overseer->enqueueSenderRequest(new SenderRequest(p, data, len));
 }
 
 void
@@ -1394,5 +1376,26 @@ Tracer*
 Torrent::getTracer() {
 	return overseer->getTracer();
 }
+
+void
+Torrent::getSendablePeers(map<int, Peer*>& m)
+{
+	RLOCK(peers);
+	for (vector<Peer*>::iterator it = peers.begin();
+	     it != peers.end(); it++) {
+		Peer* p = *it;
+		if (p->isSenderQueueEmpty())
+			continue;
+		m[p->getFD()] = p;
+	}
+	RWUNLOCK(peers);
+}
+
+void
+Torrent::signalSender()
+{
+	overseer->signalSender();
+}
+
 
 /* vim:set ts=2 sw=2: */

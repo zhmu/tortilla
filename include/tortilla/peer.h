@@ -64,6 +64,7 @@ private:
  */
 class Peer {
 friend class Torrent;
+friend class Sender;
 public:	
 	/*! \brief Constructs a new peer object for an outgoing connection
 	 *  \param t Torrent the peer is connected to
@@ -124,15 +125,6 @@ public:
 	//! \brief Retrieves the average send/transmit rate, in bytes/second
 	void getAverageRate(uint32_t* rx, uint32_t* tx);
 
-	/*! \brief Processes data to be sent
-	 *  \param request Request to send
-	 *  \param max_length Maximum number of bytes to send, zero for unlimited
-	 *  \returns Number of bytes transmitted
-	 *
-	 *  If the result had to be split, the resulting request will be modified.
-	 */
-	ssize_t processSenderRequest(SenderRequest* request, uint32_t max_length);
-
 	//! \brief Must be called every second
 	void timer();
 
@@ -150,9 +142,6 @@ public:
 
 	//! \brief Are we choking this peer?
 	bool isChoking() { return am_choked; }
-
-	//! \brief Was the last send incomplete?
-	bool wasLastSendIncomplete() { return lastSendIncomplete; }
 
 	//! \brief Compares two peers based on upload rate
 	static bool compareByUpload(Peer* a, Peer* b);
@@ -230,12 +219,28 @@ protected:
 	//! \brief Handles a 'cancel' message
 	bool msgCancel(const uint8_t* msg, uint32_t len);
 
-	/*! \brief Queue a message for a peer
-	 *  \param msg Message to send
-	 *  \param data Payload of the message, if any
-	 *  \param len Length of message
+	//! \brief Queues a sending request
+	void queueSenderRequest(SenderRequest* sr);
+
+	/*! \brief Processes the first sender requeue item
+	 *  \param max_length Maximum number of bytes to send, zero for unlimited
+	 *  \returns Number of bytes transmitted
+	 *
+	 *  If the result had to be split, the resulting request will be modified.
 	 */
-	void queueMessage(uint8_t msg, const uint8_t* data, size_t len);
+	size_t processSenderQueue(uint32_t max_length);
+
+	/*! \brief Cancel request for a chunk
+	 *  \param piece Piece number to cancel
+	 *  \param offset Offset within the piece
+	 *  \param length Length of the chunk
+	 */
+	void cancelChunkRequest(unsigned int piece, unsigned int offset, unsigned int length);
+
+	//! \brief Do we have something to send?
+	bool isSenderQueueEmpty();
+
+	//! \brief Process
 
 	//! \brief Send our handshake to the peer
 	void sendHandshake();
@@ -322,18 +327,25 @@ private:
 	//! \brief Is this an incoming connection?
 	bool incoming;
 
-	/*! \brief Was the last send incomplete?
-	 *
-	 *  This is used to avoid interleaving of a new message with an
-	 *  incomplete one.
-	 */
-	bool lastSendIncomplete;
-
 	//! \brief Chunks we are currently requesting
 	std::list<OutstandingChunkRequest> chunk_requests;
 
+	//! \brief Requests that need to be sent
+	std::list<SenderRequest*> send_queue;
+
 	//! \brief Mutex protecting the peer data
 	pthread_mutex_t mtx_data;
+
+	/*! \brief Mutex indicating we are sending
+	 *
+	 *  This mutex is used to safely remove a Peer; if the sender
+	 *  is currently transmitting something, this mutex is used to wait
+	 *  until it's gone.
+	 */
+	pthread_mutex_t mtx_sending;
+
+	//! \brief Mutex protecting the queue
+	pthread_rwlock_t rwl_send_queue;
 };
 
 #endif /* __PEER_H__ */

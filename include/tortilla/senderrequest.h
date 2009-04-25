@@ -4,28 +4,23 @@
 #ifndef __SENDERREQUEST_H__
 #define __SENDERREQUEST_H__
 
-class Peer;
-
 /*! \brief A message to be sent */
 class SenderRequest {
 public:
 	//! \brief Construct a new request to upload a piece
-	SenderRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len);
+	SenderRequest(Torrent* t, uint32_t piece, uint32_t begin, uint32_t len);
 
 	//! \brief Constructs a request to send a message
-	SenderRequest(Peer* p, uint8_t msg, const uint8_t* data, uint32_t len);
+	SenderRequest(uint8_t msg, const uint8_t* data, uint32_t len);
 
 	//! \brief Constructs a request to send raw data
-	SenderRequest(Peer* p, const uint8_t* data, uint32_t len);
+	SenderRequest(const uint8_t* data, uint32_t len);
 
 	//! \brief Obliterates the request
 	~SenderRequest();
 
-	//! \brief Retrieve the peer to upload to
-	Peer* const getPeer();
-
-	//! \brief Is the request cancelled?
-	bool isCancelled();
+	//! \brief Is the request serviced?
+	bool isServiced();
 
 	//! \brief Retrieve the data to upload
 	const uint8_t* getMessage();
@@ -51,33 +46,11 @@ public:
 	//! \brief Skip a specific number of bytes
 	void skip(uint32_t l) { skip_num += l; }
 
-	/*! \brief Cancel the request
-	 *
-	 *  If a request is cancelled, this means the peer may or may not
-	 *  be available anymore; either way, we should not rely on the
-	 *  peer being available.
-	 */
-	void cancel();
-
-	/*! \brief Does this request have to be skipped?
-	 *
-	 *  This must reside in a function here because a request could
-	 *  be cancelled while we are inspecting it; this function applies
-	 *  the proper locking.
-	 */
-	bool mustBeSkipped();
-
 protected:
 	//! \brief Used to initialize the object
-	void __init(Peer* p, uint32_t len);
+	void __init(uint32_t len);
 
 private:
-	//! \brief Mutex used to lock the request
-	pthread_mutex_t mtx_data;
-
-	//! \brief Peer we should be uploading to
-	Peer* peer;
-
 	//! \brief Is the request cancelled?
 	bool cancelled;
 

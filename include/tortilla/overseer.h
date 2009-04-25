@@ -17,6 +17,7 @@ friend void* bandwidth_thread(void* ptr);
 friend void* listener_thread(void* ptr);
 friend void* heartbeat_thread(void* ptr);
 friend class Torrent;
+friend class Sender;
 public:
 	/*! \brief Constructs a new overseer
 	 *  \param portnr TCP port number to use for incoming connections
@@ -80,18 +81,6 @@ protected:
 	//! \brief Seperate thread handling torrent silicon heartbeat
 	void heartbeatThread();
 
-	//! \brief Queue a request in the sender thread
-	void enqueueSenderRequest(SenderRequest* sr);
-
-	//! \brief Cancels a peer upload request
-	void dequeueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len);
-
-	//! \brief Cancels requests to upload a specific chunk
-	void dequeueRequestForChunk(Torrent* t, uint32_t piece, uint32_t begin, uint32_t len);
-
-	//! \brief Dequeues all requests for a peer
-	void dequeuePeer(Peer* p);
-
 	//! \brief Handles a new incoming socket
 	void handleIncomingConnection(Connection* c);
 
@@ -100,6 +89,12 @@ protected:
 
 	//! \brief Cancel hashing for a torrent
 	void cancelHashingTorrent(Torrent* t);
+
+	//! \brief Request a map of file descriptor -> peers for sending
+	void getSendablePeers(std::map<int, Peer*>& m);
+
+	//! \brief Used to signal a sender
+	void signalSender();
 
 private:
 	//! \brief Info hash to torrent mappings

@@ -19,6 +19,12 @@
  */
 #define TORRENT_PEER_MAX_REQUESTS 1
 
+/*! \brief Maximum number of peers in a torrent at any time
+ *
+ *  More peers than this will be rejected.
+ */
+#define TORRENT_MAX_PEERS (TORRENT_DESIRED_PEERS * 2)
+
 //! \brief Length of a peer ID
 #define TORRENT_PEERID_LEN 20
 
@@ -184,6 +190,9 @@ public:
 	//! \brief Retrieve the tracer object to use
 	Tracer* getTracer();
 
+	//! \brief Retrieve a map of fd -> Peer mappings that need to send
+	void getSendablePeers(std::map<int, Peer*>& m);
+
 	/*! \brief Retrieve details on all pieces */
 	std::vector<PieceInfo> getPieceDetails();
 
@@ -233,18 +242,6 @@ protected:
 	 */
 	void heartbeat();
 
-	//! \brief Queue a peer upload request
-	void queueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len);
-
-	//! \brief Dequeue a peer upload request
-	void dequeueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len);
-
-	//! \brief Queue the message for transmission
-	void queueMessage(Peer* p, uint8_t msg, uint8_t* data, uint32_t len);
-
-	//! \brief Queue the raw message for transmission
-	void queueRawMessage(Peer* p, uint8_t* data, uint32_t len);
-
 	/*! \brief Retrieves a piece from the output files
 	 *  \param piece Piece number to read
 	 *  \param offset Byte offset within piece
@@ -272,6 +269,9 @@ protected:
 	 *  This should be called when a peer gives us the go-ahead.
 	 */
 	void schedulePeerRequests(Peer* p);
+
+	//! \brief Request the sender to awaken
+	void signalSender();
 
 private:
 	/*! \brief Contact the tracker

@@ -211,24 +211,6 @@ Overseer::waitHashingComplete()
 	}
 }
 
-void
-Overseer::enqueueSenderRequest(SenderRequest* sr)
-{
-	sender->enqueueSenderRequest(sr);
-}
-
-void
-Overseer::dequeueUploadRequest(Peer* p, uint32_t piece, uint32_t begin, uint32_t len)
-{
-	sender->dequeuePieceRequest(p, piece, begin, len);
-}
-
-void
-Overseer::dequeuePeer(Peer* p)
-{
-	sender->removeRequestsFromPeer(p);
-}
-
 vector<Torrent*>
 Overseer::getTorrents()
 {
@@ -334,11 +316,6 @@ Overseer::handleIncomingConnection(Connection* c)
 	TRACE(NETWORK, "got handshake (part 2): connection=%p", p);
 	string peer((const char*)(handshake), TORRENT_PEERID_LEN);
 	if (!memcmp(handshake, peerid, TORRENT_PEERID_LEN)) {
-		/*
-		 * The sender most likely has a bitfield message queued for us; we must get
-		 * rid of it before we nuke the peer, or Bad Things Will Happen.
-		 */
-		sender->removeRequestsFromPeer(p);
 		TRACE(NETWORK, "handshake aborted: connection=%p,peer=%s is us", c, c->getEndpoint().c_str());
 		delete p;
 		return;
@@ -365,9 +342,21 @@ Overseer::cancelHashingTorrent(Torrent* t)
 }
 
 void
-Overseer::dequeueRequestForChunk(Torrent* t, uint32_t piece, uint32_t begin, uint32_t len)
+Overseer::getSendablePeers(map<int, Peer*>& m)
 {
-	sender->dequeueRequestForChunk(t, piece, begin, len);
+	pthread_mutex_lock(&mtx_torrents);
+	for (map<string, Torrent*>::iterator it = torrents.begin();
+	     it != torrents.end(); it++) {
+		Torrent* t = it->second;
+		t->getSendablePeers(m);
+	}
+	pthread_mutex_unlock(&mtx_torrents);
+}
+
+void
+Overseer::signalSender()
+{
+	sender->signal();
 }
 
 /* vim:set ts=2 sw=2: */
