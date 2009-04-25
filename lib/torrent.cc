@@ -1138,17 +1138,6 @@ Torrent::handleUnchokingAlgorithm()
 	/* Given this list of peers, sort them by upload rate */
 	sort(uiPeers.begin(), uiPeers.end(), Peer::compareByUpload);
 
-	char bla[65536];
-	sprintf(bla, "sorted peer list (size=%u):", (int)uiPeers.size());
-	for (unsigned int i = 0; i < uiPeers.size(); i++) {
-		char mn[128];
-		snprintf(mn, sizeof mn, "%s(%u/%u)",
-		 uiPeers[i]->getID().c_str(),
-		 uiPeers[i]->getRxRate(), uiPeers[i]->getTxRate());
-		strncat(bla, mn, sizeof bla);
-	}
-	TRACE(NETWORK, "%s", bla);
-
 	/*
 	 * Unchoke the peers.
 	 */
@@ -1200,35 +1189,8 @@ Torrent::handleUnchokingAlgorithm()
 	RWUNLOCK(peers);
 
 	lastChokingAlgorithm = time(NULL);
-	TRACE(CHOKING, "(un)choke algorithm: choked=%u, unchoked=%u", numChoked, numUnchoked, curUnchoked);
-}
-
-Peer*
-Torrent::pickRandomPeer(int choked, int interested, std::vector<Peer*>& skiplist)
-{
-	std::vector<Peer*> sufficingPeers;
-
-	/* Note that this implementation is O(|peers| |skiplist|) */
-	RLOCK(peers);
-	for (vector<Peer*>::iterator it = peers.begin();
-	     it != peers.end(); it++) {
-		Peer* p = (*it);
-		if (choked >= 0 && p->isPeerChoked() != (choked != 0))
-			continue;
-		if (interested >= 0 && p->isPeerInterested() != (interested != 0))
-			continue;
-		if (find(skiplist.begin(), skiplist.end(), p) != skiplist.end())
-			continue;
-		sufficingPeers.push_back(p);
-	}
-	RWUNLOCK(peers);
-
-	/* If the set is empty, nothing matched our criteria */
-	if (sufficingPeers.size() == 0)
-		return NULL;
-
-	/* Return someone */
-	return sufficingPeers[rand() % sufficingPeers.size()];
+	if (numChoked > 0 || numUnchoked > 0)
+		TRACE(CHOKING, "(un)choke algorithm: choked=%u, unchoked=%u", numChoked, numUnchoked, curUnchoked);
 }
 
 void
@@ -1396,6 +1358,5 @@ Torrent::signalSender()
 {
 	overseer->signalSender();
 }
-
 
 /* vim:set ts=2 sw=2: */
