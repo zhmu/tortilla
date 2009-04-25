@@ -63,13 +63,20 @@ Info::draw(Torrent* t)
 		 Interface::formatNumber(pi.getTxRate()).c_str());
 		printxyf(0, y, line);
 		y++;
-		snprintf(line, sizeof(line), "flags:");
-		if (pi.isSnubbed()) strcat(line, " snubbed");
-		if (pi.isPeerInterested()) strcat(line, " peer_int");
-		if (pi.isPeerChoked()) strcat(line, " peer_chk");
-		if (pi.areInterested()) strcat(line, " are_int");
-		if (pi.areChoking()) strcat(line, " are_chk");
-		printxyf(0, y, line);
+		printxyf(0, y, "flags:");
+		if (pi.isSnubbed()) printxyf(7, y, "snubbed");
+		if (pi.isPeerInterested()) {
+			wattron(window, A_BOLD);
+			printxyf(15, y, "peer_int");
+			wattroff(window, A_BOLD);
+		}
+		if (pi.isPeerChoked()) printxyf(24, y, "peer_chk");
+		if (pi.areInterested()) {
+			wattron(window, A_REVERSE);
+			printxyf(33, y, "are_int");
+			wattroff(window, A_REVERSE);
+		}
+		if (pi.areChoking()) printxyf(41, y, "are_chk");
 		y++;
 	}
 	wrefresh(window);
