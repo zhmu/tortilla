@@ -38,6 +38,9 @@ Overseer::Overseer(unsigned int portnum, Tracer* tr)
 	for (int i = 7; i < TORRENT_PEERID_LEN; i++)
 		peerid[i] = rand() % 26 + 'a';
 
+	/* Initialize the mutex; it's being used by the sender later on */
+	pthread_mutex_init(&mtx_torrents, NULL);
+
 	hasher = new Hasher(this);
 	sender = new Sender(this);
 	incoming = new Connection(port);
@@ -48,7 +51,6 @@ Overseer::Overseer(unsigned int portnum, Tracer* tr)
 	sigaddset(&sm, SIGPIPE);
 	pthread_sigmask(SIG_BLOCK, &sm, NULL);
 
-	pthread_mutex_init(&mtx_torrents, NULL);
 	pthread_create(&thread_bandwidth_monitor, NULL, bandwidth_thread, this);
 	pthread_create(&thread_listener, NULL, listener_thread, this);
 	pthread_create(&thread_heartbeat, NULL, heartbeat_thread, this);
