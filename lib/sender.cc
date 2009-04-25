@@ -50,7 +50,7 @@ Sender::process()
 {
 	while(!terminating) {
 		/* Figure out to which peers we must send */
-		map<int, Peer*> fdMap;
+		list<int> fdMap;
 		fdMap.clear();
 		overseer->getSendablePeers(fdMap);
 
@@ -62,9 +62,9 @@ Sender::process()
 		 */
 		struct pollfd pfds[TORRENT_DESIRED_PEERS];
 		unsigned int cur_pfd = 0;
-		for (map<int, Peer*>::iterator it = fdMap.begin();
+		for (list<int>::iterator it = fdMap.begin();
 		     it != fdMap.end(); it++) {
-			pfds[cur_pfd].fd = it->first;
+			pfds[cur_pfd].fd = *it;
 			pfds[cur_pfd].events = POLLOUT;
 			pfds[cur_pfd].revents = 0;
 			cur_pfd++;
@@ -99,7 +99,7 @@ Sender::process()
 			/*
 			 * Ask the peer to process and update bandwidth use.
 			 */
-			Peer* p = fdMap[pfds[pfd].fd];
+			Peer* p = overseer->findPeerByFD(pfds[pfd].fd);
 			ssize_t amount = p->processSenderQueue(overseer->getUploadRate() > 0 ? cur_tx : -1);
 
 			pthread_mutex_lock(&mtx_data);

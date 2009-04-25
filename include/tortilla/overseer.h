@@ -90,15 +90,27 @@ protected:
 	//! \brief Cancel hashing for a torrent
 	void cancelHashingTorrent(Torrent* t);
 
-	//! \brief Request a map of file descriptor -> peers for sending
-	void getSendablePeers(std::map<int, Peer*>& m);
+	//! \brief Request a map of file descriptor for sending
+	void getSendablePeers(std::list<int>& m);
 
 	//! \brief Used to signal a sender
 	void signalSender();
 
+	//! \brief Called if a torrent adds a peer
+	void callbackPeerAdded(Peer* p);
+
+	//! \brief Called if a torrent ditches a peer
+	void callbackPeerRemoved(Peer* p);
+
+	//! \brief Retrieve a peer by file descriptor
+	Peer*findPeerByFD(int fd);
+
 private:
 	//! \brief Info hash to torrent mappings
 	std::map<std::string, Torrent*> torrents;
+
+	//! \brief Hash used to map file descriptors -> peers
+	std::map<int, Peer*> fdMap;
 
 	//! \brief are we terminating?
 	bool terminating;
@@ -108,6 +120,9 @@ private:
 
 	//! \brief Mutex used to protect the torrents list
 	pthread_mutex_t mtx_torrents;
+
+	//! \brief Mutex used to protect the data fields
+	pthread_mutex_t mtx_data;
 
 	//! \brief Peer ID used to identify ourselves
 	uint8_t peerid[TORRENT_PEERID_LEN];

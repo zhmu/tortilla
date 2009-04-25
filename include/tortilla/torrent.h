@@ -190,8 +190,8 @@ public:
 	//! \brief Retrieve the tracer object to use
 	Tracer* getTracer();
 
-	//! \brief Retrieve a map of fd -> Peer mappings that need to send
-	void getSendablePeers(std::map<int, Peer*>& m);
+	//! \brief Retrieve a map of fd's that need to send
+	void getSendablePeers(std::list<int>& m);
 
 	/*! \brief Retrieve details on all pieces */
 	std::vector<PieceInfo> getPieceDetails();

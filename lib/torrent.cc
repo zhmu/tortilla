@@ -498,12 +498,7 @@ Torrent::go()
 				WLOCK(peers);
 				peers.push_back(p);
 				RWUNLOCK(peers);
-
-				/*
-				 * Always force the Sender out of a block here - we added a peer, so it
- 				 * must be taken into consideration.
-				 */
-				overseer->signalSender();
+				overseer->callbackPeerAdded(p);
 			}
 		}
 
@@ -1046,6 +1041,9 @@ Torrent::callbackPeerGone(Peer* p)
 			haveRequestedChunk[j].remove_if(peervector_matches(p));
 	}
 	UNLOCK(data);
+
+	/* Inform the overseer as well */
+	overseer->callbackPeerRemoved(p);
 }
 
 const uint8_t*
@@ -1063,11 +1061,7 @@ Torrent::addPeer(Peer* p)
 	peers.push_back(p);
 	RWUNLOCK(peers);
 
-	/*
-	 * Always force the Sender out of a block here - we added a peer, so it
-	 * must be taken into consideration.
-	 */
-	overseer->signalSender();
+	overseer->callbackPeerAdded(p);
 }
 
 unsigned int 
@@ -1340,7 +1334,7 @@ Torrent::getTracer() {
 }
 
 void
-Torrent::getSendablePeers(map<int, Peer*>& m)
+Torrent::getSendablePeers(list<int>& m)
 {
 	RLOCK(peers);
 	for (vector<Peer*>::iterator it = peers.begin();
@@ -1348,7 +1342,7 @@ Torrent::getSendablePeers(map<int, Peer*>& m)
 		Peer* p = *it;
 		if (p->isSenderQueueEmpty())
 			continue;
-		m[p->getFD()] = p;
+		m.push_back(p->getFD());
 	}
 	RWUNLOCK(peers);
 }

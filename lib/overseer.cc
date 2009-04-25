@@ -9,6 +9,9 @@
 
 using namespace std;
 
+#define LOCK(x)     pthread_mutex_lock(&mtx_ ## x);
+#define UNLOCK(x)   pthread_mutex_unlock(&mtx_ ## x);
+
 #define TRACER (tracer)
 #define OVERSEER_THREAD(x) \
 void* \
@@ -38,8 +41,9 @@ Overseer::Overseer(unsigned int portnum, Tracer* tr)
 	for (int i = 7; i < TORRENT_PEERID_LEN; i++)
 		peerid[i] = rand() % 26 + 'a';
 
-	/* Initialize the mutex; it's being used by the sender later on */
+	/* Initialize the mutexes; they are being used by the sender later on */
 	pthread_mutex_init(&mtx_torrents, NULL);
+	pthread_mutex_init(&mtx_data, NULL);
 
 	hasher = new Hasher(this);
 	sender = new Sender(this);
@@ -345,7 +349,7 @@ Overseer::cancelHashingTorrent(Torrent* t)
 }
 
 void
-Overseer::getSendablePeers(map<int, Peer*>& m)
+Overseer::getSendablePeers(list<int>& m)
 {
 	pthread_mutex_lock(&mtx_torrents);
 	for (map<string, Torrent*>::iterator it = torrents.begin();
@@ -360,6 +364,33 @@ void
 Overseer::signalSender()
 {
 	sender->signal();
+}
+
+void
+Overseer::callbackPeerAdded(Peer* p)
+{
+	LOCK(data);
+	fdMap[p->getFD()] = p;
+	UNLOCK(data);
+}
+
+void
+Overseer::callbackPeerRemoved(Peer* p)
+{
+	LOCK(data);
+	fdMap.erase(p->getFD());
+	UNLOCK(data);
+}
+
+Peer*
+Overseer::findPeerByFD(int fd)
+{
+	LOCK(data);
+	map<int, Peer*>::iterator it = fdMap.find(fd);
+	UNLOCK(data);
+	if (it == fdMap.end())
+		return NULL;
+	return it->second;
 }
 
 /* vim:set ts=2 sw=2: */
