@@ -689,12 +689,12 @@ Peer::sendBitfield()
 }
 
 size_t
-Peer::processSenderQueue(uint32_t max_length)
+Peer::processSenderQueue(ssize_t max_length)
 {
 	size_t total = 0;
 
 	/* XXX we will empty the queue if we can; if this fair? */
-	while (!terminating) {
+	while (!terminating && max_length != 0) {
 		/*
 		 * Attempt to fetch an item from the queue. Note that we immediately remove
 		 * the item to prevent others from destroying it.
@@ -719,7 +719,7 @@ Peer::processSenderQueue(uint32_t max_length)
 		}
 
 		uint32_t sending_len = request->getMessageLength();
-		if (sending_len > max_length && max_length > 0) {
+		if (sending_len > max_length && max_length >= 0) {
 			/* This will be a partial request */
 			sending_len = max_length;
 		}
@@ -730,7 +730,7 @@ Peer::processSenderQueue(uint32_t max_length)
 		if (written > 0) {
 			torrent->incrementUploadedBytes(written);
 			total += written; tx_bytes += written;
-			if (max_length > 0)
+			if (max_length >= 0)
 				max_length -= written;
 		}
 

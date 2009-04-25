@@ -228,7 +228,7 @@ protected:
 	 *
 	 *  If the result had to be split, the resulting request will be modified.
 	 */
-	size_t processSenderQueue(uint32_t max_length);
+	size_t processSenderQueue(ssize_t max_length);
 
 	/*! \brief Cancel request for a chunk
 	 *  \param piece Piece number to cancel

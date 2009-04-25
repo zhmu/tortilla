@@ -100,7 +100,7 @@ Sender::process()
 			 * Ask the peer to process and update bandwidth use.
 			 */
 			Peer* p = fdMap[pfds[pfd].fd];
-			ssize_t amount = p->processSenderQueue(cur_tx);
+			ssize_t amount = p->processSenderQueue(overseer->getUploadRate() > 0 ? cur_tx : -1);
 
 			pthread_mutex_lock(&mtx_data);
 			if (tx_left > 0 && amount > 0)
