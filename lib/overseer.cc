@@ -165,7 +165,7 @@ Overseer::listenerThread()
 		int fd = incoming->getFD();
 		FD_ZERO(&fds);
 		FD_SET(fd, &fds);
-		if (select(fd + 1, &fds, NULL, NULL, &tv) == 0 || !FD_ISSET(fd, &fds))
+		if (select(fd + 1, &fds, NULL, NULL, &tv) == 0 || !FD_ISSET(fd, &fds) || terminating)
 			continue;
 
 		/*
