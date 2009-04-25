@@ -25,6 +25,7 @@ OVERSEER_THREAD(heartbeat);
 Overseer::Overseer(unsigned int portnum, Tracer* tr)
 {
 	terminating = false; port = portnum; tracer = tr;
+	upload_rate = 0;
 
 	/*
 	 * Construct our peer ID; we do this in Azureus style and hereby claim the
