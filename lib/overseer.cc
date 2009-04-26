@@ -334,6 +334,14 @@ Overseer::handleIncomingConnection(Connection* c)
 	t->addPeer(p);
 	TRACE(NETWORK, "accepted peer %p for torrent %p",
 	 c, t);
+
+	/*
+	 * Only now can we send our handshake / bitfield - the Sender will only
+	 * consider peers known to the Torrent, so it may skip the peer in the first
+	 * iteration.
+	 */
+	p->sendHandshake();
+	p->sendBitfield();
 }
 
 void

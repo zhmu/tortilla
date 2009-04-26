@@ -501,6 +501,12 @@ Torrent::go()
 				WLOCK(peers);
 				peers.push_back(p);
 				RWUNLOCK(peers);
+
+				/*
+				 * Send the handshake; we can only do this after we have added the
+				 * peer since the Sender won't know of it otherwise.
+				 */
+				p->sendHandshake();
 				overseer->callbackPeerAdded(p);
 			}
 		}

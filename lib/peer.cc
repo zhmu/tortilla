@@ -59,8 +59,7 @@ Peer::Peer(Torrent* t, std::string peer_id, std::string peer_host, uint16_t peer
 	connection = new Connection(peer_host, peer_port);
 	incoming = false;
 
-	/* Send our handshake and wait for the other party to complete the procedure */
-	sendHandshake();
+	/* This connection is outgoing, so we need to handle the handshaking process */
 	handshaking = true;
 	launchTime = time(NULL);
 }
@@ -71,10 +70,8 @@ Peer::Peer(Torrent* t, Connection* c)
 	connection = c;
 	incoming = true;
 
-	/* This connection is incoming, so all we need to do if send our handshake */
-	sendHandshake();
+	/* This connection is incoming, so all we need to do is send our handshake / bitfield */
 	handshaking = false;
-	sendBitfield();
 	launchTime = time(NULL);
 }
 

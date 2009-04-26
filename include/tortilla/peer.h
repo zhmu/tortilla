@@ -10,6 +10,7 @@
 
 class Torrent;
 class SenderRequest;
+class Overseer;
 
 //! \brief This is the number of requests we attempt to keep on the wire
 #define PEER_MAX_OUTSTANDING_REQUESTS	20
@@ -65,6 +66,7 @@ private:
 class Peer {
 friend class Torrent;
 friend class Sender;
+friend class Overseer;
 public:	
 	/*! \brief Constructs a new peer object for an outgoing connection
 	 *  \param t Torrent the peer is connected to
