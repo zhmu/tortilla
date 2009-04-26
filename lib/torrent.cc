@@ -300,6 +300,9 @@ Torrent::~Torrent()
 		files.erase(it);
 		delete (*it);
 	}
+
+	pthread_mutex_destroy(&mtx_data);
+	pthread_rwlock_destroy(&rwl_peers);
 }
 
 Metadata*
