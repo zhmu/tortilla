@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+#include <unistd.h>
 #include "tortilla/exceptions.h"
 #include "tortilla/metadata.h"
 #include "tortilla/http.h"
@@ -48,7 +49,7 @@ run()
 			for (unsigned int i = 0; i < peers.size(); i++) {
 				PeerInfo& pi = peers[i];
 
-				printf("  (%u) %c-%s, rx/tx: %u / %u,",
+				printf("  (%3u%%) %c-%s, rx/tx: %u / %u,",
           (int)((pi.getNumPieces() / (float)pieces.size()) * 100.0f),
 					pi.isIncoming() ? '>' : '<',
 					pi.getEndpoint().c_str(),
@@ -68,27 +69,62 @@ run()
 	}
 }
 
+void
+usage()
+{
+	fprintf(stderr, "usage: yoctorrent [h?] [-u upload] [-p port] file.torrent\n\n");
+	fprintf(stderr, "  -h, -?           this help\n");
+	fprintf(stderr, "  -u upload        upload rate, in KB/sec\n");
+	fprintf(stderr, "  -p port          port to bind to\n");
+	exit(EXIT_FAILURE);
+}
+
 int
 main(int argc, char** argv)
 {
+	unsigned int port = 4000;
+	unsigned int upload = 0;
 	srand(time(NULL));
 
 	/* XXX */
 	signal(SIGPIPE, SIG_IGN);
 
-	if (argc != 2) {
-		fprintf(stderr, "usage: yoctorrent file.torrent\n");
-		return EXIT_FAILURE;
+	int ch;
+	while ((ch = getopt(argc, argv, "?hu:p:")) != -1) {
+		switch (ch) {
+			case '?':
+			case 'h':
+			default:
+				usage();
+				/* NOTREACHED */
+			case 'u':
+				upload = atoi(optarg);
+				if (upload <= 0)
+					printf( ">> NOTE: upload ratio zero or unparsable, unlimited assumed!\n");
+				break;
+			case 'p':
+				port = atoi(optarg);
+				if (port <= 0) {
+					fprintf(stderr, "-p must be followed by a positive number\n");
+					return EXIT_FAILURE;
+				}
+				break;
+		}
 	}
+	argc -= optind;
+	argv += optind;
+
+	if (argc != 1)
+		usage();
 
 	/* XXX handle it if the connection burns */
 	//overseer = new Overseer(1024 + rand() % 10000);
 	tracer = new Tracer();
-	overseer = new Overseer(4000, tracer);
-	//overseer->setUploadRate(16 * 1024);
+	overseer = new Overseer(port, tracer);
+	overseer->setUploadRate(upload * 1024);
 
 	ifstream is;
-	is.open(argv[1], ios::binary);
+	is.open(argv[0], ios::binary);
 	Metadata* md = new Metadata(is);
 	overseer->addTorrent(new Torrent(overseer, md));
 	delete md;
@@ -100,6 +136,7 @@ main(int argc, char** argv)
 
 	run();
 
+	printf(">> Cleaning up...\n");
 	overseer->stop();
 
 	delete overseer;
