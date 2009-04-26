@@ -7,8 +7,13 @@ CXXFLAGS += 	-I/usr/local/include
 LDFLAGS +=	-L/usr/local/lib
 LDFLAGS +=	-pthread
 
+all:		tortilla yoctorrent
+
 tortilla:	$(OBJS) $(LIBS)
 		$(CXX) -o tortilla $(OBJS) $(LIBS) $(LDFLAGS)
 
+yoctorrent:	yoctorrent.cc $(LIBS)
+		$(CXX) -o yoctorrent yoctorrent.cc $(CXXFLAGS) $(LIBS) $(LDFLAGS)
+
 clean:
-		rm -f tortilla $(OBJS)
+		rm -f tortilla yoctorrent $(OBJS)
