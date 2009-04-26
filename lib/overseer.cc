@@ -307,6 +307,13 @@ Overseer::handleIncomingConnection(Connection* c)
 		return;
 	}
 
+	/* Ensure the torrent can still accept a new peer; if not, ditch the connection */
+	if (!t->canAcceptPeer()) {
+		TRACE(TORRENT, "connection %p: rejected by torrent, dropping", c);
+		delete c;
+		return;
+	}
+
 	/*
 	 * OK, we have a handshake and we know the torrent. This means we can
 	 * accept the torrent, which we hereby do. Due to possible NAT

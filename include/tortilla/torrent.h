@@ -199,6 +199,9 @@ public:
 	/*! \brief Retrieve details on all peers */
 	std::vector<PeerInfo> getPeerDetails();
 
+	//! \brief Can we accept yet another peer?
+	bool canAcceptPeer();
+
 protected:
 	/*! \brief Called by a peer if pieces are added to the map */
 	void callbackPiecesAdded(Peer* p, std::vector<unsigned int>& pieces);
