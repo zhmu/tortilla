@@ -1351,8 +1351,6 @@ Torrent::getSendablePeers(list<int>& m)
 		Peer* p = *it;
 		if (p->isSenderQueueEmpty())
 			continue;
-TRACE(DEBUG, "getSendablePeers: torrent=%p, peer=%s, fd=%u",
- this, p->getID().c_str(), p->getFD());
 		m.push_back(p->getFD());
 	}
 	RWUNLOCK(peers);
