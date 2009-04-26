@@ -22,6 +22,9 @@
 //! \brief Trace choking algorithm
 #define TRACER_TYPE_CHOKING	0x0020
 
+//! \brief Use this when adding messages for debugging
+#define TRACER_TYPE_DEBUG	0x8000
+
 /*! \brief Handles tracing of events for debugging purposes
  */
 class Tracer {

@@ -6,7 +6,7 @@ Tracer::Tracer()
 {
 	pthread_mutex_init(&mtx, NULL);
 	tracefile = fopen("trace.log", "wt");
-	tracerMask = 0xff;
+	tracerMask = 0xffff;
 }
 
 Tracer::~Tracer()
