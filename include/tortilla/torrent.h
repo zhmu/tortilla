@@ -250,8 +250,9 @@ protected:
 	 *  \param offset Byte offset within piece
 	 *  \param buf Buffer containing data to read to
 	 *  \param length Length of the chunk
+	 *  \returns true on success
 	 */
-	void readChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size_t length);
+	bool readChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size_t length);
 
 	//! \brief Increment the uploaded byte counter
 	void incrementUploadedBytes(uint64_t amount);
@@ -291,8 +292,9 @@ private:
 	 *  \param offset Byte offset within piece
 	 *  \param buf Buffer containing data to write
 	 *  \param length Length of the chunk
+	 *  \returns true on success
 	 */
-	void writeChunk(unsigned int piece, unsigned int offset, const uint8_t* buf, size_t length);
+	bool writeChunk(unsigned int piece, unsigned int offset, const uint8_t* buf, size_t length);
 
 	/*! \brief Handle periodic update to the tracker
 	 *  \param event Event to report to the tracker, if any

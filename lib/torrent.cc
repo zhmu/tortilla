@@ -301,6 +301,14 @@ Torrent::~Torrent()
 		delete (*it);
 	}
 
+	/* Delete pending peers and piece hashes */
+	while (!pendingPeers.empty()) {
+		PendingPeer* pp = pendingPeers.front();
+		pendingPeers.pop_front();
+		delete pp;
+	}
+	delete[] pieceHash;
+
 	pthread_mutex_destroy(&mtx_data);
 	pthread_rwlock_destroy(&rwl_peers);
 }
@@ -840,7 +848,7 @@ Torrent::callbackCompleteHashing(unsigned int piece, bool result)
 	callbackCompleteTorrent();
 }
 
-void
+bool
 Torrent::writeChunk(unsigned int piece, unsigned int offset, const uint8_t* buf, size_t length)
 {
 	assert(piece < numPieces);
@@ -859,7 +867,13 @@ Torrent::writeChunk(unsigned int piece, unsigned int offset, const uint8_t* buf,
 		}
 		absolutePos -= files[fileIndex]->getLength();
 	}
-	assert(f != NULL);
+	if (f == NULL) {
+		/*
+		 * Invalid offset was presented - this should only happen if the
+		 * torrent is terminating.
+		 */
+		return false;
+	}
 
 	/*
 	 * Chunks are allowed to span between multiple files, so we keep on writing
@@ -880,9 +894,10 @@ Torrent::writeChunk(unsigned int piece, unsigned int offset, const uint8_t* buf,
 		}
 		buf += writelen; length -= writelen;
 	}
+	return true;
 }
 
-void
+bool
 Torrent::readChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size_t length)
 {
 	assert(piece < numPieces);
@@ -900,11 +915,12 @@ Torrent::readChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size_t
 		}
 		absolutePos -= files[fileIndex]->getLength();
 	}
-	if (f == NULL) {
-		TRACE(TORRENT, "readchunk: piece=%u,offset=%u,len=%u, abspos=%lu", piece, offset, length, absolutePos);
-		assert(0);
-	}
-	assert(f != NULL);
+	if (f == NULL)
+		/*
+		 * Invalid offset was presented - this should only happen if the
+		 * torrent is terminating, since the file objects are being removed.
+		 */
+		return false;
 
 	/*
 	 * Chunks are allowed to span between multiple files, so we keep on reading
@@ -925,6 +941,7 @@ Torrent::readChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size_t
 		}
 		buf += readlen; length -= readlen;
 	}
+	return true;
 }
 
 const uint8_t*

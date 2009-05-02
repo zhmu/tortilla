@@ -23,7 +23,6 @@ void MetaInteger::stream(ostream& os) const
 	os << "i"; os << integer; os << "e";
 }
 
-
 void MetaList::stream(ostream& os) const
 {
 	os << "l";
@@ -61,6 +60,18 @@ MetaField* MetaDictionary::operator[](std::string key)
 			return sfm->getValue();
 	}
 	return NULL;
+}
+
+MetaDictionary::~MetaDictionary()
+{
+	std::list<StringFieldMap*>::iterator it = dictionary.begin();
+	while (it != dictionary.end()) {
+		StringFieldMap* sfm = *it;
+		dictionary.erase(it);
+		delete sfm->getValue();
+		delete sfm;
+		it = dictionary.begin();
+	}
 }
 
 /* vim:set ts=2 sw=2: */

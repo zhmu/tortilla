@@ -84,6 +84,8 @@ private:
 
 class MetaDictionary : public MetaField {
 public:
+	virtual ~MetaDictionary();
+
 	inline void assign(std::string str, MetaField* f) {
 		StringFieldMap* sfm = new StringFieldMap(str, f);
 		dictionary.push_back(sfm);

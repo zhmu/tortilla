@@ -79,7 +79,6 @@ main(int argc, char** argv)
 	delete interface;
 	delete overseer;
 	delete tracer;
-	HTTP::cleanup();
 	return 0;
 }
 

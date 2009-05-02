@@ -14,9 +14,6 @@ public:
 	 *
 	 */
 	static std::string get(std::string url, std::map<std::string, std::string> parms);
-
-	//! \brief Deallocates any memory used by the HTTP class
-	static void cleanup();
 };
 
 #endif /* __HTTP_H__ */

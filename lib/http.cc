@@ -21,8 +21,10 @@ HTTP::get(string url, map<string, string> params)
 		throw HTTPException("unable to init curl library");
 
 	CURL* curl = curl_easy_init();
-	if (curl == NULL)
+	if (curl == NULL) {
+		curl_global_cleanup();
 		throw HTTPException("unable to create curl object");
+	}
 
 	/*
 	 * Construct the full GET request here; this works by fetching the key=value
@@ -40,6 +42,7 @@ HTTP::get(string url, map<string, string> params)
 		if (value == NULL) {
 			/* Unlikely, yet we'd better check for it */
 			curl_easy_cleanup(curl);
+			curl_global_cleanup();
 			throw HTTPException("unable to escape parameters");
 		}
 
@@ -62,15 +65,10 @@ HTTP::get(string url, map<string, string> params)
 
 	CURLcode cc = curl_easy_perform(curl);
 	curl_easy_cleanup(curl);
+	curl_global_cleanup();
 	if (cc != 0)
 		throw HTTPException("unable to talk to tracker");
 	return s;
-}
-
-void
-HTTP::cleanup()
-{
-	curl_global_cleanup();
 }
 
 /* vim:set ts=2 sw=2: */
