@@ -5,7 +5,7 @@ using namespace std;
 
 Info::Info(WINDOW* w, Interface* iface)
 {
-	window = w; interface = iface; y_offset = 0;
+	window = w; interface = iface; y_offset = 0; num_lines = 0;
 }
 
 void
@@ -79,6 +79,8 @@ Info::draw(Torrent* t)
 		if (pi.areChoking()) printxyf(41, y, "are_chk");
 		y++;
 	}
+
+	num_lines = y;
 	wrefresh(window);
 }
 
@@ -103,7 +105,7 @@ Info::scrollUp()
 {
 	unsigned int lines = getmaxy(window);
 
-	if (y_offset - lines / 2 < 0)
+	if (y_offset < lines / 2)
 		y_offset = 0;
 	else
 		y_offset -= lines / 2;
@@ -114,7 +116,8 @@ Info::scrollDown()
 {
 	unsigned int lines = getmaxy(window);
 
-	y_offset += lines / 2;
+	if (y_offset + lines / 2 < num_lines)
+		y_offset += lines / 2;
 }
 
 /* vim:set ts=2 sw=2: */

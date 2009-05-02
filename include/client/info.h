@@ -21,6 +21,9 @@ protected:
 	//! \brief Formatted print inside the window
 	void printxyf(unsigned int x, unsigned int y, const char* format, ...);
 
+	//! \brief Number of lines written	
+	unsigned int num_lines;
+
 private:
 	WINDOW* window;
 	Interface* interface;
