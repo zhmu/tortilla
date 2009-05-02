@@ -301,8 +301,11 @@ private:
 	 */
 	void handleTracker(std::string event = "");
 
-	//! \brief Request hashing of a piece
-	void scheduleHashing(unsigned int piece);
+	/*! \brief Request hashing of a piece
+	 *  \param piece Piece number to hash
+	 *  \param registerHashing If true, hashing must complete before torrent launches
+	 */
+	void scheduleHashing(unsigned int piece, bool registerHashing = false);
 
 	/*! \brief Convert an integer to a string
 	 *  \param i Integer to use

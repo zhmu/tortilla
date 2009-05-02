@@ -219,10 +219,7 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 			/* This file is big enough to process the previous missing pieces */
 			havePiece[piecenum] = previousFileReopened && f->haveReopened();
 			if (havePiece[piecenum]) {
-				scheduleHashing(piecenum);
-				LOCK(data);
-				numPiecesHashing++;
-				UNLOCK(data);
+				scheduleHashing(piecenum, true);
 			}
 			piecenum++;
 
@@ -237,12 +234,8 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 		 */
 		while (fileLength > pieceLen) {
 			havePiece[piecenum] = f->haveReopened();
-			if (f->haveReopened()) {
-				scheduleHashing(piecenum);
-				LOCK(data);
-				numPiecesHashing++;
-				UNLOCK(data);
-			}
+			if (f->haveReopened())
+				scheduleHashing(piecenum, true);
 			piecenum++;
 			fileLength -= pieceLen;
 		}
@@ -255,12 +248,8 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 	/* If the final file has leftover pieces, add an extra full piece to cope */
 	if (leftoverLength > 0) {
 		havePiece[piecenum] = previousFileReopened;
-		if (havePiece[piecenum]) {
-			scheduleHashing(piecenum);
-			LOCK(data);
-			numPiecesHashing++;
-			UNLOCK(data);
-		}
+		if (havePiece[piecenum])
+			scheduleHashing(piecenum, true);
 		piecenum++;
 	}
 
@@ -977,7 +966,7 @@ Torrent::callbackCompleteTorrent()
 }
 
 void
-Torrent::scheduleHashing(unsigned int piece)
+Torrent::scheduleHashing(unsigned int piece, bool registerHashing)
 {
 	assert(piece < numPieces);
 
@@ -990,6 +979,8 @@ Torrent::scheduleHashing(unsigned int piece)
 	LOCK(data);
 	assert(!hashingPiece[piece]);
 	hashingPiece[piece] = true;
+	if (registerHashing)
+		numPiecesHashing++;
 	UNLOCK(data);
 	overseer->queueHashPiece(this, piece);
 }
