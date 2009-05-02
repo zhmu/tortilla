@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <poll.h>
+#include <stdlib.h>
 #include <string.h>
 #include "overseer.h"
 #include "sender.h"
@@ -48,12 +49,20 @@ Sender::~Sender()
 void
 Sender::process()
 {
+	unsigned int pfds_max = TORRENT_MAX_PEERS;
+	struct pollfd* pfds = (struct pollfd*)malloc(sizeof(struct pollfd) * pfds_max);
+	assert(pfds != NULL); /* crude */
+
 	while(!terminating) {
 		/* Figure out to which peers we must send */
 		list<int> fdMap;
 		fdMap.clear();
 		overseer->getSendablePeers(fdMap);
-		assert (fdMap.size() <= TORRENT_MAX_PEERS);
+		if (fdMap.size() > pfds_max) {
+			pfds = (struct pollfd*)realloc(pfds, sizeof(struct pollfd) * fdMap.size());
+			assert(pfds != NULL); /* crude */
+			pfds_max = fdMap.size();
+		}
 
 		/*
 		 * Wait until we can write to any of these peers. We use poll(2) to query
@@ -61,7 +70,6 @@ Sender::process()
 		 * and a socket that actually is ready (closed sockets indicate the peer
 		 * was deleted, so we shouldn't try to send to them.
 		 */
-		struct pollfd pfds[TORRENT_MAX_PEERS];
 		unsigned int cur_pfd = 0;
 		for (list<int>::iterator it = fdMap.begin();
 		     it != fdMap.end(); it++) {
