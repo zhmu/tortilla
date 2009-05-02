@@ -145,15 +145,21 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 				string fullPath = msName->getString();
 				for (list<MetaField*>::iterator itt = mlPath->getList().begin();
 						 itt != mlPath->getList().end(); itt++) {
+
+					/* If the path doesn't exist, create it */
+					struct stat fs;
+					if (stat(fullPath.c_str(), &fs) < 0)
+						mkdir(fullPath.c_str(), 0755);
+
 					MetaString* ms = dynamic_cast<MetaString*>(*itt);
 					if (ms == NULL)
 						throw TorrentException("file path list doesn't contain strings");
 					/* XXX check string for badness */
 					fullPath += "/" + ms->getString();
-
-					files.push_back(new File(fullPath, miLength->getInteger()));
-					total_size += miLength->getInteger();
 				}
+
+				files.push_back(new File(fullPath, miLength->getInteger()));
+				total_size += miLength->getInteger();
 			}
 	} else {
 		/* There is only a single file in this torrent - all too easy */
