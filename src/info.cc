@@ -55,15 +55,14 @@ Info::draw(Torrent* t)
 		PeerInfo& pi = peers[i];
 
 		char line[1024 /* XXX */];
-		snprintf(line, sizeof(line), "[%u%%] %s, %s, rx/tx: %s / %s",
+		snprintf(line, sizeof(line), "[%3u%%] %s (%s), rx/tx: %s / %s",
 		 (int)((pi.getNumPieces() / (float)pieces.size()) * 100.0f),
 		 pi.getEndpoint().c_str(), 
-		 pi.isIncoming() ? "in" : "out",
+		 pi.isIncoming() ? " in" : "out",
 		 Interface::formatNumber(pi.getRxRate()).c_str(),
 		 Interface::formatNumber(pi.getTxRate()).c_str());
 		printxyf(0, y, line);
 		y++;
-		printxyf(0, y, "flags:");
 		if (pi.isSnubbed()) printxyf(7, y, "snubbed");
 		if (pi.isPeerInterested()) {
 			wattron(window, A_BOLD);
