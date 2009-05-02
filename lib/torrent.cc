@@ -1,6 +1,7 @@
 #include <sys/types.h>
 #include <algorithm>
 #include <assert.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <iostream>
 #include <pthread.h>
@@ -49,6 +50,7 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 	lastTrackerContact = 0;
 
 	pthread_rwlock_init(&rwl_peers, NULL);
+	pthread_rwlock_init(&rwl_files, NULL);
 	pthread_mutex_init(&mtx_data, NULL);
 
 	/*
@@ -301,13 +303,16 @@ Torrent::~Torrent()
 	RWUNLOCK(peers);
 
 	/* Close all files, too */
+	WLOCK(files);
 	while (true) {
 		vector<File*>::iterator it = files.begin();
 		if (it == files.end())
 			break;
+		File* f = *it;
 		files.erase(it);
-		delete (*it);
+		delete f;
 	}
+	RWUNLOCK(files);
 
 	/* Delete pending peers and piece hashes */
 	while (!pendingPeers.empty()) {
@@ -319,6 +324,7 @@ Torrent::~Torrent()
 
 	pthread_mutex_destroy(&mtx_data);
 	pthread_rwlock_destroy(&rwl_peers);
+	pthread_rwlock_destroy(&rwl_files);
 }
 
 Metadata*
@@ -578,6 +584,7 @@ Torrent::go()
 			ssize_t len = ::recv(fd, buf, sizeof(buf), MSG_DONTWAIT);
 			if (len <= 0) {
 				/* socket lost */
+				TRACE(TORRENT, "connection to peer=%s lost, socket closed, errno=%u, len=%ld", p->getID().c_str(), errno, len);
 				p->shutdown();
 				continue;
 			}
@@ -585,6 +592,7 @@ Torrent::go()
 			/* Hand the data off to the application */
 			if (p->receive(buf, len) == true) {
 				/* Need to sever the connection */
+				TRACE(TORRENT, "severing connection to peer=%s", p->getID().c_str());
 				p->shutdown();
 				continue;
 			}
@@ -871,6 +879,7 @@ Torrent::writeChunk(unsigned int piece, unsigned int offset, const uint8_t* buf,
 	/* Locate the first file matching this position */
 	unsigned int fileIndex;
 	File* f = NULL;
+	RLOCK(files);
 	for (fileIndex = 0; fileIndex < files.size(); fileIndex++)  {
 		if (absolutePos < files[fileIndex]->getLength()) {
 			f = files[fileIndex];
@@ -883,6 +892,7 @@ Torrent::writeChunk(unsigned int piece, unsigned int offset, const uint8_t* buf,
 		 * Invalid offset was presented - this should only happen if the
 		 * torrent is terminating.
 		 */
+		RWUNLOCK(files);
 		return false;
 	}
 
@@ -905,6 +915,7 @@ Torrent::writeChunk(unsigned int piece, unsigned int offset, const uint8_t* buf,
 		}
 		buf += writelen; length -= writelen;
 	}
+	RWUNLOCK(files);
 	return true;
 }
 
@@ -919,6 +930,7 @@ Torrent::readChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size_t
 	/* Locate the first file matching this position */
 	unsigned int fileIndex;
 	File* f = NULL;
+	RLOCK(files);
 	for (fileIndex = 0; fileIndex < files.size(); fileIndex++)  {
 		if (absolutePos < files[fileIndex]->getLength()) {
 			f = files[fileIndex];
@@ -926,12 +938,14 @@ Torrent::readChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size_t
 		}
 		absolutePos -= files[fileIndex]->getLength();
 	}
-	if (f == NULL)
+	if (f == NULL) {
 		/*
 		 * Invalid offset was presented - this should only happen if the
 		 * torrent is terminating, since the file objects are being removed.
 		 */
+		RWUNLOCK(files);
 		return false;
+	}
 
 	/*
 	 * Chunks are allowed to span between multiple files, so we keep on reading
@@ -952,6 +966,7 @@ Torrent::readChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size_t
 		}
 		buf += readlen; length -= readlen;
 	}
+	RWUNLOCK(files);
 	return true;
 }
 

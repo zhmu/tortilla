@@ -404,6 +404,9 @@ private:
 	//! \brief Mutex protecting the peers list
 	pthread_rwlock_t rwl_peers;
 
+	//! \brief Mutex protecting the files list
+	pthread_rwlock_t rwl_files;
+
 	//! \brief Mutex protecting the data
 	pthread_mutex_t mtx_data;
 
