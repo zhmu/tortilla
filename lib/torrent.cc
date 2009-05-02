@@ -632,7 +632,11 @@ Torrent::callbackPiecesRemoved(Peer* p, vector<unsigned int>& pieces)
 void
 Torrent::schedulePeerRequests(Peer* p)
 {
-	if (complete)
+	/*
+	 * If we have the full torrent already, or if the peer is choking us,
+	 * don't bother trying to schedule something.
+	 */
+	if (complete || p->isChoking())
 		return;
 
 	/*
