@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <errno.h>
 #include <string.h>
 #include "connection.h"
 #include "overseer.h"
@@ -714,7 +715,7 @@ Peer::processSenderQueue(ssize_t max_length)
 		if (pthread_mutex_trylock(&mtx_sending) != 0) {
 			assert(terminating);
 			delete request;
-			continue;
+			break;
 		}
 
 		uint32_t sending_len = request->getMessageLength();
@@ -752,6 +753,10 @@ Peer::processSenderQueue(ssize_t max_length)
 		}
 
 		UNLOCK(sending);
+
+		/* If the previous sending effort failed, bail; any subsequent won't work either */
+		if (written <= 0)
+			break;
 	}
 
 	return total;
