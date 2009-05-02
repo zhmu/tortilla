@@ -38,7 +38,7 @@ HTTP::get(string url, map<string, string> params)
 		 * Note: do not escape the key; this causes issues with several braindead	
 		 * trackers :-/
 		 */
-		value = curl_easy_escape(curl, (*it).second.c_str(), 0);
+		value = curl_easy_escape(curl, (*it).second.c_str(), (*it).second.size());
 		if (value == NULL) {
 			/* Unlikely, yet we'd better check for it */
 			curl_easy_cleanup(curl);
