@@ -197,6 +197,7 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 	 */
 	unsigned int piecenum = 0;
 	unsigned int leftoverLength = 0;
+	numPiecesHashing = 0;
 	bool previousFileReopened = false /* quench warning, can't be used */;
 	for (unsigned int i = 0; i < files.size(); i++) {
 		File* f = files[i];
@@ -217,8 +218,12 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 
 			/* This file is big enough to process the previous missing pieces */
 			havePiece[piecenum] = previousFileReopened && f->haveReopened();
-			if (havePiece[piecenum])
+			if (havePiece[piecenum]) {
 				scheduleHashing(piecenum);
+				LOCK(data);
+				numPiecesHashing++;
+				UNLOCK(data);
+			}
 			piecenum++;
 
 			/* No longer leftover, but subtract the data of this file we used */
@@ -232,8 +237,12 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 		 */
 		while (fileLength > pieceLen) {
 			havePiece[piecenum] = f->haveReopened();
-			if (f->haveReopened())
+			if (f->haveReopened()) {
 				scheduleHashing(piecenum);
+				LOCK(data);
+				numPiecesHashing++;
+				UNLOCK(data);
+			}
 			piecenum++;
 			fileLength -= pieceLen;
 		}
@@ -246,8 +255,12 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 	/* If the final file has leftover pieces, add an extra full piece to cope */
 	if (leftoverLength > 0) {
 		havePiece[piecenum] = previousFileReopened;
-		if (havePiece[piecenum])
+		if (havePiece[piecenum]) {
 			scheduleHashing(piecenum);
+			LOCK(data);
+			numPiecesHashing++;
+			UNLOCK(data);
+		}
 		piecenum++;
 	}
 
@@ -787,6 +800,9 @@ void
 Torrent::callbackCompleteHashing(unsigned int piece, bool result)
 {
 	LOCK(data);
+	if (numPiecesHashing > 0)
+		numPiecesHashing--;
+
 	hashingPiece[piece] = false;
 	if (!result) {
 		/*
@@ -1090,20 +1106,6 @@ Torrent::addPeer(Peer* p)
 	overseer->callbackPeerAdded(p);
 }
 
-unsigned int 
-Torrent::getNumPiecesHashing()
-{
-	unsigned int num = 0;
-
-	LOCK(data);
-	for (unsigned int i = 0; i < numPieces; i++)
-		if (hashingPiece[i])
-			num++;
-	UNLOCK(data);
-
-	return num;
-}
-
 void
 Torrent::incrementUploadedBytes(uint64_t amount)
 {
@@ -1116,8 +1118,12 @@ void
 Torrent::heartbeat()
 {
 	/* Don't bother doing anything if we aren't fully launched */
-	if (!haveThread)
+	LOCK(data);
+	if (!haveThread || numPiecesHashing > 0) {
+		UNLOCK(data);
 		return;
+	}
+	UNLOCK(data);
 
 	/*
 	 * If we need to chat with the tracker, do so. Note that we use the minimum interval
@@ -1383,6 +1389,15 @@ bool
 Torrent::canAcceptPeer()
 {
 	return getNumPeers() < TORRENT_MAX_PEERS;
+}
+
+unsigned int
+Torrent::getNumPiecesHashing()
+{
+	LOCK(data);
+	unsigned int n = numPiecesHashing;
+	UNLOCK(data);
+	return n;
 }
 
 /* vim:set ts=2 sw=2: */

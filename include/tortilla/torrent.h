@@ -445,6 +445,13 @@ private:
 
 	//! \brief List of pending peers we may try to use
 	std::list<PendingPeer*> /* [M=data] */ pendingPeers;
+
+	/*! \brief Number of pieces currently hashing
+	 *
+	 *  This is used at startup; the torrent won't request
+	 *  any new pieces until it's done hashing.
+	 */
+	unsigned int numPiecesHashing;
 };
 
 

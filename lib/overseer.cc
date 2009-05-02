@@ -190,34 +190,6 @@ Overseer::listenerThread()
 	}
 }
 
-void
-Overseer::waitHashingComplete()
-{
-	while (!terminating) {
-		/* Count the number of active hashers */
-		pthread_mutex_lock(&mtx_torrents);
-		int num_hashing = 0, hashing_pieces = 0;
-		for (map<string, Torrent*>::iterator it = torrents.begin();
-		     it != torrents.end(); it++) {
-			Torrent* t = it->second;
-			unsigned int n = t->getNumPiecesHashing();
-			if (n > 0) {
-				hashing_pieces += n;
-				num_hashing++;
-			}
-		}
-		pthread_mutex_unlock(&mtx_torrents);
-
-		if (!num_hashing)
-			break;
-
-#if 0
-		printf("Overseer: waiting for %u torrent(s) to finish hashing %u pieces\n", num_hashing, hashing_pieces);
-#endif
-		sleep(1);
-	}
-}
-
 vector<Torrent*>
 Overseer::getTorrents()
 {

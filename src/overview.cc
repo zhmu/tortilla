@@ -23,15 +23,23 @@ Overview::draw()
 		uint32_t rx, tx;
 		t->getRateCounters(&rx, &tx);
 
+		unsigned int numHashing = t->getNumPiecesHashing();
+
 		mvwprintw(window, y,     4, "(%.02f%%) %s",
 		 ((float)(t->getTotalSize() - t->getBytesLeft()) / (float)t->getTotalSize()) * 100.0f,
-		 t->getName().c_str());
-		mvwprintw(window, y + 1, 4, "RX/TX rate: %s / %s",
-			 Interface::formatNumber(rx).c_str(), Interface::formatNumber(tx).c_str());
-		mvwprintw(window, y + 2, 4, "Total: %s up, %s down",
-			 Interface::formatNumber(t->getBytesUploaded()).c_str(),
-			 Interface::formatNumber(t->getBytesDownloaded()).c_str());
-		mvwprintw(window, y    , 2, "%c", (curSelection == num) ? '*' : ' ');
+		t->getName().c_str());
+
+		if (numHashing > 0) {
+			mvwprintw(window, y + 1, 4, "Hashing, %.02f%% completed",
+			 100.0f - ((float)numHashing / (float)t->getNumPieces()) * 100.0f);
+		} else {
+			mvwprintw(window, y + 1, 4, "RX/TX rate: %s / %s",
+				 Interface::formatNumber(rx).c_str(), Interface::formatNumber(tx).c_str());
+			mvwprintw(window, y + 2, 4, "Total: %s up, %s down",
+				 Interface::formatNumber(t->getBytesUploaded()).c_str(),
+				 Interface::formatNumber(t->getBytesDownloaded()).c_str());
+			mvwprintw(window, y    , 2, "%c", (curSelection == num) ? '*' : ' ');
+		}
 		
 		y += 4; num++;
 	}

@@ -70,7 +70,6 @@ main(int argc, char** argv)
 	}
 
 	signal(SIGINT, sigint);
-	overseer->waitHashingComplete();
 	overseer->start();
 
 	interface->run();

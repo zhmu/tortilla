@@ -49,9 +49,6 @@ public:
 	//! \brief Obtain the listening port number
 	const unsigned int getListeningPort() { return port; }
 
-	//! \brief Waits until all torrents have completed hashing
-	void waitHashingComplete();
-
 	//! \brief Are we terminating?
 	bool isTerminating() { return terminating; }
 

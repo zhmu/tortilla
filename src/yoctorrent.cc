@@ -39,6 +39,14 @@ run()
 			unsigned long long up = t->getBytesUploaded();
 			unsigned long long down = t->getBytesDownloaded();
 
+			unsigned int numHashing = t->getNumPiecesHashing();
+			if (numHashing > 0) {
+				printf("*** %s (%.2f%%) - hashing: %.2f%% done\n",
+			 	 t->getName().c_str(),
+			 ((float)(t->getTotalSize() - t->getBytesLeft()) / (float)t->getTotalSize()) * 100.0f,
+			 100.0f - ((float)numHashing / (float)t->getNumPieces()) * 100.0f);
+				break;
+			}
 			printf("*** %s (%.2f%%) - RX/TX rate: %u / %u - Total U/D: %llu / %llu\n",
 			 t->getName().c_str(),
 			 ((float)(t->getTotalSize() - t->getBytesLeft()) / (float)t->getTotalSize()) * 100.0f,
@@ -130,8 +138,6 @@ main(int argc, char** argv)
 	delete md;
 
 	signal(SIGINT, sigint);
-	printf(">> Waiting for torrents to hash...\n");
-	overseer->waitHashingComplete();
 	overseer->start();
 
 	run();
