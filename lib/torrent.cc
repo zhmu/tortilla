@@ -630,7 +630,7 @@ Torrent::schedulePeerRequests(Peer* p)
 			continue;
 
 		/*
-		 * We don't have the peer, but this peer does. Find a piece, and go
+		 * We don't have the piece, but this peer does. Find a piece, and go
 		 * request.
 		 */
 		assert(p->isInterested());
