@@ -38,8 +38,8 @@ Overview::draw()
 			mvwprintw(window, y + 2, 4, "Total: %s up, %s down",
 				 Interface::formatNumber(t->getBytesUploaded()).c_str(),
 				 Interface::formatNumber(t->getBytesDownloaded()).c_str());
-			mvwprintw(window, y    , 2, "%c", (curSelection == num) ? '*' : ' ');
 		}
+		mvwprintw(window, y    , 2, "%c", (curSelection == num) ? '*' : ' ');
 		
 		y += 4; num++;
 	}
