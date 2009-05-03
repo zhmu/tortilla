@@ -27,17 +27,54 @@ sigint(int s)
 	overseer->terminate();
 }
 
+void
+usage()
+{
+	fprintf(stderr, "usage: tortilla [-h?] [-p port] [-u upload] file.torrent ...\n\n");
+	fprintf(stderr, "    -h, -?          this help\n");
+	fprintf(stderr, "    -u upload       upload limit, in kb/sec\n");
+	fprintf(stderr, "    -p port         incoming tcp port to use\n");
+	exit(EXIT_FAILURE);
+}
+
 int
 main(int argc, char** argv)
 {
+	unsigned int port = 4000;
+	unsigned int upload = 0;
 	srand(time(NULL));
 
 	/* XXX */
 	signal(SIGPIPE, SIG_IGN);
 
-	if (argc < 2) {
-		fprintf(stderr, "usage: tortilla file.torrent ...\n");
-		return EXIT_FAILURE;
+	int ch;
+	while ((ch = getopt(argc, argv, "?hu:p:")) != -1) {
+		switch (ch) {
+			case '?':
+			case 'h':
+			default:
+				usage();
+				/* NOTREACHED */
+			case 'u':
+				upload = atoi(optarg);
+				if (upload <= 0)
+					printf( ">> NOTE: upload ratio zero or unparsable, unlimited assumed!\n");
+				break;
+			case 'p':
+				port = atoi(optarg);
+				if (port <= 0) {
+					fprintf(stderr, "-p must be followed by a positive number\n");
+					return EXIT_FAILURE;
+				}
+				break;
+		}
+	}
+	argc -= optind;
+	argv += optind;
+
+	if (argc < 1) {
+		usage();
+		/* NOTREACHED */
 	}
 
 	/*
@@ -45,7 +82,7 @@ main(int argc, char** argv)
 	 * once all torrents are OK.
 	 */
 	vector<Metadata*> metadatas;
-	for (int i = 1; i < argc; i++) {
+	for (int i = 0; i < argc; i++) {
 		ifstream is;
 		is.open(argv[i], ios::binary);
 		metadatas.push_back(new Metadata(is));
@@ -54,9 +91,9 @@ main(int argc, char** argv)
 	/* XXX handle it if the connection burns */
 	//overseer = new Overseer(1024 + rand() % 10000);
 	tracer = new Tracer();
-	overseer = new Overseer(4000, tracer);
+	overseer = new Overseer(port, tracer);
 	interface = new Interface(overseer);
-	//overseer->setUploadRate(16 * 1024);
+	overseer->setUploadRate(upload * 1024);
 
 	/*
 	 * Add the torrents one by one; we won't need the metadata
