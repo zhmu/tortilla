@@ -5,6 +5,11 @@
 #ifndef __INFO_H__
 #define __INFO_H__
 
+#define PANEL_PIECES	0
+#define PANEL_PEERS	1
+#define PANEL_LOG	2
+#define PANEL_MAX	(PANEL_LOG+1)
+
 class Info {
 public:
 	Info(WINDOW* w, Interface* iface);
@@ -17,6 +22,9 @@ public:
 	//! \brief Scroll half a page down
 	void scrollDown();
 
+	inline unsigned int getCurrentPanel() { return panel; }
+	inline void setCurrentPanel(int p) { panel = p; }
+
 protected:
 	//! \brief Formatted print inside the window
 	void printxyf(unsigned int x, unsigned int y, const char* format, ...);
@@ -24,11 +32,17 @@ protected:
 	//! \brief Number of lines written	
 	unsigned int num_lines;
 
+	void drawPieces(Torrent* t, unsigned int& y);
+	void drawPeers(Torrent* t, unsigned int& y);
+	void drawLog(Torrent* t, unsigned int& y);
+
 private:
 	WINDOW* window;
 	Interface* interface;
 
 	unsigned int y_offset;
+
+	unsigned int panel;
 };
 
 #endif /* __INTERFACE_H__ */

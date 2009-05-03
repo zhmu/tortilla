@@ -128,6 +128,14 @@ Interface::handleInput()
 			adding = true;
 			tabMatches.clear();
 			break;
+		case '1':
+		case '2':
+		case '3':
+			info->setCurrentPanel(ch - '1');
+			break;
+		case 0x09: /* TAB */
+			info->setCurrentPanel((info->getCurrentPanel() + 1) % PANEL_MAX);
+			break;
 		case KEY_DC: /* delete */
 			Torrent* t = overview->getSelectedTorrent();
 			if (t != NULL)
