@@ -247,9 +247,10 @@ Interface::handleCompletion()
 		return;
 
 	/*
-	 * OK, we now need to determine if all matches share a common
-	 * prefix; we do this by taking the first match, and chop stuff
-	 * away from the right until it matches our fname. 
+	 * OK, we now need to determine the largest common prefix shared by the
+	 * matches; we do this by taking the first match, and simply compare each
+	 * charachter of each match one-by-one until we either run out of matches or
+	 * when the determined common prefix is the empty string.
 	 */
 	std::string common_prefix = matches.front();
 	matches.erase(matches.begin(), matches.begin() + 1);
