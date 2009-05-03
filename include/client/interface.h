@@ -28,6 +28,7 @@ protected:
 private:
 	void handleInput();
 	void handleAddInput(int ch);
+	void handleCompletion();
 
 	Overseer* overseer;
 	Overview* overview;
@@ -38,6 +39,9 @@ private:
 
 	//! \brief Are we currently adding a torrent?
 	bool adding;
+
+	//! \brief Which files match currently?
+	std::vector<std::string> tabMatches;
 
 	std::string addString;
 	std::string statusMessage;

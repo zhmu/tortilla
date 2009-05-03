@@ -1,7 +1,10 @@
+#include <sys/types.h>
+#include <dirent.h>
 #include <iostream>
 #include <ncurses.h>
 #include <fstream>
 #include <sstream>
+#include <string.h>
 #include "tortilla/exceptions.h"
 #include "tortilla/overseer.h"
 #include "interface.h"
@@ -9,6 +12,8 @@
 #include "info.h"
 
 using namespace std;
+
+#define MIN(x,y) ((x)<(y)?(x):(y))
 
 Interface::Interface(Overseer* o)
 {
@@ -121,6 +126,7 @@ Interface::handleInput()
 		case KEY_IC: /* insert */
 			addString = "";
 			adding = true;
+			tabMatches.clear();
 			break;
 		case KEY_DC: /* delete */
 			Torrent* t = overview->getSelectedTorrent();
@@ -135,19 +141,35 @@ Interface::handleAddInput(int ch)
 {
 	switch(ch) {
 		case 0x0a: /* return */
-			try {
-				addTorrent(addString);
-			} catch (exception e) {
-				statusMessage = string("Failed to add torrent: ") + e.what();
+			if (addString.size() != 0) {
+				try {
+					addTorrent(addString);
+				} catch (exception e) {
+					statusMessage = string("Failed to add torrent: ") + e.what();
+				}
 			}
 			adding = false;
 			return;
 		case KEY_IC: /* insert */
+		case 0x1b: /* escape */
 			adding = false;
 			return;
 		case KEY_BACKSPACE:
 			if (addString.size() > 0)
 				addString = addString.substr(0, addString.size() - 1);
+			return;
+		case 0x09: /* tab */
+			handleCompletion();
+			return;
+		case 0x15: /* ctrl-u */
+			addString = "";
+			return;
+		case 0x17: /* ctrl-w */
+			string::size_type pos = addString.find_last_of(" ");
+			if (pos != string::npos)
+				addString = addString.substr(0, pos);
+			else
+				addString = "";
 			return;
 	}
 
@@ -168,7 +190,12 @@ Interface::update()
 	if (!adding)
 		return;
 	mvwprintw(overviewWindow, y - 1, 0, "filename> %s_", addString.c_str());
-	adding = true;
+	y--;
+	for (vector<string>::iterator it = tabMatches.begin();
+	     it != tabMatches.end(); it++) {
+		mvwprintw(overviewWindow, y - 1, 0, "%s", (*it).c_str());
+		y--;
+	}
 }
 
 void
@@ -179,6 +206,67 @@ Interface::addTorrent(std::string fname)
 	Metadata* md = new Metadata(is);
 	overseer->addTorrent(new Torrent(overseer, md));
 	delete md;
+}
+
+void
+Interface::handleCompletion()
+{
+	string path;
+	string fname;
+
+	/* First of all, dissect the input in path/fname parts */
+	string::size_type pos = addString.find_last_of("/");
+	if (pos != string::npos) {
+		path = addString.substr(0, pos - 1);
+		fname = addString.substr(pos + 1);
+	} else {
+		path = ".";
+		fname = addString;
+	}
+
+	/* Try to open this directory, and make a list of all matches */
+	DIR* dir = opendir(path.c_str());
+	if (dir == NULL)
+		return;
+	vector<string> matches;
+	while (true) {
+		struct dirent* de = readdir(dir);
+		if (de == NULL)
+			break;
+		if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, ".."))
+			continue;
+		if (strncmp(de->d_name, fname.c_str(), fname.size()) != 0)
+			continue;
+		matches.push_back(de->d_name);
+	}
+	closedir(dir);
+
+	/* Don't bother continueing if nothing matches */
+	tabMatches = matches;
+	if (matches.size() == 0)
+		return;
+
+	/*
+	 * OK, we now need to determine if all matches share a common
+	 * prefix; we do this by taking the first match, and chop stuff
+	 * away from the right until it matches our fname. 
+	 */
+	std::string common_prefix = matches.front();
+	matches.erase(matches.begin(), matches.begin() + 1);
+	for (vector<string>::iterator it = matches.begin();
+	     it != matches.end(); it++) {
+		string s = *it;
+		unsigned int len;
+		for (len = 0; len < MIN(s.size(), common_prefix.size()); len++) {
+			if (s[len] != common_prefix[len])
+				break;
+		}
+		common_prefix = common_prefix.substr(0, len);
+		if (common_prefix.length() == 0)
+			return;
+	}
+
+	addString = common_prefix;
 }
 
 /* vim:set ts=2 sw=2: */
