@@ -7,6 +7,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <sstream>
+#include <stdarg.h>
 #include <stdint.h>
 #include <string.h>
 #include <sys/select.h>
@@ -52,6 +53,7 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 	pthread_rwlock_init(&rwl_peers, NULL);
 	pthread_rwlock_init(&rwl_files, NULL);
 	pthread_mutex_init(&mtx_data, NULL);
+	pthread_mutex_init(&mtx_log, NULL);
 
 	/*
 	 * Ensure the 'info' and 'announce' metadata fields exist; we can't do much
@@ -322,6 +324,7 @@ Torrent::~Torrent()
 	}
 	delete[] pieceHash;
 
+	pthread_mutex_destroy(&mtx_log);
 	pthread_mutex_destroy(&mtx_data);
 	pthread_rwlock_destroy(&rwl_peers);
 	pthread_rwlock_destroy(&rwl_files);
@@ -361,7 +364,13 @@ Torrent::contactTracker(std::string event)
 		m["numwant"] = convertInteger((TORRENT_DESIRED_PEERS - numPeers) * 2);
 	}
 	lastTrackerContact = time(NULL);
-	string result = HTTP::get(announceURL, m);
+	string result;
+	try {
+		result = HTTP::get(announceURL, m);
+	} catch (HTTPException e) {
+		log(NULL, "unable to contact tracker: %s", e.what());
+		return NULL;
+	}
 
 	/* Parse the result as metadata (which it should be) */
 	Metadata* md;
@@ -370,7 +379,7 @@ Torrent::contactTracker(std::string event)
 		istream is(&sb);
 		md = new Metadata(is);
 	} catch (MetadataException e) {
-		TRACE(TORRENT, "torrent %p: tracker returned garbage '%s'", this, result.c_str());
+		log(NULL, "tracker returned garbage: %s", result.c_str());
 		return NULL;
 	}
 
@@ -383,7 +392,7 @@ Torrent::contactTracker(std::string event)
 		string failure = ms->getString();
 		cout << failure << endl;
 		delete md; /* Prevent memory leak */
-		throw new TorrentException("tracker reported failure: " + failure);
+		log(NULL, "tracker reported failure: %s", failure.c_str());
 	}
 
 	return md;
@@ -401,7 +410,7 @@ Torrent::handleTracker(string event)
 	 */
 	MetaInteger* msInterval = dynamic_cast<MetaInteger*>((*md->getDictionary())["interval"]);
 	if (msInterval == NULL)
-		throw new TorrentException("tracker didn't report interval");
+		log(NULL, "tracker didn't report interval, ignoring reply");
 	tracker_interval = msInterval->getInteger();
 	MetaInteger* msMinInterval = dynamic_cast<MetaInteger*>((*md->getDictionary())["min interval"]);
 	if (msMinInterval != NULL)
@@ -1414,6 +1423,52 @@ Torrent::getNumPiecesHashing()
 	unsigned int n = numPiecesHashing;
 	UNLOCK(data);
 	return n;
+}
+
+std::list<std::string>
+Torrent::getMessageLog()
+{
+	LOCK(log);
+	std::list<std::string> l = messageLog;
+	UNLOCK(log);
+	return l;
+}
+
+void
+Torrent::clearMessageLog()
+{
+	LOCK(log);
+	messageLog.clear();
+	UNLOCK(log);
+}
+
+void
+Torrent::log(Peer* p, const char* fmt, ...)
+{
+	struct tm tm;
+	time_t t;
+	va_list vl;
+	string s;
+
+	char timestamp[64 /* XXX */];
+	time(&t);
+	localtime_r(&t, &tm);
+	strftime(timestamp, sizeof(timestamp), "%b %d %T", &tm);
+	s = timestamp;
+
+	if (p != NULL) {
+		s += " (" + p->getID() + ")";
+	}
+
+	char temp[256 /* XXX */ ];
+	va_start(vl, fmt);
+	vsnprintf(temp, sizeof(temp), fmt, vl);
+	va_end(vl);
+	s += " - "; s += temp;
+
+	LOCK(log);
+	messageLog.push_back(s);
+	UNLOCK(log);
 }
 
 /* vim:set ts=2 sw=2: */

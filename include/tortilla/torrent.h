@@ -202,6 +202,12 @@ public:
 	//! \brief Can we accept yet another peer?
 	bool canAcceptPeer();
 
+	//! \brief Retrieve the torrent's message log
+	std::list<std::string> getMessageLog();
+
+	//! \brief Clears the torrent's message log
+	void clearMessageLog();
+
 protected:
 	/*! \brief Called by a peer if pieces are added to the map */
 	void callbackPiecesAdded(Peer* p, std::vector<unsigned int>& pieces);
@@ -276,6 +282,12 @@ protected:
 
 	//! \brief Request the sender to awaken
 	void signalSender();
+
+	/*! \brief Log a message
+	 *  \param p If set, use this peer
+	 *  \param fmt Format specifier
+	 */
+	void log(Peer* p, const char* fmt, ...);
 
 private:
 	/*! \brief Contact the tracker
@@ -410,6 +422,9 @@ private:
 	//! \brief Mutex protecting the data
 	pthread_mutex_t mtx_data;
 
+	//! \brief Mutex protecting the log
+	pthread_mutex_t mtx_log;
+
 	//! \brief Receive rate, in bytes
 	uint32_t rx_rate;
 
@@ -458,6 +473,9 @@ private:
 	 *  any new pieces until it's done hashing.
 	 */
 	unsigned int numPiecesHashing;
+
+	//! \brief Log of messages
+	std::list<std::string> /* [M=log] */ messageLog;
 };
 
 
