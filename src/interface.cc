@@ -1,4 +1,9 @@
+#include <iostream>
 #include <ncurses.h>
+#include <fstream>
+#include <sstream>
+#include "tortilla/exceptions.h"
+#include "tortilla/overseer.h"
 #include "interface.h"
 #include "overview.h"
 #include "info.h"
@@ -7,7 +12,7 @@ using namespace std;
 
 Interface::Interface(Overseer* o)
 {
-	overseer = o;
+	overseer = o; adding = false;
 
 	initscr(); start_color();
 	raw(); cbreak(); keypad(stdscr, TRUE);
@@ -36,6 +41,8 @@ Interface::run()
 	while (!overseer->isTerminating()) {
 		overview->draw();
 		info->draw(overview->getSelectedTorrent());
+		update();
+		wrefresh(overviewWindow);
 		refresh();
 
 		/*
@@ -90,6 +97,11 @@ Interface::handleInput()
 {
 	int ch = getch();
 
+	if (adding) {
+		handleAddInput(ch);
+		return;
+	}
+
 	switch(ch) {
 		case 0x11: /* control-q */
 			overseer->terminate();
@@ -106,12 +118,67 @@ Interface::handleInput()
 		case KEY_UP:
 			overview->upTorrent();
 			break;
+		case KEY_IC: /* insert */
+			addString = "";
+			adding = true;
+			break;
 		case KEY_DC: /* delete */
 			Torrent* t = overview->getSelectedTorrent();
 			if (t != NULL)
 				overseer->removeTorrent(t);
 			break;
 	}
+}
+
+void
+Interface::handleAddInput(int ch)
+{
+	switch(ch) {
+		case 0x0a: /* return */
+			try {
+				addTorrent(addString);
+			} catch (exception e) {
+				statusMessage = string("Failed to add torrent: ") + e.what();
+			}
+			adding = false;
+			return;
+		case KEY_IC: /* insert */
+			adding = false;
+			return;
+		case KEY_BACKSPACE:
+			if (addString.size() > 0)
+				addString = addString.substr(0, addString.size() - 1);
+			return;
+	}
+
+	if (!isprint(ch))
+		return;
+	addString += ch;
+}
+
+void
+Interface::update()
+{
+	unsigned int y = getmaxy(overviewWindow);
+
+	if (statusMessage != "") {
+		mvwprintw(overviewWindow, y - 1, 0, "%s", statusMessage.c_str());
+		y--;
+	}
+	if (!adding)
+		return;
+	mvwprintw(overviewWindow, y - 1, 0, "filename> %s_", addString.c_str());
+	adding = true;
+}
+
+void
+Interface::addTorrent(std::string fname)
+{
+	ifstream is;
+	is.open(fname.c_str(), ios::binary);
+	Metadata* md = new Metadata(is);
+	overseer->addTorrent(new Torrent(overseer, md));
+	delete md;
 }
 
 /* vim:set ts=2 sw=2: */

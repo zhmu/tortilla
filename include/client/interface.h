@@ -20,8 +20,14 @@ public:
 	static std::string formatNumber(uint64_t n);
 	static std::string formatHex(const uint8_t* hex, unsigned int len);
 
+	void addTorrent(std::string fname);
+
+protected:
+	void update();
+
 private:
 	void handleInput();
+	void handleAddInput(int ch);
 
 	Overseer* overseer;
 	Overview* overview;
@@ -29,6 +35,12 @@ private:
 
 	WINDOW* overviewWindow;
 	WINDOW* infoWindow;
+
+	//! \brief Are we currently adding a torrent?
+	bool adding;
+
+	std::string addString;
+	std::string statusMessage;
 };
 
 #endif /* __INTERFACE_H__ */
