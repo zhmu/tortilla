@@ -133,6 +133,18 @@ Interface::handleInput()
 		case '3':
 			info->setCurrentPanel(ch - '1');
 			break;
+		case '=':
+			alterUploadRate(1024);
+			return;
+		case '-':
+			alterUploadRate(-1024);
+			return;
+		case '+':
+			alterUploadRate(10 * 1024);
+			return;
+		case '_':
+			alterUploadRate(10 * -1024);
+			return;
 		case 0x09: /* TAB */
 			info->setCurrentPanel((info->getCurrentPanel() + 1) % PANEL_MAX);
 			break;
@@ -152,6 +164,7 @@ Interface::handleAddInput(int ch)
 			if (addString.size() != 0) {
 				try {
 					addTorrent(addString);
+					statusMessage = "Torrent successfully added";
 				} catch (exception e) {
 					statusMessage = string("Failed to add torrent: ") + e.what();
 				}
@@ -276,6 +289,27 @@ Interface::handleCompletion()
 	}
 
 	addString = common_prefix;
+}
+
+void
+Interface::alterUploadRate(int delta)
+{
+	unsigned int rate = overseer->getUploadRate();
+	if (delta < 0 && rate < (unsigned int)-delta)
+		rate = 0;
+	else
+		rate += delta;
+	overseer->setUploadRate(rate);
+
+	char tmp[64];
+	if (rate == 0) {
+		strcpy(tmp, "unlimited");
+	} else {
+		snprintf(tmp, sizeof(tmp), "%u", rate / 1024);
+	}
+	statusMessage  = "Upload rate changed to ";
+	statusMessage += tmp;
+	statusMessage += " KB/sec";
 }
 
 /* vim:set ts=2 sw=2: */

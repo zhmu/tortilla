@@ -24,6 +24,7 @@ public:
 
 protected:
 	void update();
+	void alterUploadRate(int delta);
 
 private:
 	void handleInput();
