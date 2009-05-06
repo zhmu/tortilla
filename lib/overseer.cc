@@ -92,6 +92,7 @@ Overseer::addTorrent(Torrent* t)
 	pthread_mutex_lock(&mtx_torrents);
 	torrents[info] = t;
 	pthread_mutex_unlock(&mtx_torrents);
+	t->start();
 }
 
 void
@@ -112,7 +113,7 @@ Overseer::removeTorrent(Torrent* t)
 void
 Overseer::start()
 {
-	/* Launch all torrents */
+	/* Launch all torrents 
 	pthread_mutex_lock(&mtx_torrents);
 	for (map<string, Torrent*>::iterator it = torrents.begin();
 	     it != torrents.end(); it++) {
@@ -120,6 +121,7 @@ Overseer::start()
 		t->start();
 	}
 	pthread_mutex_unlock(&mtx_torrents);
+	*/
 }
 
 void

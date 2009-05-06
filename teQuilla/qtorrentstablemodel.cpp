@@ -42,7 +42,7 @@ QTorrentsTableModel::updateData(std::vector<Torrent*> torrents)
     uint32_t rx=0,tx=0;
     uint64_t filesize=0, bytesleft=0;
     uint64_t uploaded=0, downloaded=0;
-
+    uint32_t c=0;
     for(vti it=torrents.begin(); it!=torrents.end(); it++) {
         torrent_info *info = new torrent_info();
         (*it)->getRateCounters(&rx,&tx);
@@ -58,8 +58,8 @@ QTorrentsTableModel::updateData(std::vector<Torrent*> torrents)
         info->append(QString("%1 / %2 MB").arg((double)bytesleft/1024/1024,0,'n',2).arg((double)filesize/1024/1024,0,'n',2));
         table_data.append(info);
     }
-
-    emit dataChanged(QModelIndex(), QModelIndex());
+    reset();
+    //emit dataChanged(QModelIndex(), QModelIndex());
 }
 
 int

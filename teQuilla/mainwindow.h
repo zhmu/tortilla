@@ -27,7 +27,11 @@ private:
     QTorrentsTableModel *model;
     QTimer* timer;
 private slots:
+    void on_btnRefreshLog_clicked();
+    void btnAddTorrent_clicked();
+    void update();
     void updateModel();
+    void updateLog();
 };
 
 #endif // MAINWINDOW_H

@@ -11,5 +11,7 @@ HEADERS += mainwindow.h \
 FORMS += mainwindow.ui
 INCLUDEPATH += ../include/tortilla
 LIBS += ../lib/libtortilla.a \
-        -lssl -lcurl -lncurses \
-        -I../include/tortilla
+    -lssl \
+    -lcurl \
+    -lncurses \
+    -I../include/tortilla
