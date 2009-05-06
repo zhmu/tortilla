@@ -16,17 +16,24 @@ int main(int argc, char *argv[])
     tracer = new Tracer();
     Overseer* overseer = new Overseer(9999,tracer);
 
-    // XXX: generalise, single hardcoded torrent for testing
+    // XXX: generalise, hardcoded torrents for testing
     vector<Metadata*> metadatas;
     ifstream is;
-    is.open("/home/dwight/projects/tortilla/teQuilla/test.torrent", ios::binary);
-    metadatas.push_back(new Metadata(is));
-    Metadata* md = *metadatas.begin();
-    overseer->addTorrent(new Torrent(overseer,md));
-    delete md;
+    //is.open("/home/dwight/projects/tortilla/teQuilla/test.torrent", ios::binary);
+    //metadatas.push_back(new Metadata(is));
+    //Metadata* md = *metadatas.begin();
+    //overseer->addTorrent(new Torrent(overseer,md));
+    //delete md;
+    //is.close();
+
+    //is.open("/home/dwight/projects/tortilla/teQuilla/newsupermariobros-tas-adelikat.avi.torrent", ios::binary);
+    //metadatas.push_back(new Metadata(is));
+    //md = metadatas.at(0);
+    //overseer->addTorrent(new Torrent(overseer,md));
+    //delete md;
+    //is.close();
 
     overseer->setUploadRate(16 * 1024);
-    overseer->waitHashingComplete();
     overseer->start();
 
     MainWindow w(overseer);

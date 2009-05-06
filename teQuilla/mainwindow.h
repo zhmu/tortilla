@@ -4,7 +4,9 @@
 #include <QtGui/QMainWindow>
 #include "qtorrentstablemodel.h"
 #include "overseer.h"
+#include "http.h"
 #include <QTimer>
+#include <QTableView>
 
 namespace Ui
 {
