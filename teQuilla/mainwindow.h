@@ -29,6 +29,9 @@ private:
 private slots:
     void on_btnRefreshLog_clicked();
     void btnAddTorrent_clicked();
+    void btnDelTorrent_clicked();
+    void btnStart_clicked();
+    void btnStop_clicked();
     void update();
     void updateModel();
     void updateLog();

@@ -21,13 +21,17 @@ MainWindow::MainWindow(Overseer* o, QWidget *parent)
     ui->tableTorrents->setModel(model);
 
     /* Setup the toolbar which looks like:
-       add del sep
+       add del sep start stop
     */
     QAction* act_addTorrent = ui->mainToolBar->addAction(QIcon("./icon/plus.png"), "Add torrents from disk");
     connect(act_addTorrent, SIGNAL(triggered()), this, SLOT(btnAddTorrent_clicked()));
     QAction* act_delTorrent = ui->mainToolBar->addAction(QIcon("./icon/minus.png"), "Delete torrent entry");
-    connect(act_delTorrent, SIGNAL(triggered()), this, SLOT(btnAddTorrent_clicked()));
+    connect(act_delTorrent, SIGNAL(triggered()), this, SLOT(btnDelTorrent_clicked()));
     ui->mainToolBar->addSeparator();
+    QAction* act_start = ui->mainToolBar->addAction(QIcon("./icon/play.png"), "Start all torrents");
+    connect(act_start, SIGNAL(triggered()), this, SLOT(btnStart_clicked()));
+    QAction* act_stop = ui->mainToolBar->addAction(QIcon("./icon/stop.png"), "Stop all torrents");
+    connect(act_stop, SIGNAL(triggered()), this, SLOT(btnStop_clicked()));
 
     /* Setup periodic timer */
     timer = new QTimer(this);
@@ -47,10 +51,6 @@ void MainWindow::update()
 
 void MainWindow::updateModel()
 {
-    //std::vector<Torrent*> vt = overseer->getTorrents();
-
-    //std::cout << vt.size();
-    //std::cout.flush();
     model->updateData();
 }
 
@@ -121,6 +121,31 @@ void MainWindow::btnAddTorrent_clicked()
            //errDlg.showMessage("Unable to open file: " + *it);
        }
    }
+}
 
+void MainWindow::btnDelTorrent_clicked()
+{
+    QModelIndexList indexes = ui->tableTorrents->selectionModel()->selectedRows(0);
+    QModelIndex index;
 
+    foreach (index, indexes)    {
+        ui->tableTorrents->model()->removeRow(index.row(),QModelIndex());
+    }
+
+    /* Force an update, if we don't do this one might hit delete twice
+        on the same entry which doesn't really exist, though the data source
+        is changed. This means you would remove the new entry that is not yet
+        displayed.
+    */
+    updateModel();
+}
+
+void MainWindow::btnStart_clicked()
+{
+    overseer->start();
+}
+
+void MainWindow::btnStop_clicked()
+{
+    overseer->stop();
 }

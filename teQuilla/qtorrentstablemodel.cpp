@@ -92,3 +92,16 @@ QTorrentsTableModel::headerData(int section, Qt::Orientation orientation, int ro
 
     return QVariant();
 }
+
+bool
+QTorrentsTableModel::removeRows(int position, int rows, const QModelIndex &index)
+{
+    beginRemoveRows(QModelIndex(), position, position); // assume always remove single element
+
+    Torrent* t = overseer->getTorrents().at(position);
+    overseer->removeTorrent(t);
+
+    endRemoveRows();
+    return true;
+
+}
