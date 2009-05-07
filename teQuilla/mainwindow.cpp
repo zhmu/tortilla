@@ -15,16 +15,21 @@ MainWindow::MainWindow(Overseer* o, QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindowClass),overseer(o)
 {
     ui->setupUi(this);
-    std::vector<Torrent*> vt = overseer->getTorrents();
-    model = new QTorrentsTableModel(vt, this);
-    ui->tableTorrents->setModel(model);
-    QToolButton* tb = new QToolButton(ui->mainToolBar);
-    QIcon icon;
-    icon.addFile("/home/dwight/projects/tortilla/teQuilla/icon/plus.png", QSize(10,10), QIcon::Normal, QIcon::Off);
-    tb->setIcon(icon);
-    connect(tb, SIGNAL(clicked()), this, SLOT(btnAddTorrent_clicked()));
-    ui->mainToolBar->addWidget(tb);
 
+    /* Setup the tableview's model */
+    model = new QTorrentsTableModel(o, this);
+    ui->tableTorrents->setModel(model);
+
+    /* Setup the toolbar which looks like:
+       add del sep
+    */
+    QAction* act_addTorrent = ui->mainToolBar->addAction(QIcon("./icon/plus.png"), "Add torrents from disk");
+    connect(act_addTorrent, SIGNAL(triggered()), this, SLOT(btnAddTorrent_clicked()));
+    QAction* act_delTorrent = ui->mainToolBar->addAction(QIcon("./icon/minus.png"), "Delete torrent entry");
+    connect(act_delTorrent, SIGNAL(triggered()), this, SLOT(btnAddTorrent_clicked()));
+    ui->mainToolBar->addSeparator();
+
+    /* Setup periodic timer */
     timer = new QTimer(this);
     connect(timer, SIGNAL(timeout()), this, SLOT(update()));
     timer->start(1000);
@@ -42,11 +47,11 @@ void MainWindow::update()
 
 void MainWindow::updateModel()
 {
-    std::vector<Torrent*> vt = overseer->getTorrents();
+    //std::vector<Torrent*> vt = overseer->getTorrents();
 
-    std::cout << vt.size();
-    std::cout.flush();
-    model->updateData(vt);
+    //std::cout << vt.size();
+    //std::cout.flush();
+    model->updateData();
 }
 
 void MainWindow::updateLog()
