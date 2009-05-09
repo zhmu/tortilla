@@ -391,9 +391,9 @@ Torrent::contactTracker(std::string event)
 	MetaString* ms = dynamic_cast<MetaString*>((*md->getDictionary())["failure reason"]);
 	if (ms != NULL) {
 		string failure = ms->getString();
-		cout << failure << endl;
 		delete md; /* Prevent memory leak */
 		log(NULL, "tracker reported failure: %s", failure.c_str());
+		return NULL;
 	}
 
 	return md;
