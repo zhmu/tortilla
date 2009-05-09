@@ -263,6 +263,9 @@ protected:
 	 */
 	int sendPieceRequest(unsigned int piece);
 
+	//! \brief Locks a peer for sending
+	void lockForSending();
+
 private:
 	/*! \brief Initializes basic peer parameters based on a torrent
 	 *  \param t Torrent the peer is connected to

@@ -80,14 +80,8 @@ Peer::~Peer()
 {
 	vector<unsigned int> lostPieces;
 
-	/*
-	 * Claim we are terminating and acquire the sending mutex; the flag
-	 * ensures the processSenderQueue() function won't make a new attempt
-	 * to lock a new request, and the sending mutex ensures the sending
-	 * function isn't running while we are cleaning up.
-	 */
-	terminating = true;
-	LOCK(sending);
+	/* First of all, ensure we are marked as terminating */
+	shutdown();
 
 	/* Get rid of all outstanding requests; these will not be serviced */
 	WLOCK(send_queue);
@@ -98,6 +92,16 @@ Peer::~Peer()
 	}
 	send_queue.clear();
 	RWUNLOCK(send_queue);
+
+	/*
+	 * We force the shutdown state to be set, and then consequently, we attempt
+	 * to grab the sending lock. If we stall, this means the Sender is servicing
+	 * an attempt and we must wait for it. Either way, once we are done, we know
+	 * the sender will not touch this peer anymore, since we won't add new
+	 * requests to the sender queue while terminating, and it's not servicing
+	 * any requests now...
+	 */
+	LOCK(sending);
 
 	/* We need to deregister all of our pieces */
 	for (unsigned int i = 0; i < torrent->getNumPieces(); i++)
@@ -708,16 +712,6 @@ Peer::processSenderQueue(ssize_t max_length)
 		send_queue.pop_front();
 		RWUNLOCK(send_queue);
 
-		/*
-		 * Attempt to obtain the sender lock; if this fails, it means the peer is
-		 * exiting, so we should, too!
-		 */
-		if (pthread_mutex_trylock(&mtx_sending) != 0) {
-			assert(terminating);
-			delete request;
-			break;
-		}
-
 		uint32_t sending_len = request->getMessageLength();
 		if (sending_len > max_length && max_length >= 0) {
 			/* This will be a partial request */
@@ -752,13 +746,13 @@ Peer::processSenderQueue(ssize_t max_length)
 			RWUNLOCK(send_queue);
 		}
 
-		UNLOCK(sending);
-
 		/* If the previous sending effort failed, bail; any subsequent won't work either */
 		if (written <= 0)
 			break;
 	}
 
+	/* We are done sending */
+	UNLOCK(sending);
 	return total;
 }
 
@@ -856,7 +850,9 @@ Peer::have(unsigned int piece)
 void
 Peer::shutdown()
 {
+	LOCK(data);
 	terminating = true;
+	UNLOCK(data);
 }
 
 void
@@ -928,6 +924,12 @@ Peer::isSenderQueueEmpty()
 	bool b = send_queue.empty();
 	RWUNLOCK(send_queue);
 	return b;
+}
+
+void
+Peer::lockForSending()
+{	
+	LOCK(sending);
 }
 
 #undef WRITE_UINT32

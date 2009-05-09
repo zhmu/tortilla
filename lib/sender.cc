@@ -106,9 +106,12 @@ Sender::process()
 				break;
 
 			/*
-			 * Ask the peer to process and update bandwidth use.
+			 * Ask the peer to process and update bandwidth use; if we find a peer,
+			 * we'll acquire a send lock which means it won't be removed. Note that
+	 		 * processSenderQueue() releases this lock, so we cannot touch 'p' anymore
+		 	 * after it finished!
 			 */
-			Peer* p = overseer->findPeerByFD(pfds[pfd].fd);
+			Peer* p = overseer->findPeerByFDAndLock(pfds[pfd].fd);
 			if (p != NULL) {
 				ssize_t amount = p->processSenderQueue(overseer->getUploadRate() > 0 ? cur_tx : -1);
 

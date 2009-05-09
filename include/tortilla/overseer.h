@@ -99,8 +99,14 @@ protected:
 	//! \brief Called if a torrent ditches a peer
 	void callbackPeerRemoved(Peer* p);
 
-	//! \brief Retrieve a peer by file descriptor
-	Peer*findPeerByFD(int fd);
+	/*! \brief Retrieve a peer by file descriptor and lock it for sending
+	 *  \param fd File descriptor to find
+	 *  \returns Peer object, or NULL
+	 *
+	 *  If this function returns, the peer will be locked for sending and
+	 *  will not be removed.
+	 */
+	Peer* findPeerByFDAndLock(int fd);
 
 private:
 	//! \brief Info hash to torrent mappings

@@ -372,14 +372,17 @@ Overseer::callbackPeerRemoved(Peer* p)
 }
 
 Peer*
-Overseer::findPeerByFD(int fd)
+Overseer::findPeerByFDAndLock(int fd)
 {
 	LOCK(data);
+	Peer* p = NULL;
 	map<int, Peer*>::iterator it = fdMap.find(fd);
+	if (it != fdMap.end()) {
+		p = it->second;
+		p->lockForSending();
+	}
 	UNLOCK(data);
-	if (it == fdMap.end())
-		return NULL;
-	return it->second;
+	return p;
 }
 
 /* vim:set ts=2 sw=2: */
