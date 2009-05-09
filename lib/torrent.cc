@@ -1413,8 +1413,17 @@ Torrent::signalSender()
 
 bool
 Torrent::canAcceptPeer()
-{
-	return getNumPeers() < TORRENT_MAX_PEERS;
+{	
+	LOCK(data);
+	bool b = haveThread;
+	unsigned int n = numPiecesHashing;
+	UNLOCK(data);
+
+	/*
+	 * Only accept if we have a worker thread (we won't do much without it), we
+	 * have finished hashing and we have enough peer slots left.
+	 */
+	return b && n == 0 && getNumPeers() < TORRENT_MAX_PEERS;
 }
 
 unsigned int
