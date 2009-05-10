@@ -722,7 +722,12 @@ Peer::processSenderQueue(ssize_t max_length)
 
 		/* First of all, update counters if the request isn't cancelled */
 		if (written > 0) {
-			torrent->incrementUploadedBytes(written);
+			/*
+			 * Only increment uploaded bytes if this was a request to upload data to
+			 * a peer.
+			 */
+			if (request->getPieceLength() > 0)
+				torrent->incrementUploadedBytes(written);
 			total += written; tx_bytes += written;
 			if (max_length >= 0)
 				max_length -= written;
