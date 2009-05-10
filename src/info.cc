@@ -37,6 +37,9 @@ Info::draw(Torrent* t)
 		case PANEL_LOG:
 			drawLog(t, y);
 			break;
+		case PANEL_FILES:
+			drawFiles(t, y);
+			break;
 	}
 	num_lines = y;
 	wrefresh(window);
@@ -153,6 +156,31 @@ Info::drawLog(Torrent* t, unsigned int& y)
 			printxyf(0, y, "%s", (*it).c_str());
 			y++;
 		}
+	}
+}
+
+void
+Info::drawFiles(Torrent* t, unsigned int& y)
+{
+	vector<PieceInfo> pieces = t->getPieceDetails();
+	vector<FileInfo> files = t->getFileDetails();
+
+	for (unsigned int i = 0; i < files.size(); i++) {
+		FileInfo& fi = files[i];
+	
+		unsigned int completed = 0;
+		for (unsigned int p = 0; p <= fi.getNumPieces(); p++) {
+			if ( pieces[fi.getFirstPieceNum() + p].getHave() &&
+			    !pieces[fi.getFirstPieceNum() + p].isHashing())
+				completed++;
+		}
+
+		char line[1024 /* XXX */];
+		snprintf(line, sizeof(line), "%u%% - %s",
+		 (int)(((float)completed / (float)fi.getNumPieces()) * 100.f),
+		 fi.getFilename().c_str());
+		printxyf(0, y, line);
+		y++;
 	}
 }
 

@@ -8,7 +8,8 @@
 #define PANEL_PIECES	0
 #define PANEL_PEERS	1
 #define PANEL_LOG	2
-#define PANEL_MAX	(PANEL_LOG+1)
+#define PANEL_FILES	3
+#define PANEL_MAX	(PANEL_FILES+1)
 
 class Info {
 public:
@@ -35,6 +36,7 @@ protected:
 	void drawPieces(Torrent* t, unsigned int& y);
 	void drawPeers(Torrent* t, unsigned int& y);
 	void drawLog(Torrent* t, unsigned int& y);
+	void drawFiles(Torrent* t, unsigned int& y);
 
 private:
 	WINDOW* window;

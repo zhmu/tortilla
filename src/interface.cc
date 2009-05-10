@@ -131,6 +131,7 @@ Interface::handleInput()
 		case '1':
 		case '2':
 		case '3':
+		case '4':
 			info->setCurrentPanel(ch - '1');
 			break;
 		case '=':
