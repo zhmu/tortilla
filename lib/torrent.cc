@@ -643,10 +643,10 @@ void
 Torrent::schedulePeerRequests(Peer* p)
 {
 	/*
-	 * If we have the full torrent already, or if the peer is choking us,
-	 * don't bother trying to schedule something.
+	 * If we have the full torrent already, the peer is choking us,
+	 * or the peer is going away, * don't bother trying to schedule something.
 	 */
-	if (complete || p->isChoking())
+	if (complete || p->isChoking() || p->isShuttingDown())
 		return;
 
 	/*
@@ -667,8 +667,6 @@ Torrent::schedulePeerRequests(Peer* p)
 
 		int result = p->sendPieceRequest(i);
 		if (result > 0) {
-			TRACE(TORRENT, "requested piece from peer=%s, piece=%i, num=%i",
-			 p->getID().c_str(), i, result);
 			break;
 		}
 	}

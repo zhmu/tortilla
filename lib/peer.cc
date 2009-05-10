@@ -586,7 +586,14 @@ Peer::sendPieceRequest(unsigned int piece)
 
 	assert(!am_choked);
 
-	/* Don't flood a peer with requests */
+	/*
+	 * Don't flood a peer with requests. If we are in ordinary mode,
+	 * send a stream of requests at a time.
+	 */
+#if 0
+	if (!torrent->isEndgameMode() && chunk_requests.size() > 0)
+		return -1;
+#endif
 	if (chunk_requests.size() >= PEER_MAX_OUTSTANDING_REQUESTS)
 		return -1;
 
