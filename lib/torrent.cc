@@ -1471,4 +1471,78 @@ Torrent::log(Peer* p, const char* fmt, ...)
 	UNLOCK(log);
 }
 
+void
+Torrent::debugDump(FILE* f)
+{
+#define PRINT(fmt,args...) \
+	fprintf(f, fmt"\n", ## args)
+
+	LOCK(data);
+
+	PRINT("<?xml version=\"1.0\">");
+	PRINT("<torrent>");
+	PRINT(" <name>%s</name>", name.c_str());
+	PRINT(" <piecelen>%u</piecelen>", pieceLen);
+	PRINT(" <pieces amount=\"%u\">", numPieces);
+	for (unsigned int piece = 0; piece < numPieces; piece++) {
+		PRINT("  <piece num=\"%u\">", piece);
+		if (hashingPiece[piece]) {
+			PRINT("   <hashing/>");
+		} else if (havePiece[piece]) {
+			PRINT("   <complete/>");
+		} else {
+			for (unsigned int j = 0; j < calculateChunksInPiece(piece); j++) {
+				PRINT("   <chunk num=\"%u\">", j);
+				if (haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j]) {
+					PRINT("    <complete/>");
+				} else {
+					for (PeerList::iterator it = haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j].begin();
+					     it != haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j].end(); it++) {
+						Peer* p = *it;
+						PRINT("    <requested fromPeer=\"%s\"/>", p->getID().c_str());
+					}
+				}
+				PRINT("   </chunk>");
+			}
+		}
+		PRINT("  </piece>");
+	}
+	PRINT(" </pieces>");
+
+	PRINT(" <peers>");
+	RLOCK(peers);
+	for (vector<Peer*>::iterator it = peers.begin();
+     it != peers.end(); it++) {
+		Peer* p = *it;
+		PRINT("  <peer id=\"%s\">", p->getID().c_str());
+		if (p->isPeerChoked())
+			PRINT("   <peerChoked/>");
+		if (p->isPeerInterested())
+			PRINT("   <peerInterested/>");
+		if (p->isChoking())
+			PRINT("   <choking/>");
+		if (p->isInterested())
+			PRINT("   <interested/>");
+		if (p->isPeerSnubbed())
+			PRINT("   <snubbed/>");
+		vector<bool> pm = p->getPieceMap();
+		unsigned int num_pieces = 0;
+		for (vector<bool>::iterator it = pm.begin();
+		     it != pm.end(); it++) {
+			if (*it)
+				num_pieces++;
+		}
+		PRINT("   <pieces available=\"%u\" missing=\"%u\"/>", num_pieces, numPieces - num_pieces);
+		PRINT("  </peer>");
+	}
+	RWUNLOCK(peers);
+	PRINT(" </peers>");
+
+	PRINT("</torrent>");
+
+	UNLOCK(data);
+
+#undef PRINT
+}
+
 /* vim:set ts=2 sw=2: */

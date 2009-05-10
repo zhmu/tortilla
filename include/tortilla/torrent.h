@@ -211,6 +211,9 @@ public:
 	//! \brief Are we currently in endgame mode?
 	inline bool isEndgameMode() { return endgame_mode; }
 
+	//! \brief Perform a debugging dump of the entire torrent status
+	void debugDump(FILE* f);
+
 protected:
 	/*! \brief Called by a peer if pieces are added to the map */
 	void callbackPiecesAdded(Peer* p, std::vector<unsigned int>& pieces);
