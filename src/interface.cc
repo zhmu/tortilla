@@ -149,9 +149,17 @@ Interface::handleInput()
 			info->setCurrentPanel((info->getCurrentPanel() + 1) % PANEL_MAX);
 			break;
 		case KEY_DC: /* delete */
-			Torrent* t = overview->getSelectedTorrent();
-			if (t != NULL)
-				overseer->removeTorrent(t);
+			if (overview->getSelectedTorrent() != NULL)
+				overseer->removeTorrent(overview->getSelectedTorrent());
+			break;
+		case 'D':
+			if (overview->getSelectedTorrent() != NULL) {
+				FILE* f = fopen("dump.xml", "w");
+				if (f != NULL) {
+					overview->getSelectedTorrent()->debugDump(f);
+					fclose(f);
+				}
+			}
 			break;
 	}
 }
