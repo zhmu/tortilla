@@ -8,6 +8,9 @@
 
 using namespace std;
 
+#define LOCK(x)     pthread_mutex_lock(&mtx_ ## x);
+#define UNLOCK(x)   pthread_mutex_unlock(&mtx_ ## x);
+
 #define TRACER (overseer->getTracer())
 
 void*
@@ -21,7 +24,7 @@ Hasher::Hasher(Overseer* o)
 {
 	terminating = false; overseer = o;
 
-	pthread_mutex_init(&mtx, NULL);
+	pthread_mutex_init(&mtx_data, NULL);
 	pthread_cond_init(&cv, NULL);
 
 	pthread_create(&thread, NULL, hasher_thread, this);
@@ -35,7 +38,7 @@ Hasher::~Hasher()
 	pthread_join(thread, NULL);
 
 	pthread_cond_destroy(&cv);
-	pthread_mutex_destroy(&mtx);
+	pthread_mutex_destroy(&mtx_data);
 }
 
 void
@@ -43,9 +46,9 @@ Hasher::addPiece(Torrent* t, unsigned int num)
 {
 	assert (t->getPieceLength() % HASHER_CHUNK_SIZE == 0);
 
-	pthread_mutex_lock(&mtx);
+	LOCK(data);
 	hashQueue.push_back(HasherItem(t, num));
-	pthread_mutex_unlock(&mtx);
+	UNLOCK(data);
 
 	/* Get back to work, you slacker! */
 	pthread_cond_signal(&cv);
@@ -55,9 +58,9 @@ void
 Hasher::run() {
 	while(true) {
 		/* If needed, wait until some event arrives */
-		pthread_mutex_lock(&mtx);
+		LOCK(data);
 		if (!terminating && hashQueue.empty())
-			pthread_cond_wait(&cv, &mtx);
+			pthread_cond_wait(&cv, &mtx_data);
 		if (terminating)
 			break;
 
@@ -65,7 +68,7 @@ Hasher::run() {
 		while (!hashQueue.empty() && !terminating) {
 			HasherItem hi = hashQueue.front();
 			hashQueue.pop_front();
-			pthread_mutex_unlock(&mtx);
+			UNLOCK(data);
 			TRACE(HASHER, "hashing started: torrent=%p,piece=%u", hi.getTorrent(), hi.getPiece());
 
 			/*
@@ -96,12 +99,12 @@ Hasher::run() {
 			TRACE(HASHER, "hashing completed: torrent=%p,piece=%u,ok=%u", torrent, piecenum, ok ? 1 : 0);
 			torrent->callbackCompleteHashing(piecenum, ok);
 
-			pthread_mutex_lock(&mtx);
+			LOCK(data);
 		}
-		pthread_mutex_unlock(&mtx);
+		UNLOCK(data);
 	}
 
-	pthread_mutex_unlock(&mtx);
+	UNLOCK(data);
 }
 
 /* Helper for removeRequestsFromPeer */
@@ -119,9 +122,9 @@ private:
 void
 Hasher::cancelTorrent(Torrent* t)
 {
-	pthread_mutex_lock(&mtx);
+	LOCK(data);
 	hashQueue.remove_if(torrent_match(t));
-	pthread_mutex_unlock(&mtx);
+	UNLOCK(data);
 }
 
 /* vim:set ts=2 sw=2: */

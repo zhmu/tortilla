@@ -46,7 +46,7 @@ private:
 	unsigned int tracerMask;
 
 	//! \brief Mutex ensuring we don't write between writes
-	pthread_mutex_t mtx;
+	pthread_mutex_t mtx_file;
 };
 
 #define TRACE(t,format,args...) \

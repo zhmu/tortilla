@@ -89,9 +89,9 @@ void
 Overseer::addTorrent(Torrent* t)
 {
 	string info((const char*)t->getInfoHash(), TORRENT_HASH_LEN);
-	pthread_mutex_lock(&mtx_torrents);
+	LOCK(torrents);
 	torrents[info] = t;
-	pthread_mutex_unlock(&mtx_torrents);
+	UNLOCK(torrents);
 	t->start();
 }
 
@@ -100,13 +100,13 @@ Overseer::removeTorrent(Torrent* t)
 {
 	string info((const char*)t->getInfoHash(), TORRENT_HASH_LEN);
 
-	pthread_mutex_lock(&mtx_torrents);
+	LOCK(torrents);
 	map<string, Torrent*>::iterator it = torrents.find(info);
 	if (it != torrents.end()) {
 		delete it->second;
 		torrents.erase(it);
 	}
-	pthread_mutex_unlock(&mtx_torrents);
+	UNLOCK(torrents);
 }
 
 
@@ -148,13 +148,13 @@ Overseer::bandwidthThread()
 		sender->setAmountTransferrable(upload_rate);
 
 		/* Ask all torrents to update their bandwidth usage */
-		pthread_mutex_lock(&mtx_torrents);
+		LOCK(torrents);
 		for (map<string, Torrent*>::iterator it = torrents.begin();
 				 it != torrents.end(); it++) {
 			Torrent* t = it->second;
 			t->updateBandwidth();
 		}
-		pthread_mutex_unlock(&mtx_torrents);
+		UNLOCK(torrents);
 	}
 }
 
@@ -197,12 +197,12 @@ Overseer::getTorrents()
 {
 	vector<Torrent*> l;
 
-	pthread_mutex_lock(&mtx_torrents);
+	LOCK(torrents);
 	for (map<string, Torrent*>::iterator it = torrents.begin();
 			 it != torrents.end(); it++) {
 		l.push_back(it->second);
 	}
-	pthread_mutex_unlock(&mtx_torrents);
+	UNLOCK(torrents);
 
 	return l;
 }
@@ -220,15 +220,15 @@ Overseer::heartbeatThread()
 		 * Tell all torrents to heartbeat. The reason this is done in a seperate
 		 * thread is because the heartbeat may stall.
 		 */
-		pthread_mutex_lock(&mtx_torrents);
+		LOCK(torrents);
 		for (map<string, Torrent*>::iterator it = torrents.begin();
 				 it != torrents.end(); it++) {
 			Torrent* t = it->second;
-			pthread_mutex_unlock(&mtx_torrents);
+			UNLOCK(torrents); /* XXX why - unsafe! */
 			t->heartbeat();
-			pthread_mutex_lock(&mtx_torrents);
+			LOCK(torrents);
 		}
-		pthread_mutex_unlock(&mtx_torrents);
+		UNLOCK(torrents);
 	}
 }
 
@@ -269,12 +269,12 @@ Overseer::handleIncomingConnection(Connection* c)
 	}
 
 	/* Find the torrent that belongs to this info hash */
-	pthread_mutex_lock(&mtx_torrents);
+	LOCK(torrents);
 	Torrent* t = NULL;
 	map<string, Torrent*>::iterator it = torrents.find(info);
 	if (it != torrents.end())
 		t = it->second;
-	pthread_mutex_unlock(&mtx_torrents);
+	UNLOCK(torrents);
 	if (t == NULL) {
 		TRACE(TORRENT, "connection %p: peer requests unknown info hash, dropping", c);
 		delete c;
@@ -340,13 +340,13 @@ Overseer::cancelHashingTorrent(Torrent* t)
 void
 Overseer::getSendablePeers(list<int>& m)
 {
-	pthread_mutex_lock(&mtx_torrents);
+	LOCK(torrents);
 	for (map<string, Torrent*>::iterator it = torrents.begin();
 	     it != torrents.end(); it++) {
 		Torrent* t = it->second;
 		t->getSendablePeers(m);
 	}
-	pthread_mutex_unlock(&mtx_torrents);
+	UNLOCK(torrents);
 }
 
 void

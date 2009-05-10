@@ -2,16 +2,19 @@
 #include <time.h>
 #include "tracer.h"
 
+#define LOCK(x)     pthread_mutex_lock(&mtx_ ## x);
+#define UNLOCK(x)   pthread_mutex_unlock(&mtx_ ## x);
+
 Tracer::Tracer()
 {
-	pthread_mutex_init(&mtx, NULL);
+	pthread_mutex_init(&mtx_file, NULL);
 	tracefile = fopen("trace.log", "wt");
 	tracerMask = 0xffff;
 }
 
 Tracer::~Tracer()
 {
-	pthread_mutex_destroy(&mtx);
+	pthread_mutex_destroy(&mtx_file);
 	if (tracefile != NULL)
 		fclose(tracefile);
 }
@@ -32,12 +35,12 @@ Tracer::trace(unsigned int type, const char* msg, ...)
 	strftime(timestamp, sizeof(timestamp), "%b %d %T", &tm);
 	va_start(vl, msg);
 
-	pthread_mutex_lock(&mtx);
+	LOCK(file);
 	fprintf(tracefile, "%s ", timestamp);
 	vfprintf(tracefile, msg, vl);
 	fprintf(tracefile, "\n");
 	fflush(tracefile);
-	pthread_mutex_unlock(&mtx);
+	UNLOCK(file);
 
 	va_end(vl);
 }

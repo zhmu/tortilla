@@ -64,7 +64,7 @@ private:
 	pthread_t thread;
 
 	//! \brief Mutex protecting our queue
-	pthread_mutex_t mtx;
+	pthread_mutex_t mtx_data;
 
 	//! \brief Condition variable used to awaken the thread
 	pthread_cond_t cv;

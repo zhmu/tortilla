@@ -10,6 +10,8 @@
 
 using namespace std;
 
+#define LOCK(x)     pthread_mutex_lock(&mtx_ ## x);
+#define UNLOCK(x)   pthread_mutex_unlock(&mtx_ ## x);
 #define RLOCK(x)    pthread_rwlock_rdlock(&rwl_## x);
 #define WLOCK(x)    pthread_rwlock_wrlock(&rwl_## x);
 #define RWUNLOCK(x) pthread_rwlock_unlock(&rwl_## x);
@@ -81,9 +83,9 @@ Sender::process()
 
 		/* If there is nothing to wait for, rest and try again */
 		if (cur_pfd == 0) {
-			pthread_mutex_lock(&mtx_data);
+			LOCK(data);
 			pthread_cond_wait(&cv, &mtx_data);
-			pthread_mutex_unlock(&mtx_data);
+			UNLOCK(data);
 			continue;
 		}
 
@@ -99,9 +101,9 @@ Sender::process()
 			 * Update amount of bandwidth left; if this is zero, we stop as we can't
 			 * send anymore.
 			 */
-			pthread_mutex_lock(&mtx_data);
+			LOCK(data);
 			uint32_t cur_tx = tx_left;
-			pthread_mutex_unlock(&mtx_data);
+			UNLOCK(data);
 			if (overseer->getUploadRate() > 0 && cur_tx == 0)
 				break;
 
@@ -115,11 +117,11 @@ Sender::process()
 			if (p != NULL) {
 				ssize_t amount = p->processSenderQueue(overseer->getUploadRate() > 0 ? cur_tx : -1);
 
-				pthread_mutex_lock(&mtx_data);
+				LOCK(data);
 				if (tx_left > 0 && amount > 0)
 					tx_left -= amount;
 				cur_tx = tx_left;
-				pthread_mutex_unlock(&mtx_data);
+				UNLOCK(data);
 			}
 		}
 
@@ -139,9 +141,9 @@ Sender::process()
 void
 Sender::setAmountTransferrable(uint32_t amount)
 {
-	pthread_mutex_lock(&mtx_data);
+	LOCK(data);
 	tx_left = amount;
-	pthread_mutex_unlock(&mtx_data);
+	UNLOCK(data);
 }
 
 void
