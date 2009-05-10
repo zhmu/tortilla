@@ -3,14 +3,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "macros.h"
 #include "overseer.h"
 #include "peer.h"
 #include "tracer.h"
 
 using namespace std;
-
-#define LOCK(x)     pthread_mutex_lock(&mtx_ ## x);
-#define UNLOCK(x)   pthread_mutex_unlock(&mtx_ ## x);
 
 #define TRACER (tracer)
 #define OVERSEER_THREAD(x) \

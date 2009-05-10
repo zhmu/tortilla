@@ -1,16 +1,11 @@
 #include <assert.h>
 #include <string.h>
+#include "macros.h"
 #include "peer.h"
 #include "senderrequest.h"
 #include "torrent.h"
 
 using namespace std;
-
-#define WRITE_UINT32(ptr,offs,val) \
-	ptr[(offs) + 0] = (((val) >> 24) & 0xff); \
-	ptr[(offs) + 1] = (((val) >> 16) & 0xff); \
-	ptr[(offs) + 2] = (((val) >>  8) & 0xff); \
-	ptr[(offs) + 3] = (((val)      ) & 0xff);
 
 void
 SenderRequest::__init(uint32_t len)

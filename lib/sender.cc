@@ -2,6 +2,7 @@
 #include <poll.h>
 #include <stdlib.h>
 #include <string.h>
+#include "macros.h"
 #include "overseer.h"
 #include "sender.h"
 #include "senderrequest.h"
@@ -9,12 +10,6 @@
 #include "tracer.h"
 
 using namespace std;
-
-#define LOCK(x)     pthread_mutex_lock(&mtx_ ## x);
-#define UNLOCK(x)   pthread_mutex_unlock(&mtx_ ## x);
-#define RLOCK(x)    pthread_rwlock_rdlock(&rwl_## x);
-#define WLOCK(x)    pthread_rwlock_wrlock(&rwl_## x);
-#define RWUNLOCK(x) pthread_rwlock_unlock(&rwl_## x);
 
 #define TRACER (overseer->getTracer())
 

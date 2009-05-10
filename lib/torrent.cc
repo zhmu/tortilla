@@ -18,6 +18,7 @@
 #include "file.h"
 #include "hasher.h"
 #include "http.h"
+#include "macros.h"
 #include "overseer.h"
 #include "peer.h"
 #include "pendingpeer.h"
@@ -26,15 +27,6 @@
 #include "torrent.h"
 
 using namespace std;
-
-#define MIN(a,b) \
-	(((a) < (b)) ? (a) : (b))
-
-#define LOCK(x)     pthread_mutex_lock(&mtx_ ## x);
-#define UNLOCK(x)   pthread_mutex_unlock(&mtx_ ## x);
-#define RLOCK(x)    pthread_rwlock_rdlock(&rwl_## x);
-#define WLOCK(x)    pthread_rwlock_wrlock(&rwl_## x);
-#define RWUNLOCK(x) pthread_rwlock_unlock(&rwl_## x);
 
 #define TRACER (overseer->getTracer())
 

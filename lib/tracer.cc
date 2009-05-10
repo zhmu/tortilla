@@ -1,9 +1,7 @@
 #include <stdarg.h>
 #include <time.h>
+#include "macros.h"
 #include "tracer.h"
-
-#define LOCK(x)     pthread_mutex_lock(&mtx_ ## x);
-#define UNLOCK(x)   pthread_mutex_unlock(&mtx_ ## x);
 
 Tracer::Tracer()
 {

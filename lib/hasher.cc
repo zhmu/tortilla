@@ -2,14 +2,12 @@
 #include <string.h>
 #include <algorithm>
 #include "hasher.h"
+#include "macros.h"
 #include "overseer.h"
 #include "tracer.h"
 #include "sha1.h"
 
 using namespace std;
-
-#define LOCK(x)     pthread_mutex_lock(&mtx_ ## x);
-#define UNLOCK(x)   pthread_mutex_unlock(&mtx_ ## x);
 
 #define TRACER (overseer->getTracer())
 
