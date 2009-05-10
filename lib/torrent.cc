@@ -1479,9 +1479,11 @@ Torrent::debugDump(FILE* f)
 
 	LOCK(data);
 
-	PRINT("<?xml version=\"1.0\">");
+	PRINT("<?xml version=\"1.0\"?>");
 	PRINT("<torrent>");
 	PRINT(" <name>%s</name>", name.c_str());
+	if (endgame_mode)
+		PRINT(" <endgame/>");
 	PRINT(" <piecelen>%u</piecelen>", pieceLen);
 	PRINT(" <pieces amount=\"%u\">", numPieces);
 	for (unsigned int piece = 0; piece < numPieces; piece++) {
@@ -1492,17 +1494,20 @@ Torrent::debugDump(FILE* f)
 			PRINT("   <complete/>");
 		} else {
 			for (unsigned int j = 0; j < calculateChunksInPiece(piece); j++) {
-				PRINT("   <chunk num=\"%u\">", j);
-				if (haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j]) {
-					PRINT("    <complete/>");
-				} else {
-					for (PeerList::iterator it = haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j].begin();
-					     it != haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j].end(); it++) {
-						Peer* p = *it;
-						PRINT("    <requested fromPeer=\"%s\"/>", p->getID().c_str());
+				/* Only report individual chunks if there is something useful to report */
+				if (haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j] || !haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j].empty()) {
+					PRINT("   <chunk num=\"%u\">", j);
+					if (haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j]) {
+						PRINT("    <complete/>");
+					} else {
+						for (PeerList::iterator it = haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j].begin();
+								 it != haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j].end(); it++) {
+							Peer* p = *it;
+							PRINT("    <requested fromPeer=\"%s\"/>", p->getID().c_str());
+						}
 					}
+					PRINT("   </chunk>");
 				}
-				PRINT("   </chunk>");
 			}
 		}
 		PRINT("  </piece>");
