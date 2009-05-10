@@ -3,6 +3,12 @@
 #ifndef __FILE_H__
 #define __FILE_H__
 
+/*! \brief Implements a basic file suitable for reading/writing
+ *
+ *  Every file class internally uses two file descriptors; the reason is that
+ *  this allows read/writes at any time without having to worry about
+ *  properly locking the file descriptor.
+ */
 class File {
 public:
 	/*! \brief Construct a new file
@@ -34,6 +40,9 @@ public:
 	//! \brief Have we opened a preexisting file?
 	bool haveReopened() { return reopened; }
 
+	//! \brief Retrieve the file name
+	std::string getFilename() { return filename; }
+
 private:
 	//! \brief Length of the file
 	size_t length;
@@ -46,6 +55,9 @@ private:
 
 	//! \brief Have we re-opened a previous file?
 	bool reopened;
+
+	//! \brief Name of the file
+	std::string filename;
 };
 
 #endif /*  __FILE_H__ */

@@ -88,6 +88,22 @@ private:
 	std::string endpoint;
 };
 
+class FileInfo {
+public:
+	FileInfo(File* f, unsigned int piece, unsigned int num);
+
+	std::string getFilename() { return fname; }
+	size_t getLength() { return length; }
+
+	unsigned int getFirstPieceNum() { return firstPiece; }
+	unsigned int getNumPieces() { return numPieces; }
+
+private:
+	std::string fname;
+	size_t length;
+	unsigned int firstPiece, numPieces;
+};
+
 /*! \brief Implements a single, independant torrent
  *
  *  Since we have multiple threads at work here, variables are marked:
@@ -198,6 +214,9 @@ public:
 
 	/*! \brief Retrieve details on all peers */
 	std::vector<PeerInfo> getPeerDetails();
+
+	/*! \brief Retrieve details on all files */
+	std::vector<FileInfo> getFileDetails();
 
 	//! \brief Can we accept yet another peer?
 	bool canAcceptPeer();

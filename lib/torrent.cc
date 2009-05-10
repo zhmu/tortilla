@@ -1542,4 +1542,35 @@ Torrent::debugDump(FILE* f)
 #undef PRINT
 }
 
+FileInfo::FileInfo(File* f, unsigned int piece, unsigned int num)
+{
+	fname = f->getFilename();
+	length = f->getLength();
+	firstPiece = piece; numPieces = num;
+}
+
+std::vector<FileInfo>
+Torrent::getFileDetails()
+{
+	vector<FileInfo> fi;
+
+	unsigned int piece = 0;
+
+	RLOCK(files);
+	for (vector<File*>::iterator it = files.begin();
+	     it != files.end(); it++) {
+		File* f = *it;
+
+		unsigned int num = f->getLength() / pieceLen;
+		if (f->getLength() % pieceLen > 0)
+			num++;
+		fi.push_back(FileInfo(f, piece, num));
+
+		piece += f->getLength() / pieceLen;
+	}
+	RWUNLOCK(files);
+
+	return fi;
+}
+
 /* vim:set ts=2 sw=2: */

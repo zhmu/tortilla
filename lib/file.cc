@@ -10,6 +10,8 @@ using namespace std;
 
 File::File(std::string path, size_t len)
 {
+	filename = path;
+
 	/*
 	 * First of all, try to open the file; if this works, we know the
 	 * file pre-existed and we should refetch all of it (hopefully)
