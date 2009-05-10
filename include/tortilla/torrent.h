@@ -208,6 +208,9 @@ public:
 	//! \brief Clears the torrent's message log
 	void clearMessageLog();
 
+	//! \brief Are we currently in endgame mode?
+	inline bool isEndgameMode() { return endgame_mode; }
+
 protected:
 	/*! \brief Called by a peer if pieces are added to the map */
 	void callbackPiecesAdded(Peer* p, std::vector<unsigned int>& pieces);
@@ -378,8 +381,6 @@ private:
 	 *  with requests.
 	 */
 	std::vector<PeerList> /* [M=data] */ haveRequestedChunk;
-
-	std::vector<PeerList> /* [M=data] */ queuedPiece;
 
 	//! \brief Which pieces are being hashed?
 	std::vector<bool> /* [M=data] */ hashingPiece;
