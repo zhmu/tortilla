@@ -7,6 +7,7 @@
 #include "http.h"
 #include <QTimer>
 #include <QTableView>
+#include "qpeerstablemodel.h"
 
 namespace Ui
 {
@@ -24,7 +25,8 @@ public:
 private:
     Ui::MainWindowClass *ui;
     Overseer* overseer;
-    QTorrentsTableModel *model;
+    QTorrentsTableModel *torrentsModel;
+    QPeersTableModel *peersModel;
     QTimer* timer;
 private slots:
     void on_btnRefreshLog_clicked();

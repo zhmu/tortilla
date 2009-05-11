@@ -17,8 +17,10 @@ MainWindow::MainWindow(Overseer* o, QWidget *parent)
     ui->setupUi(this);
 
     /* Setup the tableview's model */
-    model = new QTorrentsTableModel(o, this);
-    ui->tableTorrents->setModel(model);
+    torrentsModel = new QTorrentsTableModel(o, this);
+    ui->tableTorrents->setModel(torrentsModel);
+    peersModel = new QPeersTableModel(0,this);
+    ui->tablePeers->setModel(peersModel);
 
     /* Setup the toolbar which looks like:
        add del sep start stop
@@ -51,7 +53,18 @@ void MainWindow::update()
 
 void MainWindow::updateModel()
 {
-    model->updateData();
+    torrentsModel->updateData();
+
+    /* XXX: info tab visible? */
+    if (true)
+    {
+        QModelIndexList indexes = ui->tableTorrents->selectionModel()->selectedRows(0);
+        /* Torrent selected? */
+        if (indexes.count() == 0)
+            peersModel->updateData(0);
+        else
+            peersModel->updateData(overseer->getTorrents().at((*indexes.begin()).row()));
+    }
 }
 
 void MainWindow::updateLog()

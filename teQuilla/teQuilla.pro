@@ -5,9 +5,11 @@ TARGET = teQuilla
 TEMPLATE = app
 SOURCES += main.cpp \
     mainwindow.cpp \
-    qtorrentstablemodel.cpp
+    qtorrentstablemodel.cpp \
+    qpeerstablemodel.cpp
 HEADERS += mainwindow.h \
-    qtorrentstablemodel.h
+    qtorrentstablemodel.h \
+    qpeerstablemodel.h
 FORMS += mainwindow.ui
 INCLUDEPATH += ../include/tortilla
 LIBS += ../lib/libtortilla.a \

@@ -38,7 +38,7 @@ QTorrentsTableModel::updateData()
         info->append(QString("%1 kB/s").arg((double)rx/1024,0,'n',2));
         info->append(QString("%1 kB").arg(downloaded/1024));
         info->append(QString("%1 kB").arg(uploaded/1024));
-        info->append(QString("%1 / %2 MB").arg((double)bytesleft/1024/1024,0,'n',2).arg((double)filesize/1024/1024,0,'n',2));
+        info->append(QString("%1 / %2 MB").arg((double)bytesleft/1024/1024,0,'n',2).arg((double)filesize/1024/1024,0,'n',2));      
         table_data.append(info);
     }
   //  endInsertRows();
@@ -50,13 +50,13 @@ QTorrentsTableModel::updateData()
 }
 
 int
-QTorrentsTableModel::rowCount(const QModelIndex & /* parent */) const
+QTorrentsTableModel::rowCount(const QModelIndex &parent ) const
 {
     return table_data.size();
 }
 
 int
-QTorrentsTableModel::columnCount(const QModelIndex & /* parent */) const
+QTorrentsTableModel::columnCount(const QModelIndex &parent) const
 {
     return COLUMNS;
 }

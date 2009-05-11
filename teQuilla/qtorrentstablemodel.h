@@ -20,7 +20,7 @@ public:
     void updateData();
     bool removeRows(int position, int rows, const QModelIndex &index = QModelIndex());
 private:
-    typedef QList<QString> torrent_info;
+    typedef QList<QVariant> torrent_info;
     QList<torrent_info*> table_data;
     Overseer* overseer;
 };
