@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading ui file 'mainwindow.ui'
 **
-** Created: Mon May 11 14:33:51 2009
+** Created: Tue May 12 09:47:09 2009
 **      by: Qt User Interface Compiler version 4.4.3
 **
 ** WARNING! All changes made in this file will be lost when recompiling ui file!
@@ -18,7 +18,6 @@
 #include <QtGui/QMainWindow>
 #include <QtGui/QMenuBar>
 #include <QtGui/QPushButton>
-#include <QtGui/QSplitter>
 #include <QtGui/QStatusBar>
 #include <QtGui/QTabWidget>
 #include <QtGui/QTableView>
@@ -33,11 +32,12 @@ class Ui_MainWindowClass
 {
 public:
     QWidget *centralWidget;
-    QVBoxLayout *verticalLayout;
-    QSplitter *splitter;
+    QVBoxLayout *verticalLayout_3;
     QTableView *tableTorrents;
     QTabWidget *tabWidget;
     QWidget *tabMain;
+    QHBoxLayout *horizontalLayout;
+    QVBoxLayout *verticalLayout;
     QTableView *tablePeers;
     QWidget *tab2;
     QHBoxLayout *horizontalLayout_3;
@@ -55,14 +55,11 @@ public:
     MainWindowClass->resize(571, 408);
     centralWidget = new QWidget(MainWindowClass);
     centralWidget->setObjectName(QString::fromUtf8("centralWidget"));
-    verticalLayout = new QVBoxLayout(centralWidget);
-    verticalLayout->setSpacing(6);
-    verticalLayout->setMargin(11);
-    verticalLayout->setObjectName(QString::fromUtf8("verticalLayout"));
-    splitter = new QSplitter(centralWidget);
-    splitter->setObjectName(QString::fromUtf8("splitter"));
-    splitter->setOrientation(Qt::Vertical);
-    tableTorrents = new QTableView(splitter);
+    verticalLayout_3 = new QVBoxLayout(centralWidget);
+    verticalLayout_3->setSpacing(6);
+    verticalLayout_3->setMargin(11);
+    verticalLayout_3->setObjectName(QString::fromUtf8("verticalLayout_3"));
+    tableTorrents = new QTableView(centralWidget);
     tableTorrents->setObjectName(QString::fromUtf8("tableTorrents"));
     QSizePolicy sizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     sizePolicy.setHorizontalStretch(0);
@@ -72,17 +69,31 @@ public:
     tableTorrents->setEditTriggers(QAbstractItemView::NoEditTriggers);
     tableTorrents->setSelectionMode(QAbstractItemView::SingleSelection);
     tableTorrents->setSelectionBehavior(QAbstractItemView::SelectRows);
-    splitter->addWidget(tableTorrents);
-    tabWidget = new QTabWidget(splitter);
+
+    verticalLayout_3->addWidget(tableTorrents);
+
+    tabWidget = new QTabWidget(centralWidget);
     tabWidget->setObjectName(QString::fromUtf8("tabWidget"));
     sizePolicy.setHeightForWidth(tabWidget->sizePolicy().hasHeightForWidth());
     tabWidget->setSizePolicy(sizePolicy);
     tabWidget->setMinimumSize(QSize(483, 200));
     tabMain = new QWidget();
     tabMain->setObjectName(QString::fromUtf8("tabMain"));
+    horizontalLayout = new QHBoxLayout(tabMain);
+    horizontalLayout->setSpacing(6);
+    horizontalLayout->setMargin(11);
+    horizontalLayout->setObjectName(QString::fromUtf8("horizontalLayout"));
+    verticalLayout = new QVBoxLayout();
+    verticalLayout->setSpacing(6);
+    verticalLayout->setObjectName(QString::fromUtf8("verticalLayout"));
     tablePeers = new QTableView(tabMain);
     tablePeers->setObjectName(QString::fromUtf8("tablePeers"));
-    tablePeers->setGeometry(QRect(10, 10, 441, 121));
+
+    verticalLayout->addWidget(tablePeers);
+
+
+    horizontalLayout->addLayout(verticalLayout);
+
     tabWidget->addTab(tabMain, QString());
     tab2 = new QWidget();
     tab2->setObjectName(QString::fromUtf8("tab2"));
@@ -112,14 +123,13 @@ public:
     horizontalLayout_3->addLayout(verticalLayout_2);
 
     tabWidget->addTab(tab2, QString());
-    splitter->addWidget(tabWidget);
 
-    verticalLayout->addWidget(splitter);
+    verticalLayout_3->addWidget(tabWidget);
 
     MainWindowClass->setCentralWidget(centralWidget);
     menuBar = new QMenuBar(MainWindowClass);
     menuBar->setObjectName(QString::fromUtf8("menuBar"));
-    menuBar->setGeometry(QRect(0, 0, 571, 23));
+    menuBar->setGeometry(QRect(0, 0, 571, 25));
     MainWindowClass->setMenuBar(menuBar);
     mainToolBar = new QToolBar(MainWindowClass);
     mainToolBar->setObjectName(QString::fromUtf8("mainToolBar"));

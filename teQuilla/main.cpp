@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
     tracer = new Tracer();
     Overseer* overseer = new Overseer(9999,tracer);
 
-    overseer->setUploadRate(10 * 1024);
+    overseer->setUploadRate(16 * 1024);
     overseer->start();
 
     MainWindow w(overseer);
