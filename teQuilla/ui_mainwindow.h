@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading ui file 'mainwindow.ui'
 **
-** Created: Tue May 12 09:47:09 2009
+** Created: Sat May 16 12:50:12 2009
 **      by: Qt User Interface Compiler version 4.4.3
 **
 ** WARNING! All changes made in this file will be lost when recompiling ui file!
@@ -14,10 +14,12 @@
 #include <QtGui/QAction>
 #include <QtGui/QApplication>
 #include <QtGui/QButtonGroup>
+#include <QtGui/QGraphicsView>
 #include <QtGui/QHBoxLayout>
 #include <QtGui/QMainWindow>
 #include <QtGui/QMenuBar>
 #include <QtGui/QPushButton>
+#include <QtGui/QSpacerItem>
 #include <QtGui/QStatusBar>
 #include <QtGui/QTabWidget>
 #include <QtGui/QTableView>
@@ -35,6 +37,11 @@ public:
     QVBoxLayout *verticalLayout_3;
     QTableView *tableTorrents;
     QTabWidget *tabWidget;
+    QWidget *tabTorrent;
+    QHBoxLayout *horizontalLayout_2;
+    QVBoxLayout *verticalLayout_4;
+    QGraphicsView *graphicsView;
+    QSpacerItem *verticalSpacer;
     QWidget *tabMain;
     QHBoxLayout *horizontalLayout;
     QVBoxLayout *verticalLayout;
@@ -77,6 +84,34 @@ public:
     sizePolicy.setHeightForWidth(tabWidget->sizePolicy().hasHeightForWidth());
     tabWidget->setSizePolicy(sizePolicy);
     tabWidget->setMinimumSize(QSize(483, 200));
+    tabTorrent = new QWidget();
+    tabTorrent->setObjectName(QString::fromUtf8("tabTorrent"));
+    horizontalLayout_2 = new QHBoxLayout(tabTorrent);
+    horizontalLayout_2->setSpacing(6);
+    horizontalLayout_2->setMargin(11);
+    horizontalLayout_2->setObjectName(QString::fromUtf8("horizontalLayout_2"));
+    verticalLayout_4 = new QVBoxLayout();
+    verticalLayout_4->setSpacing(6);
+    verticalLayout_4->setObjectName(QString::fromUtf8("verticalLayout_4"));
+    verticalLayout_4->setSizeConstraint(QLayout::SetDefaultConstraint);
+    verticalLayout_4->setContentsMargins(-1, -1, -1, 0);
+    graphicsView = new QGraphicsView(tabTorrent);
+    graphicsView->setObjectName(QString::fromUtf8("graphicsView"));
+    graphicsView->setMinimumSize(QSize(100, 40));
+    graphicsView->setMaximumSize(QSize(16777215, 40));
+    graphicsView->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    graphicsView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+    verticalLayout_4->addWidget(graphicsView);
+
+    verticalSpacer = new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding);
+
+    verticalLayout_4->addItem(verticalSpacer);
+
+
+    horizontalLayout_2->addLayout(verticalLayout_4);
+
+    tabWidget->addTab(tabTorrent, QString());
     tabMain = new QWidget();
     tabMain->setObjectName(QString::fromUtf8("tabMain"));
     horizontalLayout = new QHBoxLayout(tabMain);
@@ -129,7 +164,7 @@ public:
     MainWindowClass->setCentralWidget(centralWidget);
     menuBar = new QMenuBar(MainWindowClass);
     menuBar->setObjectName(QString::fromUtf8("menuBar"));
-    menuBar->setGeometry(QRect(0, 0, 571, 25));
+    menuBar->setGeometry(QRect(0, 0, 571, 23));
     MainWindowClass->setMenuBar(menuBar);
     mainToolBar = new QToolBar(MainWindowClass);
     mainToolBar->setObjectName(QString::fromUtf8("mainToolBar"));
@@ -148,8 +183,9 @@ public:
 
     void retranslateUi(QMainWindow *MainWindowClass)
     {
-    MainWindowClass->setWindowTitle(QApplication::translate("MainWindowClass", "MainWindow", 0, QApplication::UnicodeUTF8));
-    tabWidget->setTabText(tabWidget->indexOf(tabMain), QApplication::translate("MainWindowClass", "Info", 0, QApplication::UnicodeUTF8));
+    MainWindowClass->setWindowTitle(QApplication::translate("MainWindowClass", "teQuilla", 0, QApplication::UnicodeUTF8));
+    tabWidget->setTabText(tabWidget->indexOf(tabTorrent), QApplication::translate("MainWindowClass", "Torrent", 0, QApplication::UnicodeUTF8));
+    tabWidget->setTabText(tabWidget->indexOf(tabMain), QApplication::translate("MainWindowClass", "Peers", 0, QApplication::UnicodeUTF8));
     textBrowserLog->setHtml(QApplication::translate("MainWindowClass", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
 "p, li { white-space: pre-wrap; }\n"

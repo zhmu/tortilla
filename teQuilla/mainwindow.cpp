@@ -8,6 +8,8 @@
 #include <QScrollBar>
 #include <QFileDialog>
  #include <QErrorMessage>
+#include <math.h>
+#include <assert.h>
 
 using namespace std;
 
@@ -55,7 +57,7 @@ void MainWindow::updateModel()
 {
     torrentsModel->updateData();
 
-    /* XXX: info tab visible? */
+    /* XXX: peers tab visible? */
     if (true)
     {
         QModelIndexList indexes = ui->tableTorrents->selectionModel()->selectedRows(0);
@@ -155,10 +157,68 @@ void MainWindow::btnDelTorrent_clicked()
 
 void MainWindow::btnStart_clicked()
 {
-    overseer->start();
+    //overseer->start();
+    QModelIndexList indexes = ui->tableTorrents->selectionModel()->selectedRows(0);
+
+    if (indexes.count() == 0)
+        return;
+
+    Torrent* t = overseer->getTorrents().at((*indexes.begin()).row());
+    vector<PieceInfo> pieces = t->getPieceDetails();
+
+
+    QGraphicsScene* scene = new QGraphicsScene(this);
+    int h = ui->graphicsView->height()-5;
+    int w = ui->graphicsView->width()-5;
+    int c_pieces = pieces.size();
+    qreal piecewidth = (qreal)w/c_pieces;
+    qreal ratio = c_pieces/w;
+
+    for(int i=0; i<w; i++) {
+        bool b = true;
+        if (ratio>=1)    {
+            for(int j=0; j<ceil(ratio); j++)  {
+                int index = (i*ceil(ratio))+j;
+                PieceInfo pi = pieces[index];
+                assert(index<pieces.size());
+                b &= pi.getHave() && !pi.isHashing();
+            }
+        }
+        else    {
+            int lpp = ceil(1/ratio); //lines per piece
+            int index = i-(i%lpp);
+            PieceInfo pi = pieces[index];
+            assert(index<pieces.size());
+            b &= pi.getHave() && !pi.isHashing();
+        }
+        if (b)
+            scene->addLine(i,0,i,h,QPen(Qt::green));
+    }
+
+    // Link the scene to the view
+    ui->graphicsView->setScene(scene);
+    // Set the viewport to display the whole scene
+    ui->graphicsView->setSceneRect(0,0,w,h);
+    // Update the scene
+    ui->graphicsView->show();
 }
 
 void MainWindow::btnStop_clicked()
 {
-    overseer->stop();
+    QGraphicsScene* scene = new QGraphicsScene(this);
+    int w = ui->graphicsView->width()-5;
+    int h = ui->graphicsView->height();
+    ui->graphicsView->setSceneRect(0,0,w,h);
+    
+    scene->addLine(0,0,0,h,QPen(Qt::red));
+    scene->addLine(w,0,w,h,QPen(Qt::red));
+
+    // Link the scene to the view
+    ui->graphicsView->setScene(scene);
+    // Set the viewport to display the whole scene
+    ui->graphicsView->setSceneRect(0,0,w,h);
+    // Update the scene
+    ui->graphicsView->show();
+
+    //overseer->stop();
 }
