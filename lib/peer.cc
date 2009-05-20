@@ -883,10 +883,15 @@ Peer::cancelChunk(uint32_t piece, uint32_t offset, uint32_t len)
 {
 	/* XXX we assume the list will only contain unique requests */
 	LOCK(data);
+	unsigned int samechunkcount=0;
 	for (list<OutstandingChunkRequest>::iterator it = chunk_requests.begin();
 	     it != chunk_requests.end(); it++) {
 		if (!((*it) == OutstandingChunkRequest(piece, offset, len)))
 			continue;
+		else	{
+			samechunkcount++;
+			assert(samechunkcount<=1);
+		}
 
 		/* This chunk matches! Say goodbye */
 		chunk_requests.erase(it);

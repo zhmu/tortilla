@@ -56,7 +56,7 @@ void MainWindow::update()
 void MainWindow::updateModel()
 {
     torrentsModel->updateData();
-
+    btnStart_clicked();
     /* XXX: peers tab visible? */
     if (true)
     {
@@ -166,7 +166,6 @@ void MainWindow::btnStart_clicked()
     Torrent* t = overseer->getTorrents().at((*indexes.begin()).row());
     vector<PieceInfo> pieces = t->getPieceDetails();
 
-
     QGraphicsScene* scene = new QGraphicsScene(this);
     int h = ui->graphicsView->height()-5;
     int w = ui->graphicsView->width()-5;
@@ -178,18 +177,15 @@ void MainWindow::btnStart_clicked()
         bool b = true;
         if (ratio>=1)    {
             for(int j=0; j<ceil(ratio); j++)  {
-                int index = (i*ceil(ratio))+j;
+                int index = (i*floor(ratio))+j;
                 PieceInfo pi = pieces[index];
+                if (index>=pieces.size())   {
+                    cout << "At: " << i << " idx: " << index << endl;
+                    continue;
+                }
                 assert(index<pieces.size());
                 b &= pi.getHave() && !pi.isHashing();
             }
-        }
-        else    {
-            int lpp = ceil(1/ratio); //lines per piece
-            int index = i-(i%lpp);
-            PieceInfo pi = pieces[index];
-            assert(index<pieces.size());
-            b &= pi.getHave() && !pi.isHashing();
         }
         if (b)
             scene->addLine(i,0,i,h,QPen(Qt::green));

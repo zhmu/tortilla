@@ -706,9 +706,8 @@ void
 Torrent::callbackCompletePiece(Peer* p, unsigned int piece)
 {
 	assert(piece < numPieces);
-	assert(!havePiece[piece]);
-
 	LOCK(data);
+	assert(!havePiece[piece]);
 	havePiece[piece] = true;
 	UNLOCK(data);
 
