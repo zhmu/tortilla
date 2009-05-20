@@ -155,6 +155,19 @@ void MainWindow::btnDelTorrent_clicked()
     updateModel();
 }
 
+bool MainWindow::getPieceDone(qreal offset, qreal ratio, vector<PieceInfo>& pieces)
+{
+    bool b = true;
+    // XXX needs refinement over partly pieces ready (chunk-checking)
+    for(int i=0; i<(offset+ratio); i++) {
+        if (i>=pieces.size())
+            continue;
+        b &= pieces.at(i).getHave() && !pieces.at(i).isHashing();
+    }
+
+    return b;
+}
+
 void MainWindow::btnStart_clicked()
 {
     //overseer->start();
@@ -171,22 +184,13 @@ void MainWindow::btnStart_clicked()
     int w = ui->graphicsView->width()-5;
     int c_pieces = pieces.size();
     qreal piecewidth = (qreal)w/c_pieces;
-    qreal ratio = c_pieces/w;
+    qreal ratio = w/c_pieces;
+    qreal offset = 0.0;
 
     for(int i=0; i<w; i++) {
-        bool b = true;
-        if (ratio>=1)    {
-            for(int j=0; j<ceil(ratio); j++)  {
-                int index = (i*floor(ratio))+j;
-                PieceInfo pi = pieces[index];
-                if (index>=pieces.size())   {
-                    cout << "At: " << i << " idx: " << index << endl;
-                    continue;
-                }
-                assert(index<pieces.size());
-                b &= pi.getHave() && !pi.isHashing();
-            }
-        }
+        bool b = getPieceDone(offset,ratio,pieces);
+        offset+=ratio;
+
         if (b)
             scene->addLine(i,0,i,h,QPen(Qt::green));
     }

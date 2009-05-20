@@ -23,6 +23,7 @@ public:
     ~MainWindow();
 
 private:
+    bool getPieceDone(qreal offset, qreal ratio, std::vector<PieceInfo>& pieces);
     Ui::MainWindowClass *ui;
     Overseer* overseer;
     QTorrentsTableModel *torrentsModel;
