@@ -677,25 +677,25 @@ Torrent::getMissingChunk(Peer* p, unsigned int piece)
 {
 	assert (piece < numPieces);
 
-	unsigned int numChunks;
-	if (piece == numPieces - 1) {
-		numChunks = (total_size % pieceLen) / TORRENT_CHUNK_SIZE;
-	} else {
-		numChunks = pieceLen / TORRENT_CHUNK_SIZE;
-	}
-
 	LOCK(data);
 	for (unsigned int j = 0; j < calculateChunksInPiece(piece); j++) {
-		if (!haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j])
-			if (!endgame_mode && haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j].size() > 0)
-				continue;
-			if (find(haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j].begin(),
-			         haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j].end(),
-			         p) == haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j].end()) {
-			  haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j].push_back(p);
-				UNLOCK(data);
-				return j;
-			}
+		unsigned int chunkIndex = (piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j;
+		/* If we already have this chunk, skip over it */
+		if (haveChunk[chunkIndex])
+			continue;
+
+		/* If we aren't doing endgame mode, don't request the chunk from >1 peer */
+		if (!endgame_mode && haveRequestedChunk[chunkIndex].size() > 0)
+			continue;
+
+		/* Only request the chunk if we haven't already done so from this peer */
+		if (find(haveRequestedChunk[chunkIndex].begin(),
+		         haveRequestedChunk[chunkIndex].end(),
+		         p) == haveRequestedChunk[chunkIndex].end()) {
+		  haveRequestedChunk[chunkIndex].push_back(p);
+			UNLOCK(data);
+			return j;
+		}
 	}
 	UNLOCK(data);
 
