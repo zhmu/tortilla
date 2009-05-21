@@ -751,6 +751,12 @@ Torrent::callbackCompleteChunk(Peer* p, unsigned int piece, uint32_t offset, con
 		schedulePeerRequests(p);
 		return;
 	}
+
+	/*
+	 * Immediately mark the chunk as completed; this prevents anyone else from
+	 * scheduling it.
+	 */
+	haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + offset / TORRENT_CHUNK_SIZE] = true;
 	UNLOCK(data);
 
 	writeChunk(piece, offset, data, len);
@@ -769,7 +775,6 @@ Torrent::callbackCompleteChunk(Peer* p, unsigned int piece, uint32_t offset, con
 	RWUNLOCK(peers);
 
 	LOCK(data);
-	haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + offset / TORRENT_CHUNK_SIZE] = true;
 	downloaded += len;
 
 	/* See if we have all chunks; if so, the piece is in */
