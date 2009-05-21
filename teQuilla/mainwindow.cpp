@@ -155,13 +155,11 @@ void MainWindow::btnDelTorrent_clicked()
     updateModel();
 }
 
-bool MainWindow::getPieceDone(qreal offset, qreal ratio, vector<PieceInfo>& pieces)
+bool MainWindow::getPieceDone(qreal offset, qreal size, vector<PieceInfo>& pieces)
 {
     bool b = true;
     // XXX needs refinement over partly pieces ready (chunk-checking)
-    for(int i=0; i<(offset+ratio); i++) {
-        if (i>=pieces.size())
-            continue;
+    for(int i=0; i<(offset+size) && i<pieces.size(); i++) {
         b &= pieces.at(i).getHave() && !pieces.at(i).isHashing();
     }
 
@@ -183,17 +181,22 @@ void MainWindow::btnStart_clicked()
     int h = ui->graphicsView->height()-5;
     int w = ui->graphicsView->width()-5;
     int c_pieces = pieces.size();
-    qreal piecewidth = (qreal)w/c_pieces;
-    qreal ratio = w/c_pieces;
+    qreal ratio = (qreal)c_pieces/w;
     qreal offset = 0.0;
 
-    for(int i=0; i<w; i++) {
-        bool b = getPieceDone(offset,ratio,pieces);
-        offset+=ratio;
+    cout << "Pieces: " << c_pieces
+         << " width: " << w
+         << " ratio: " << ratio << endl;
+
+   for(int i=0; i<w; i++)   {
+       bool b = getPieceDone(offset,ratio,pieces);
+       cout << c_pieces << ", " << offset << ", " << ratio << endl;
+       cout << w << ", now at " << i << endl;
+       offset+=ratio;
 
         if (b)
             scene->addLine(i,0,i,h,QPen(Qt::green));
-    }
+   }
 
     // Link the scene to the view
     ui->graphicsView->setScene(scene);
@@ -205,20 +208,5 @@ void MainWindow::btnStart_clicked()
 
 void MainWindow::btnStop_clicked()
 {
-    QGraphicsScene* scene = new QGraphicsScene(this);
-    int w = ui->graphicsView->width()-5;
-    int h = ui->graphicsView->height();
-    ui->graphicsView->setSceneRect(0,0,w,h);
-    
-    scene->addLine(0,0,0,h,QPen(Qt::red));
-    scene->addLine(w,0,w,h,QPen(Qt::red));
-
-    // Link the scene to the view
-    ui->graphicsView->setScene(scene);
-    // Set the viewport to display the whole scene
-    ui->graphicsView->setSceneRect(0,0,w,h);
-    // Update the scene
-    ui->graphicsView->show();
-
-    //overseer->stop();
+    overseer->stop();
 }
