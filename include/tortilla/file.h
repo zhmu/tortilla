@@ -1,3 +1,4 @@
+#include <pthread.h>
 #include <string>
 
 #ifndef __FILE_H__
@@ -44,14 +45,14 @@ public:
 	std::string getFilename() { return filename; }
 
 private:
+	//! \brief Mutex protecting the file descriptor
+	pthread_mutex_t mtx_file;
+
 	//! \brief Length of the file
 	size_t length;
 
-	//! \brief File descriptor used for writing
-	int writeFD;
-
-	//! \brief File descriptor used for reading
-	int readFD;
+	//! \brief File descriptor
+	int fd;
 
 	//! \brief Have we re-opened a previous file?
 	bool reopened;
