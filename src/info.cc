@@ -175,11 +175,9 @@ Info::drawFiles(Torrent* t, unsigned int& y)
 				completed++;
 		}
 
-		char line[1024 /* XXX */];
-		snprintf(line, sizeof(line), "%u%% - %s",
+		printxyf(0, y, "%u%% - %s",
 		 (int)(((float)completed / (float)fi.getNumPieces()) * 100.f),
 		 fi.getFilename().c_str());
-		printxyf(0, y, line);
 		y++;
 	}
 }
