@@ -169,7 +169,7 @@ Info::drawFiles(Torrent* t, unsigned int& y)
 		FileInfo& fi = files[i];
 	
 		unsigned int completed = 0;
-		for (unsigned int p = 0; p <= fi.getNumPieces(); p++) {
+		for (unsigned int p = 0; p < fi.getNumPieces(); p++) {
 			if ( pieces[fi.getFirstPieceNum() + p].getHave() &&
 			    !pieces[fi.getFirstPieceNum() + p].isHashing())
 				completed++;
