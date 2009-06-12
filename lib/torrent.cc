@@ -1511,6 +1511,17 @@ Torrent::debugDump(FILE* f)
 	RWUNLOCK(peers);
 	PRINT(" </peers>");
 
+	PRINT(" <files>");
+	std::vector<FileInfo> fi = getFileDetails();
+	for (std::vector<FileInfo>::iterator it = fi.begin();
+	     it != fi.end(); it++) {
+
+		PRINT("  <file name=\"%s\" length=\"%lu\" firstPiece=\"%u\" numPieces=\"%u\"/>",
+		 (*it).getFilename().c_str(), (*it).getLength(), (*it).getFirstPieceNum(),
+		 (*it).getNumPieces());
+	}
+	PRINT(" </files>");
+
 	PRINT("</torrent>");
 
 	UNLOCK(data);
