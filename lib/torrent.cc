@@ -759,7 +759,12 @@ Torrent::callbackCompleteChunk(Peer* p, unsigned int piece, uint32_t offset, con
 	haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + offset / TORRENT_CHUNK_SIZE] = true;
 	UNLOCK(data);
 
-	writeChunk(piece, offset, data, len);
+	if (!writeChunk(piece, offset, data, len)) {
+		TRACE(TORRENT, "unable to write chunk, piece=%lu, offset=%lu, len=%lu", piece, offset, len);
+		LOCK(data);
+		haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + offset / TORRENT_CHUNK_SIZE] = false;
+		UNLOCK(data);
+	}
 
 	/*
 	 * If anyone else is downloading this chunk, cancel it. Same goes for any
@@ -876,24 +881,26 @@ Torrent::callbackCompleteHashing(unsigned int piece, bool result)
 }
 
 bool
-Torrent::writeChunk(unsigned int piece, unsigned int offset, const uint8_t* buf, size_t length)
+Torrent::handleChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size_t length, bool writing)
 {
 	assert(piece < numPieces);
 	assert(length <= TORRENT_CHUNK_SIZE);
 
 	/* Calculate the absolute position */
-	size_t absolutePos = piece * pieceLen + offset;
+	size_t absolutePos = (size_t)piece * (size_t)pieceLen + offset;
 
 	/* Locate the first file matching this position */
-	unsigned int fileIndex;
+	unsigned int idx = 0;
 	File* f = NULL;
 	RLOCK(files);
-	for (fileIndex = 0; fileIndex < files.size(); fileIndex++)  {
-		if (absolutePos < files[fileIndex]->getLength()) {
-			f = files[fileIndex];
+	while (idx < files.size()) {
+		if (absolutePos < files[idx]->getLength()) {
+			/* At least a part of the offset to handle resized in this file */
+			f = files[idx];
 			break;
 		}
-		absolutePos -= files[fileIndex]->getLength();
+		absolutePos -= files[idx]->getLength();
+		idx++;
 	}
 	if (f == NULL) {
 		/*
@@ -901,6 +908,7 @@ Torrent::writeChunk(unsigned int piece, unsigned int offset, const uint8_t* buf,
 		 * torrent is terminating.
 		 */
 		RWUNLOCK(files);
+		assert(terminating);
 		return false;
 	}
 
@@ -909,73 +917,37 @@ Torrent::writeChunk(unsigned int piece, unsigned int offset, const uint8_t* buf,
 	 * stuff until we run out of stuff to write.
 	 */
 	while (length > 0) {
-		uint32_t writelen = MIN(f->getLength() - absolutePos, length);
+		uint32_t partlen = MIN(f->getLength() - absolutePos, length);
+    
+		if (writing)
+			f->write(absolutePos, buf, partlen);
+		else
+			f->read(absolutePos, buf, partlen);
 
-		f->write(absolutePos, buf, writelen);
-
-		if (writelen != length) {
-			/* Couldn't write the entire chunk; go use the next file */
-			fileIndex++; assert(fileIndex < files.size());
-			f = files[fileIndex];
+		if (partlen != length) {
+			/* This operation spans multiple files, so use the next one */
+			idx++; assert(idx < files.size());
+			f = files[idx];
 			absolutePos = 0;
 		} else {
-			absolutePos += writelen;
+			absolutePos += partlen;
 		}
-		buf += writelen; length -= writelen;
+		buf += partlen; length -= partlen;
 	}
 	RWUNLOCK(files);
 	return true;
 }
 
 bool
+Torrent::writeChunk(unsigned int piece, unsigned int offset, const uint8_t* buf, size_t length)
+{
+	return handleChunk(piece, offset, (uint8_t*)buf, length, true);
+}
+
+bool
 Torrent::readChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size_t length)
 {
-	assert(piece < numPieces);
-
-	/* Calculate the absolute position */
-	size_t absolutePos = piece * pieceLen + offset;
-
-	/* Locate the first file matching this position */
-	unsigned int fileIndex;
-	File* f = NULL;
-	RLOCK(files);
-	for (fileIndex = 0; fileIndex < files.size(); fileIndex++)  {
-		if (absolutePos < files[fileIndex]->getLength()) {
-			f = files[fileIndex];
-			break;
-		}
-		absolutePos -= files[fileIndex]->getLength();
-	}
-	if (f == NULL) {
-		/*
-		 * Invalid offset was presented - this should only happen if the
-		 * torrent is terminating, since the file objects are being removed.
-		 */
-		RWUNLOCK(files);
-		return false;
-	}
-
-	/*
-	 * Chunks are allowed to span between multiple files, so we keep on reading
-	 * stuff until we run out of stuff to read.
-	 */
-	while (length > 0) {
-		uint32_t readlen = MIN(f->getLength() - absolutePos, length);
-
-		f->read(absolutePos, buf, readlen);
-
-		if (readlen != length) {
-			/* Couldn't read the entire chunk; go use the next file */
-			fileIndex++; assert(fileIndex < files.size());
-			f = files[fileIndex];
-			absolutePos = 0;
-		} else {
-			absolutePos += readlen;
-		}
-		buf += readlen; length -= readlen;
-	}
-	RWUNLOCK(files);
-	return true;
+	return handleChunk(piece, offset, (uint8_t*)buf, length, false);
 }
 
 const uint8_t*

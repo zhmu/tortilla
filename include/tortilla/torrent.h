@@ -324,6 +324,16 @@ private:
 	 */
 	Metadata* contactTracker(std::string event);
 
+	/*! \brief Handle a chunk from or to our output files
+	 *  \param piece Piece number to write
+	 *  \param offset Byte offset within piece
+	 *  \param buf Buffer containing data to write
+	 *  \param length Length of the chunk
+	 *  \param writing Write the chunk if true, otherwise read
+	 *  \returns true on success
+	 */
+	bool handleChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size_t length, bool writing);
+
 	/*! \brief Writes a chunk to our output files
 	 *  \param piece Piece number to write
 	 *  \param offset Byte offset within piece
