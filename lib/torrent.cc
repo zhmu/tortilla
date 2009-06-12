@@ -1541,21 +1541,45 @@ Torrent::getFileDetails()
 {
 	vector<FileInfo> fi;
 
-	unsigned int piece = 0;
+	/*
+	 * We construct the fileinfo vector by wading through the available files,
+	 * and calculating the begin piece and number of pieces for each file; this
+	 * is much easier than attempting to figure out the pieces corresponding to
+	 * a given file - and we want to handle them all anyway.
+	 */
+	off_t offset = 0;
+	unsigned int piece, num; /* outside for loop for assertion below */
 
 	RLOCK(files);
 	for (vector<File*>::iterator it = files.begin();
 	     it != files.end(); it++) {
 		File* f = *it;
 
-		unsigned int num = f->getLength() / pieceLen;
+		piece = offset / pieceLen;
+		num = f->getLength() / pieceLen;
+		/*
+		 * Things are getting tricky now: we know the start position of the piece,
+		 * and the file length. However, the number of pieces may be as high as 2
+		 * even if the file is only 2 bytes, since:
+		 *
+		 *   (i) byte 1 is the final byte of
+		 *  (ii) byte 2 is the first byte of file 2
+		 *
+		 * The logic below deals with these situations.
+		 */
+		if (((offset % pieceLen) + f->getLength()) > pieceLen)
+			num++; /* (i) */
 		if (f->getLength() % pieceLen > 0)
-			num++;
+			num++; /* (ii) */
 		fi.push_back(FileInfo(f, piece, num));
 
-		piece += f->getLength() / pieceLen;
+		offset += f->getLength();
 	}
 	RWUNLOCK(files);
+
+	/* safety guards */
+	assert((uint64_t)offset == total_size);
+	assert(piece + num == numPieces);
 
 	return fi;
 }
