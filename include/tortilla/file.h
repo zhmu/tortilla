@@ -4,12 +4,7 @@
 #ifndef __FILE_H__
 #define __FILE_H__
 
-/*! \brief Implements a basic file suitable for reading/writing
- *
- *  Every file class internally uses two file descriptors; the reason is that
- *  this allows read/writes at any time without having to worry about
- *  properly locking the file descriptor.
- */
+//! \brief Implements a basic file suitable for reading/writing
 class File {
 public:
 	/*! \brief Construct a new file
@@ -45,9 +40,6 @@ public:
 	std::string getFilename() { return filename; }
 
 private:
-	//! \brief Mutex protecting the file descriptor
-	pthread_mutex_t mtx_file;
-
 	//! \brief Length of the file
 	size_t length;
 

@@ -11,8 +11,7 @@ using namespace std;
 
 File::File(std::string path, size_t len)
 {
-	pthread_mutex_init(&mtx_file, NULL);
-	filename = path;
+	filename = path; length = len;
 
 	/*
 	 * First of all, try to open the file; if this works, we know the
@@ -32,7 +31,6 @@ File::File(std::string path, size_t len)
 		size_t filesize = lseek(fd, 0, SEEK_END);
 		if (filesize == len) {
 			/* all done!*/
-			length = len;
 			return;
 		}
 
@@ -53,7 +51,6 @@ File::File(std::string path, size_t len)
 	lseek(fd, len - 1, SEEK_SET);
 	if (!::write(fd, &b, 1))
 		throw FileException("unable to expand file");
-	length = len;
 }
 	
 void
@@ -61,17 +58,12 @@ File::write(size_t offset, const void* buf, size_t len)
 {
 	assert(offset + len <= length);
 
-	LOCK(file);
-	lseek(fd, offset, SEEK_SET);
 	/*
 	 * Don't consider short writes a failure if the call was interrupted;
 	 * this happens if the user hits ^C to exit.
 	 */
-	if ((size_t)::write(fd, buf, len) != len && errno != EINTR) {
-		UNLOCK(file);
+	if ((size_t)pwrite(fd, buf, len, offset) != len && errno != EINTR)
 		throw FileException("short write");
-	}
-	UNLOCK(file);
 }
 
 void
@@ -79,23 +71,17 @@ File::read(size_t offset, void* buf, size_t len)
 {
 	assert(offset + len <= length);
 
-	LOCK(file);
-	lseek(fd, offset, SEEK_SET);
 	/*
 	 * Don't consider short writes a failure if the call was interrupted;
 	 * this happens if the user hits ^C to exit.
 	 */
-	if ((size_t)::read(fd, buf, len) != len && errno != EINTR) {
-		UNLOCK(file);
+	if ((size_t)pread(fd, buf, len, offset) != len && errno != EINTR)
 		throw FileException("short read");
-	}
-	UNLOCK(file);
 }
 
 File::~File()
 {
 	close(fd);
-	pthread_mutex_destroy(&mtx_file);
 }
 
 /* vim:set ts=2 sw=2: */
