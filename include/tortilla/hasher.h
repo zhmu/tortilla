@@ -6,7 +6,7 @@
 #define __HASHER_H__
 
 //! \brief Number of bytes used to calculate hash
-#define HASHER_CHUNK_SIZE 8192
+#define HASHER_CHUNK_SIZE 16384
 
 class HasherItem {
 public:

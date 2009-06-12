@@ -155,7 +155,9 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 					fullPath += "/" + ms->getString();
 				}
 
-				files.push_back(new File(fullPath, miLength->getInteger()));
+				File* f = new File(fullPath, miLength->getInteger());
+				files.push_back(f);
+				overseer->addFile(f);
 				total_size += miLength->getInteger();
 			}
 	} else {
@@ -164,7 +166,9 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 		if (miLength == NULL)
 			throw TorrentException("info dictionary doesn't contain a length");
 
-		files.push_back(new File(msName->getString(), miLength->getInteger()));
+		File* f = new File(msName->getString(), miLength->getInteger());
+		files.push_back(f);
+		overseer->addFile(f);
 		total_size += miLength->getInteger();
 	}
 
@@ -268,7 +272,7 @@ Torrent::~Torrent()
 	if (haveThread)
 		stop();
 
-	overseer->cancelHashingTorrent(this);
+	overseer->cleanupTorrent(this);
 
 	/*
 	 * Inform the tracker that we are going away. We care not
@@ -305,6 +309,7 @@ Torrent::~Torrent()
 			break;
 		File* f = *it;
 		files.erase(it);
+		overseer->removeFile(f);
 		delete f;
 	}
 	RWUNLOCK(files);
@@ -920,9 +925,9 @@ Torrent::handleChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size
 		uint32_t partlen = MIN(f->getLength() - absolutePos, length);
     
 		if (writing)
-			f->write(absolutePos, buf, partlen);
+			overseer->writeFile(f, absolutePos, buf, partlen);
 		else
-			f->read(absolutePos, buf, partlen);
+			overseer->readFile(f, absolutePos, buf, partlen);
 
 		if (partlen != length) {
 			/* This operation spans multiple files, so use the next one */

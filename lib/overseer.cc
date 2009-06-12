@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "filemanager.h"
 #include "macros.h"
 #include "overseer.h"
 #include "peer.h"
@@ -45,6 +46,7 @@ Overseer::Overseer(unsigned int portnum, Tracer* tr)
 
 	hasher = new Hasher(this);
 	sender = new Sender(this);
+	filemanager = new FileManager(this, 64 /* XXX make me configurable! */);
 	incoming = new Connection(port);
 
 	/* Block SIGPIPE - the appropriate thread will notice this anyway */
@@ -79,6 +81,7 @@ Overseer::~Overseer()
 	delete incoming;
 	delete hasher;
 	delete sender;
+	delete filemanager;
 
 	pthread_mutex_destroy(&mtx_torrents);
 }
@@ -330,7 +333,7 @@ Overseer::queueHashPiece(Torrent* t, uint32_t piece)
 }
 
 void
-Overseer::cancelHashingTorrent(Torrent* t)
+Overseer::cleanupTorrent(Torrent* t)
 {
 	hasher->cancelTorrent(t);
 }
@@ -382,5 +385,30 @@ Overseer::findPeerByFDAndLock(int fd)
 	UNLOCK(data);
 	return p;
 }
+
+void
+Overseer::writeFile(File* f, size_t offset, const void* buf, size_t len)
+{
+	filemanager->writeFile(f, offset, buf, len);
+}
+
+void
+Overseer::readFile(File* f, size_t offset, void* buf, size_t len)
+{
+	filemanager->readFile(f, offset, buf, len);
+}
+
+void
+Overseer::addFile(File* f)
+{
+	filemanager->addFile(f);
+}
+
+void
+Overseer::removeFile(File* f)
+{
+	filemanager->removeFile(f);
+}
+
 
 /* vim:set ts=2 sw=2: */

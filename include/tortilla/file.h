@@ -1,11 +1,15 @@
 #include <pthread.h>
 #include <string>
+#include <time.h>
 
 #ifndef __FILE_H__
 #define __FILE_H__
 
+class FileManager;
+
 //! \brief Implements a basic file suitable for reading/writing
 class File {
+friend class FileManager;
 public:
 	/*! \brief Construct a new file
 	 *  \param path Path to use
@@ -39,6 +43,28 @@ public:
 	//! \brief Retrieve the file name
 	std::string getFilename() { return filename; }
 
+	//! \brief Retrieves last interaction timestamp
+	time_t getLastInteraction() { return lastInteraction; }
+
+	//! \brief Compares two files based on last interaction timestamp
+	static bool compareByLastInteraction(File* a, File* b);
+
+protected:
+	//! \brief Open the file
+	void open();
+
+	//! \brief Close the file
+	void close();
+
+	//! \brief Is the file opened?
+	bool isOpened();
+
+	//! \brief Locks the file object
+	void lock();
+
+	//! \brief Unlocks the file object
+	void unlock();
+
 private:
 	//! \brief Length of the file
 	size_t length;
@@ -51,6 +77,12 @@ private:
 
 	//! \brief Name of the file
 	std::string filename;
+
+	//! \brief Timestamp of the last interaction
+	time_t lastInteraction;
+
+	//! \brief Mutex used to guard the file from open/close-ing
+	pthread_mutex_t mtx_file;
 };
 
 #endif /*  __FILE_H__ */

@@ -84,14 +84,15 @@ Hasher::run() {
 			}
 
 			HashSHA1 h;
-			for (unsigned int n = 0; /* true */; n++) {
+			unsigned int n = 0;
+			while (todo > 0) {
 				uint8_t chunk[HASHER_CHUNK_SIZE];
-				uint32_t chunk_len = todo < HASHER_CHUNK_SIZE ? todo : HASHER_CHUNK_SIZE;
-				if (chunk_len == 0)
-					break;
-				torrent->readChunk(piecenum, n * HASHER_CHUNK_SIZE, chunk, chunk_len);
+				uint32_t chunk_len = MIN(todo, HASHER_CHUNK_SIZE);
+				if (!torrent->readChunk(piecenum, n * HASHER_CHUNK_SIZE, chunk, chunk_len)) {
+					TRACE(HASHER, "torrent=%p,piece=%u,offset=%u,length=%u: read error", torrent, piecenum, n * HASHER_CHUNK_SIZE, chunk_len);
+				}
 				h.process(chunk, chunk_len);
-				todo -= chunk_len;
+				todo -= chunk_len; n++;
 			}
 			bool ok = memcmp(h.getHash(), torrent->getPieceHash(piecenum), TORRENT_HASH_LEN) == 0;
 			TRACE(HASHER, "hashing completed: torrent=%p,piece=%u,ok=%u", torrent, piecenum, ok ? 1 : 0);

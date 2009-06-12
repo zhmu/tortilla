@@ -11,26 +11,24 @@ using namespace std;
 
 File::File(std::string path, size_t len)
 {
-	filename = path; length = len;
+	filename = path; length = len; reopened = false; lastInteraction = time(NULL);
+	pthread_mutex_init(&mtx_file, NULL);
 
 	/*
 	 * First of all, try to open the file; if this works, we know the
 	 * file pre-existed and we should refetch all of it (hopefully)
 	 */
-	if ((fd = open(path.c_str(), O_RDWR)) < 0) {
+	if ((fd = ::open(path.c_str(), O_RDWR)) < 0) {
 		/* This failed; attempt to create the file */
-		if ((fd = open(path.c_str(), O_CREAT | O_TRUNC | O_RDWR, 0644)) < 0)
+		if ((fd = ::open(path.c_str(), O_CREAT | O_TRUNC | O_RDWR, 0644)) < 0)
 			throw FileException("unable to create '" + path + "'");
-		reopened = false;
 	} else {
-		reopened = true;
-	}
-
-	if (reopened) {
 		/* We reopened the file, but maybe the length is invalid */
 		size_t filesize = lseek(fd, 0, SEEK_END);
 		if (filesize == len) {
-			/* all done!*/
+			/* All done - just don't forget to close the file as outlined below */
+			reopened = true;
+			close();
 			return;
 		}
 
@@ -40,7 +38,6 @@ File::File(std::string path, size_t len)
 		 * the file to what we want below.
 		 */
 		ftruncate(fd, 0);
-		reopened = false;
 	}
 
 	/*
@@ -51,17 +48,26 @@ File::File(std::string path, size_t len)
 	lseek(fd, len - 1, SEEK_SET);
 	if (!::write(fd, &b, 1))
 		throw FileException("unable to expand file");
+
+	/*
+	 * Close the file - it will be reopened as needed, and this ensures we could
+	 * access the file once the object was created.
+	 */
+	close();
 }
 	
 void
 File::write(size_t offset, const void* buf, size_t len)
 {
 	assert(offset + len <= length);
+	assert(isOpened());
+
 
 	/*
 	 * Don't consider short writes a failure if the call was interrupted;
 	 * this happens if the user hits ^C to exit.
 	 */
+	lastInteraction = time(NULL);
 	if ((size_t)pwrite(fd, buf, len, offset) != len && errno != EINTR)
 		throw FileException("short write");
 }
@@ -70,18 +76,73 @@ void
 File::read(size_t offset, void* buf, size_t len)
 {
 	assert(offset + len <= length);
+	assert(isOpened());
 
 	/*
 	 * Don't consider short writes a failure if the call was interrupted;
 	 * this happens if the user hits ^C to exit.
 	 */
+	lastInteraction = time(NULL);
 	if ((size_t)pread(fd, buf, len, offset) != len && errno != EINTR)
 		throw FileException("short read");
 }
 
 File::~File()
 {
-	close(fd);
+	/* Lock the file before closing it; this ensures we wait until consumers are done */
+	LOCK(file);
+	close();
+	
+	pthread_mutex_destroy(&mtx_file);
+}
+
+bool
+File::isOpened()
+{
+	return (fd >= 0);
+}
+
+void
+File::open()
+{
+	if (fd >= 0)
+		return;
+
+	if ((fd = ::open(filename.c_str(), O_RDWR)) < 0) {
+		/*
+		 * If we couldn't re-open the file, that's weird. We could do it in the
+	 	 * constructor...
+		 */
+		throw FileException("unable to re-open '" + filename + "'");
+	}
+}
+
+void
+File::close()
+{
+	if (fd < 0)
+		return;
+
+	::close(fd);
+	fd = -1;
+}
+
+void
+File::lock()
+{
+	LOCK(file);
+}
+
+void
+File::unlock()
+{
+	UNLOCK(file);
+}
+
+bool
+File::compareByLastInteraction(File* a, File* b)
+{
+	return a->getLastInteraction() < b->getLastInteraction();
 }
 
 /* vim:set ts=2 sw=2: */

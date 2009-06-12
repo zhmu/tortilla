@@ -9,6 +9,7 @@
 #define __OVERSEER_H__
 
 class Tracer;
+class FileManager;
 
 /*! \brief Responsible for overseeing all torrents
  */
@@ -84,8 +85,12 @@ protected:
 	//! \brief Request hashing of a piece
 	void queueHashPiece(Torrent* t, uint32_t piece);
 
-	//! \brief Cancel hashing for a torrent
-	void cancelHashingTorrent(Torrent* t);
+	/*! \brief Cleans up the torrent state so it can be deleted
+	 *
+	 *  This must be called in the destructor of Torrent; this call
+	 *  ensures any references to the torrent will be removed.
+	 */
+	void cleanupTorrent(Torrent* t);
 
 	//! \brief Request a map of file descriptor for sending
 	void getSendablePeers(std::list<int>& m);
@@ -107,6 +112,18 @@ protected:
 	 *  will not be removed.
 	 */
 	Peer* findPeerByFDAndLock(int fd);
+
+	//! \brief Adds a file to the list of files
+	void addFile(File* f);
+
+	//! \brief Removes a file from the list of files
+	void removeFile(File* f);
+
+	//! \brief Write to a file
+	void writeFile(File* f, size_t offset, const void* buf, size_t len);
+
+	//! \brief Read from a file
+	void readFile(File* f, size_t offset, void* buf, size_t len);
 
 private:
 	//! \brief Info hash to torrent mappings
@@ -156,6 +173,9 @@ private:
 
 	//! \brief Tracer object used
 	Tracer* tracer;
+
+	//! \brief File manager used
+	FileManager* filemanager;
 };
 
 #endif /* __OVERSEER_H__ */
