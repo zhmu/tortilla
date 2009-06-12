@@ -1556,21 +1556,16 @@ Torrent::getFileDetails()
 		File* f = *it;
 
 		piece = offset / pieceLen;
-		num = f->getLength() / pieceLen;
-		/*
-		 * Things are getting tricky now: we know the start position of the piece,
-		 * and the file length. However, the number of pieces may be as high as 2
-		 * even if the file is only 2 bytes, since:
-		 *
-		 *   (i) byte 1 is the final byte of
-		 *  (ii) byte 2 is the first byte of file 2
-		 *
-		 * The logic below deals with these situations.
-		 */
-		if (((offset % pieceLen) + f->getLength()) > pieceLen)
-			num++; /* (i) */
-		if (f->getLength() % pieceLen > 0)
-			num++; /* (ii) */
+		num = 0;
+		size_t fileLength = f->getLength();
+		if (offset % pieceLen > 0) {
+			/* This piece uses part of the current block, so add that */
+			num++; fileLength -= pieceLen - (offset % pieceLen);
+		}
+		num += fileLength / pieceLen;
+		if (fileLength % pieceLen > 0)
+			num++; /* round up to the next complete block */
+
 		fi.push_back(FileInfo(f, piece, num));
 
 		offset += f->getLength();
