@@ -43,10 +43,10 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 	tracker_interval = 0; tracker_min_interval = 0;
 	lastTrackerContact = 0;
 
-	pthread_rwlock_init(&rwl_peers, NULL);
-	pthread_rwlock_init(&rwl_files, NULL);
-	pthread_mutex_init(&mtx_data, NULL);
-	pthread_mutex_init(&mtx_log, NULL);
+	INIT_RWLOCK(peers);
+	INIT_RWLOCK(files);
+	INIT_MUTEX(data);
+	INIT_MUTEX(log);
 
 	/*
 	 * Ensure the 'info' and 'announce' metadata fields exist; we can't do much
@@ -322,10 +322,10 @@ Torrent::~Torrent()
 	}
 	delete[] pieceHash;
 
-	pthread_mutex_destroy(&mtx_log);
-	pthread_mutex_destroy(&mtx_data);
-	pthread_rwlock_destroy(&rwl_peers);
-	pthread_rwlock_destroy(&rwl_files);
+	DESTROY_MUTEX(log);
+	DESTROY_MUTEX(data);
+	DESTROY_RWLOCK(peers);
+	DESTROY_RWLOCK(files);
 }
 
 Metadata*

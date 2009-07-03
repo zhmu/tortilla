@@ -24,7 +24,7 @@ Sender::Sender(Overseer* o)
 {
 	terminating = false; overseer = o;
 
-	pthread_mutex_init(&mtx_data, NULL);
+	INIT_MUTEX(data);
 	pthread_cond_init(&cv, NULL);
 
 	/* Off we gooo! */
@@ -41,6 +41,7 @@ Sender::~Sender()
 	pthread_join(thread, NULL);
 
 	pthread_cond_destroy(&cv);
+	DESTROY_MUTEX(data);
 }
 
 void

@@ -12,7 +12,7 @@ using namespace std;
 File::File(std::string path, size_t len)
 {
 	filename = path; length = len; reopened = false; lastInteraction = time(NULL);
-	pthread_mutex_init(&mtx_file, NULL);
+	INIT_MUTEX(file);
 
 	/*
 	 * First of all, try to open the file; if this works, we know the
@@ -93,7 +93,7 @@ File::~File()
 	LOCK(file);
 	close();
 	
-	pthread_mutex_destroy(&mtx_file);
+	DESTROY_MUTEX(file);
 }
 
 bool

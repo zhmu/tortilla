@@ -4,8 +4,13 @@
 #define MIN(a,b) \
 	(((a) < (b)) ? (a) : (b))
 
+#define INIT_MUTEX(x) pthread_mutex_init(&mtx_ ## x, NULL);
+#define DESTROY_MUTEX(x) pthread_mutex_destroy(&mtx_ ## x);
 #define LOCK(x)     pthread_mutex_lock(&mtx_ ## x);
 #define UNLOCK(x)   pthread_mutex_unlock(&mtx_ ## x);
+
+#define INIT_RWLOCK(x) pthread_rwlock_init(&rwl_## x, NULL);
+#define DESTROY_RWLOCK(x) pthread_rwlock_destroy(&rwl_ ## x);
 #define RLOCK(x)    pthread_rwlock_rdlock(&rwl_## x);
 #define WLOCK(x)    pthread_rwlock_wrlock(&rwl_## x);
 #define RWUNLOCK(x) pthread_rwlock_unlock(&rwl_## x);

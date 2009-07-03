@@ -22,7 +22,7 @@ Hasher::Hasher(Overseer* o)
 {
 	terminating = false; overseer = o;
 
-	pthread_mutex_init(&mtx_data, NULL);
+	INIT_MUTEX(data);
 	pthread_cond_init(&cv, NULL);
 
 	pthread_create(&thread, NULL, hasher_thread, this);
@@ -36,7 +36,7 @@ Hasher::~Hasher()
 	pthread_join(thread, NULL);
 
 	pthread_cond_destroy(&cv);
-	pthread_mutex_destroy(&mtx_data);
+	DESTROY_MUTEX(data);
 }
 
 void

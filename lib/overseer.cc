@@ -41,8 +41,8 @@ Overseer::Overseer(unsigned int portnum, Tracer* tr)
 		peerid[i] = rand() % 26 + 'a';
 
 	/* Initialize the mutexes; they are being used by the sender later on */
-	pthread_mutex_init(&mtx_torrents, NULL);
-	pthread_mutex_init(&mtx_data, NULL);
+	INIT_MUTEX(torrents);
+	INIT_MUTEX(data);
 
 	hasher = new Hasher(this);
 	sender = new Sender(this);
@@ -83,7 +83,8 @@ Overseer::~Overseer()
 	delete sender;
 	delete filemanager;
 
-	pthread_mutex_destroy(&mtx_torrents);
+	DESTROY_MUTEX(torrents);
+	DESTROY_MUTEX(data);
 }
 
 void

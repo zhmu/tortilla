@@ -5,14 +5,14 @@
 
 Tracer::Tracer()
 {
-	pthread_mutex_init(&mtx_file, NULL);
+	INIT_MUTEX(file);
 	tracefile = fopen("trace.log", "wt");
 	tracerMask = 0xffff;
 }
 
 Tracer::~Tracer()
 {
-	pthread_mutex_destroy(&mtx_file);
+	DESTROY_MUTEX(file);
 	if (tracefile != NULL)
 		fclose(tracefile);
 }

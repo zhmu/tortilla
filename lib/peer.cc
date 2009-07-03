@@ -24,9 +24,9 @@ Peer::__init(Torrent* t)
 	numPeerPieces = 0; rx_bytes = 0; tx_bytes = 0;
 	rx_total = 0; tx_total = 0;
 	peerID = ""; terminating = false;
-	pthread_mutex_init(&mtx_data, NULL);
-	pthread_mutex_init(&mtx_sending, NULL);
-	pthread_rwlock_init(&rwl_send_queue, NULL);
+	INIT_MUTEX(data);
+	INIT_MUTEX(sending);
+	INIT_RWLOCK(send_queue);
 
 	/* Assume the peer doesn't have any pieces */
 	havePiece.reserve(t->getNumPieces());
@@ -88,9 +88,9 @@ Peer::~Peer()
 		if (havePiece[i])
 			lostPieces.push_back(i);
 	torrent->callbackPiecesRemoved(this, lostPieces);
-	pthread_mutex_destroy(&mtx_data);
-	pthread_mutex_destroy(&mtx_sending);
-	pthread_rwlock_destroy(&rwl_send_queue);
+	DESTROY_MUTEX(data);
+	DESTROY_MUTEX(sending);
+	DESTROY_RWLOCK(send_queue);
 
 	delete connection;
 }

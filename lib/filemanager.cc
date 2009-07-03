@@ -16,13 +16,13 @@ FileManager::FileManager(Overseer* o, unsigned int max)
 {
 	assert(max > 0);
 
-	pthread_rwlock_init(&rwl_data, NULL);
+	INIT_RWLOCK(data);
 	overseer = o; curFiles = 0; maxFiles = max;
 }
 
 FileManager::~FileManager()
 {
-	pthread_rwlock_destroy(&rwl_data);
+	DESTROY_RWLOCK(data);
 }
 
 void
