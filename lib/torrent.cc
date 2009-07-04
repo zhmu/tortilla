@@ -1566,7 +1566,7 @@ Torrent::getFileDetails()
 		size_t fileLength = f->getLength();
 		if (offset % pieceLen > 0) {
 			/* This piece uses part of the current block, so add that */
-			num++; fileLength -= pieceLen - (offset % pieceLen);
+			num++; fileLength -= MIN(pieceLen - (offset % pieceLen), fileLength);
 		}
 		num += fileLength / pieceLen;
 		if (fileLength % pieceLen > 0)
