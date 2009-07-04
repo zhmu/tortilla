@@ -22,8 +22,9 @@ Info::draw(Torrent* t)
 	 Interface::formatHex(t->getInfoHash(), TORRENT_HASH_LEN).c_str());
 	printxyf(0, 1, "Pieces:         %u / %u (%u hashing)",
 	 t->getNumPiecesComplete(), t->getNumPieces(), t->getNumPiecesHashing());
-	printxyf(0, 2, "Data left:      %llu / %llu bytes",
-	 (unsigned long)t->getBytesLeft(), (unsigned long)t->getTotalSize());
+	printxyf(0, 2, "Data left:      %s / %s",
+	 Interface::formatNumber(t->getBytesLeft()).c_str(),
+	 Interface::formatNumber(t->getTotalSize()).c_str());
 	printxyf(0, 3, "Peers:          %u active / %u pending", t->getNumPeers(), t->getNumPendingPeers());
 
 	unsigned int y = 4;
