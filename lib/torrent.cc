@@ -1154,9 +1154,10 @@ Torrent::handleUnchokingAlgorithm()
 	sort(uiPeers.begin(), uiPeers.end(), Peer::compareByUpload);
 
 	/*
-	 * Unchoke the peers.
+	 * Unchoke the peers, but no more than TORRENT_MAX_UNCHOKED_PEERS per
+	 * torrent.
 	 */
-	for (unsigned int i = 0; i < uiPeers.size(); i++) {
+	for (unsigned int i = 0; i < uiPeers.size() && newUnchokes.size() < TORRENT_MAX_UNCHOKED_PEERS; i++) {
 		newUnchokes.push_back(uiPeers[i]);
 	}
 
@@ -1205,7 +1206,7 @@ Torrent::handleUnchokingAlgorithm()
 
 	lastChokingAlgorithm = time(NULL);
 	if (numChoked > 0 || numUnchoked > 0)
-		TRACE(CHOKING, "(un)choke algorithm: choked=%u, unchoked=%u", numChoked, numUnchoked, curUnchoked);
+		TRACE(CHOKING, "(un)choke algorithm: choked=%u and unchoked=%u, total unchoked=%u", numChoked, numUnchoked, curUnchoked);
 }
 
 void

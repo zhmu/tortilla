@@ -39,6 +39,9 @@
 
 //! \brief Percentage completed when we enter endgame mode
 #define TORRENT_ENDGAME_PERCENTAGE	95
+
+//! \brief Maximum number of peers unchoked by us at any time per torrent
+#define TORRENT_MAX_UNCHOKED_PEERS	4
     
 class Connection;
 class Peer;
