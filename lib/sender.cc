@@ -8,6 +8,7 @@
 #include "senderrequest.h"
 #include "torrent.h"
 #include "tracer.h"
+#include <algorithm>
 
 using namespace std;
 

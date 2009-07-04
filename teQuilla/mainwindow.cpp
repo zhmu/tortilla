@@ -184,14 +184,18 @@ void MainWindow::btnStart_clicked()
     qreal ratio = (qreal)c_pieces/w;
     qreal offset = 0.0;
 
+#if 0
     cout << "Pieces: " << c_pieces
          << " width: " << w
          << " ratio: " << ratio << endl;
+#endif
 
    for(int i=0; i<w; i++)   {
        bool b = getPieceDone(offset,ratio,pieces);
+#if 0
        cout << c_pieces << ", " << offset << ", " << ratio << endl;
        cout << w << ", now at " << i << endl;
+#endif
        offset+=ratio;
 
         if (b)
@@ -208,5 +212,20 @@ void MainWindow::btnStart_clicked()
 
 void MainWindow::btnStop_clicked()
 {
-    overseer->stop();
+  //  cout << "FILES" << endl;
+    QModelIndexList indexes = ui->tableTorrents->selectionModel()->selectedRows(0);
+
+    if (indexes.count() == 0)
+        return;
+
+    Torrent* t = overseer->getTorrents().at((*indexes.begin()).row());
+    vector<FileInfo> fileinfo = t->getFileDetails();
+    typedef vector<FileInfo>::iterator vfi;
+
+    for(vfi it=fileinfo.begin(); it!=fileinfo.end(); it++) {
+        FileInfo& fi = *it;
+        cout << fi.getFilename() << endl;
+    }
+
+    //overseer->stop();
 }
