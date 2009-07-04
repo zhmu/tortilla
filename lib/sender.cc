@@ -88,10 +88,24 @@ Sender::process()
 		if (poll(pfds, cur_pfd, 5000) <= 0)
 			continue;
 
-		/* Ask each peer to request */
+		/*
+		 * At least a single peer can be sent to; construct a list of peers
+		 * we can send to, and randomize it. This prevents us from using all
+		 * available bandwidth on the first peer in the list.
+		 */
+		vector<unsigned int>peerFDs;
 		for (unsigned int pfd = 0; pfd < cur_pfd; pfd++) {
 			if (!(pfds[pfd].revents & POLLOUT))
 				continue;
+
+			peerFDs.push_back(pfd);
+		}
+		random_shuffle(peerFDs.begin(), peerFDs.end());
+
+		/* Ask each peer to request */
+		for (vector<unsigned int>::iterator it = peerFDs.begin();
+		    it != peerFDs.end(); it++) {
+			unsigned int fd = *it;
 
 			/*
 			 * Update amount of bandwidth left; if this is zero, we stop as we can't
@@ -109,7 +123,7 @@ Sender::process()
 	 		 * processSenderQueue() releases this lock, so we cannot touch 'p' anymore
 		 	 * after it finished!
 			 */
-			Peer* p = overseer->findPeerByFDAndLock(pfds[pfd].fd);
+			Peer* p = overseer->findPeerByFDAndLock(fd);
 			if (p != NULL) {
 				ssize_t amount = p->processSenderQueue(overseer->getUploadRate() > 0 ? cur_tx : -1);
 
