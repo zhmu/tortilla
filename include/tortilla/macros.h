@@ -53,7 +53,7 @@ do { \
 
 #define RLOCK(x) \
 do { \
-	LOCK_DEBUG_PRINTF(stderr, "RLOCK(%s:%u,thread=%p,rwlock=%s)\n", __FILE__, __LINE__, pthread_self(), "rwl_" STRINGIFY(x)); \
+	LOCK_DEBUG_PRINTF("RLOCK(%s:%u,thread=%p,rwlock=%s)\n", __FILE__, __LINE__, pthread_self(), "rwl_" STRINGIFY(x)); \
 	pthread_rwlock_rdlock(&rwl_## x); \
 } while(0);
 
