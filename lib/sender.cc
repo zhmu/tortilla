@@ -98,7 +98,7 @@ Sender::process()
 			if (!(pfds[pfd].revents & POLLOUT))
 				continue;
 
-			peerFDs.push_back(pfd);
+			peerFDs.push_back(pfds[pfd].fd);
 		}
 		random_shuffle(peerFDs.begin(), peerFDs.end());
 
