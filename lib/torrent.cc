@@ -1522,8 +1522,8 @@ Torrent::debugDump(FILE* f)
 	for (std::vector<FileInfo>::iterator it = fi.begin();
 	     it != fi.end(); it++) {
 
-		PRINT("  <file name=\"%s\" length=\"%lu\" firstPiece=\"%u\" numPieces=\"%u\"/>",
-		 (*it).getFilename().c_str(), (*it).getLength(), (*it).getFirstPieceNum(),
+		PRINT("  <file name=\"%s\" length=\"%llu\" firstPiece=\"%u\" numPieces=\"%u\"/>",
+		 (*it).getFilename().c_str(), (unsigned long long)(*it).getLength(), (*it).getFirstPieceNum(),
 		 (*it).getNumPieces());
 	}
 	PRINT(" </files>");

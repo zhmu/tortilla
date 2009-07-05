@@ -700,7 +700,7 @@ Peer::processSenderQueue(ssize_t max_length)
 		RWUNLOCK(send_queue);
 
 		uint32_t sending_len = request->getMessageLength();
-		if (sending_len > max_length && max_length >= 0) {
+		if (max_length >= 0 && (ssize_t)sending_len > max_length) {
 			/* This will be a partial request */
 			sending_len = max_length;
 		}
@@ -720,7 +720,7 @@ Peer::processSenderQueue(ssize_t max_length)
 				max_length -= written;
 		}
 
-		if (written == request->getMessageLength()) {
+		if ((size_t)written == request->getMessageLength()) {
 			/*
 			 * We have written exactly the amount of data, or the request was
 			 * cancelled, so this request is done!
