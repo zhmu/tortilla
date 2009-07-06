@@ -9,7 +9,7 @@
 
 using namespace std;
 
-File::File(std::string path, size_t len)
+File::File(std::string path, off_t len)
 {
 	filename = path; length = len; reopened = false; lastInteraction = time(NULL);
 	INIT_MUTEX(file);
@@ -24,7 +24,7 @@ File::File(std::string path, size_t len)
 			throw FileException("unable to create '" + path + "'");
 	} else {
 		/* We reopened the file, but maybe the length is invalid */
-		size_t filesize = lseek(fd, 0, SEEK_END);
+		off_t filesize = lseek(fd, 0, SEEK_END);
 		if (filesize == len) {
 			/* All done - just don't forget to close the file as outlined below */
 			reopened = true;
@@ -57,7 +57,7 @@ File::File(std::string path, size_t len)
 }
 	
 void
-File::write(size_t offset, const void* buf, size_t len)
+File::write(off_t offset, const void* buf, size_t len)
 {
 	assert(offset + len <= length);
 	assert(isOpened());
@@ -73,7 +73,7 @@ File::write(size_t offset, const void* buf, size_t len)
 }
 
 void
-File::read(size_t offset, void* buf, size_t len)
+File::read(off_t offset, void* buf, size_t len)
 {
 	assert(offset + len <= length);
 	assert(isOpened());

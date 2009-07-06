@@ -388,13 +388,13 @@ Overseer::findPeerByFDAndLock(int fd)
 }
 
 void
-Overseer::writeFile(File* f, size_t offset, const void* buf, size_t len)
+Overseer::writeFile(File* f, off_t offset, const void* buf, size_t len)
 {
 	filemanager->writeFile(f, offset, buf, len);
 }
 
 void
-Overseer::readFile(File* f, size_t offset, void* buf, size_t len)
+Overseer::readFile(File* f, off_t offset, void* buf, size_t len)
 {
 	filemanager->readFile(f, offset, buf, len);
 }

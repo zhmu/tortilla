@@ -15,7 +15,7 @@ public:
 	 *  \param path Path to use
 	 *  \param len Length of the file
 	 */
-	File(std::string path, size_t len);
+	File(std::string path, off_t len);
 
 	//! \brief Closes the file
 	~File();
@@ -25,17 +25,17 @@ public:
 	 *  \param buf Buffer to write
 	 *  \param len Number of bytes to write
 	 */
-	void write(size_t offset, const void* buf, size_t len);
+	void write(off_t offset, const void* buf, size_t len);
 
 	/*! \brief Read a piece from the file
 	 *  \param offset Byte offset from which to read 
 	 *  \param buf Buffer to read to
 	 *  \param len Number of bytes to read
 	 */
-	void read(size_t offset, void* buf, size_t len);
+	void read(off_t offset, void* buf, size_t len);
 
 	//! \brief Retrieve the file length
-	size_t getLength() { return length; }
+	off_t getLength() { return length; }
 
 	//! \brief Have we opened a preexisting file?
 	bool haveReopened() { return reopened; }
@@ -67,7 +67,7 @@ protected:
 
 private:
 	//! \brief Length of the file
-	size_t length;
+	off_t length;
 
 	//! \brief File descriptor
 	int fd;

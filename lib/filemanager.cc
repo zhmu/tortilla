@@ -26,7 +26,7 @@ FileManager::~FileManager()
 }
 
 void
-FileManager::writeFile(File* f, size_t offset, const void* buf, size_t len)
+FileManager::writeFile(File* f, off_t offset, const void* buf, size_t len)
 {
 	f->lock();
 	prepare(f);
@@ -35,7 +35,7 @@ FileManager::writeFile(File* f, size_t offset, const void* buf, size_t len)
 }
 
 void
-FileManager::readFile(File* f, size_t offset, void* buf, size_t len)
+FileManager::readFile(File* f, off_t offset, void* buf, size_t len)
 {
 	f->lock();
 	prepare(f);

@@ -892,7 +892,7 @@ Torrent::handleChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size
 	assert(length <= TORRENT_CHUNK_SIZE);
 
 	/* Calculate the absolute position */
-	size_t absolutePos = (size_t)piece * (size_t)pieceLen + offset;
+	off_t absolutePos = (off_t)piece * (off_t)pieceLen + (off_t)offset;
 
 	/* Locate the first file matching this position */
 	unsigned int idx = 0;
@@ -900,7 +900,7 @@ Torrent::handleChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size
 	RLOCK(files);
 	while (idx < files.size()) {
 		if (absolutePos < files[idx]->getLength()) {
-			/* At least a part of the offset to handle resized in this file */
+			/* At least a part of the offset to handle resides in this file */
 			f = files[idx];
 			break;
 		}
@@ -1522,8 +1522,8 @@ Torrent::debugDump(FILE* f)
 	for (std::vector<FileInfo>::iterator it = fi.begin();
 	     it != fi.end(); it++) {
 
-		PRINT("  <file name=\"%s\" length=\"%lu\" firstPiece=\"%u\" numPieces=\"%u\"/>",
-		 (*it).getFilename().c_str(), (*it).getLength(), (*it).getFirstPieceNum(),
+		PRINT("  <file name=\"%s\" length=\"%llu\" firstPiece=\"%u\" numPieces=\"%u\"/>",
+		 (*it).getFilename().c_str(), (unsigned long long)(*it).getLength(), (*it).getFirstPieceNum(),
 		 (*it).getNumPieces());
 	}
 	PRINT(" </files>");
