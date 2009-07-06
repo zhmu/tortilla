@@ -46,6 +46,8 @@ Connection::Connection(string host, uint16_t port)
 			break;
 		if (errno == EINPROGRESS)
 			break;
+		if (errno == EAGAIN)
+			continue;
 
 		close(fd); fd = -1;
 	}
