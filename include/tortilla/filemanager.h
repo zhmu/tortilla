@@ -34,10 +34,10 @@ public:
 	void removeFile(File* f);
 
 	//! \brief Write to a file
-	void writeFile(File* f, size_t offset, const void* buf, size_t len);
+	void writeFile(File* f, off_t offset, const void* buf, size_t len);
 
 	//! \brief Read from a file
-	void readFile(File* f, size_t offset, void* buf, size_t len);
+	void readFile(File* f, off_t offset, void* buf, size_t len);
 
 protected:
 	/*! \brief Used to close unused files
