@@ -4,6 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 #include "filemanager.h"
+#include "peermanager.h"
 #include "macros.h"
 #include "overseer.h"
 #include "peer.h"
@@ -44,6 +45,7 @@ Overseer::Overseer(unsigned int portnum, Tracer* tr)
 	INIT_MUTEX(torrents);
 	INIT_MUTEX(data);
 
+	peermanager = new PeerManager(this);
 	hasher = new Hasher(this);
 	sender = new Sender(this);
 	filemanager = new FileManager(this, 64 /* XXX make me configurable! */);
@@ -81,6 +83,7 @@ Overseer::~Overseer()
 	delete incoming;
 	delete hasher;
 	delete sender;
+	delete peermanager;
 	delete filemanager;
 
 	DESTROY_MUTEX(torrents);
@@ -94,7 +97,6 @@ Overseer::addTorrent(Torrent* t)
 	LOCK(torrents);
 	torrents[info] = t;
 	UNLOCK(torrents);
-	t->start();
 }
 
 void
@@ -115,15 +117,6 @@ Overseer::removeTorrent(Torrent* t)
 void
 Overseer::start()
 {
-	/* Launch all torrents 
-	pthread_mutex_lock(&mtx_torrents);
-	for (map<string, Torrent*>::iterator it = torrents.begin();
-	     it != torrents.end(); it++) {
-		Torrent* t = it->second;
-		t->start();
-	}
-	pthread_mutex_unlock(&mtx_torrents);
-	*/
 }
 
 void
@@ -314,7 +307,8 @@ Overseer::handleIncomingConnection(Connection* c)
 	TRACE(NETWORK, "handshake completed: connection=%p,peer=%s", c, p->getID().c_str());
 
 	/* We accept! We have no choice! */
-	t->addPeer(p);
+	t->registerPeer(p);
+	peermanager->addPeer(p);
 	TRACE(NETWORK, "accepted peer %p for torrent %p",
 	 c, t);
 
@@ -340,18 +334,6 @@ Overseer::cleanupTorrent(Torrent* t)
 }
 
 void
-Overseer::getSendablePeers(list<int>& m)
-{
-	LOCK(torrents);
-	for (map<string, Torrent*>::iterator it = torrents.begin();
-	     it != torrents.end(); it++) {
-		Torrent* t = it->second;
-		t->getSendablePeers(m);
-	}
-	UNLOCK(torrents);
-}
-
-void
 Overseer::signalSender()
 {
 	sender->signal();
@@ -360,31 +342,13 @@ Overseer::signalSender()
 void
 Overseer::callbackPeerAdded(Peer* p)
 {
-	LOCK(data);
-	fdMap[p->getFD()] = p;
-	UNLOCK(data);
+	peermanager->addPeer(p);
 }
 
 void
 Overseer::callbackPeerRemoved(Peer* p)
 {
-	LOCK(data);
-	fdMap.erase(p->getFD());
-	UNLOCK(data);
-}
-
-Peer*
-Overseer::findPeerByFDAndLock(int fd)
-{
-	LOCK(data);
-	Peer* p = NULL;
-	map<int, Peer*>::iterator it = fdMap.find(fd);
-	if (it != fdMap.end()) {
-		p = it->second;
-		p->lockForSending();
-	}
-	UNLOCK(data);
-	return p;
+	peermanager->removePeer(p);
 }
 
 void
@@ -411,5 +375,16 @@ Overseer::removeFile(File* f)
 	filemanager->removeFile(f);
 }
 
+Peer*
+Overseer::findPeerByFDAndLock(int fd)
+{
+	return peermanager->findPeerByFDAndLock(fd);
+}
+
+void
+Overseer::getSendablePeers(list<int>& m)
+{
+	return peermanager->getSendablePeers(m);
+}
 
 /* vim:set ts=2 sw=2: */

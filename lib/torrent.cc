@@ -33,7 +33,7 @@ using namespace std;
 Torrent::Torrent(Overseer* o, Metadata* md)
 {
 	overseer = o; downloaded = 0; uploaded = 0; left = 0;
-	haveThread = false; terminating = false; complete = false;
+	terminating = false; complete = false;
 	lastChokingAlgorithm = 0; unchokingRound = 0;
 	optimisticUnchokedPeer = NULL; tracker_key = "";
 	name = ""; endgame_mode = false;
@@ -268,10 +268,6 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 
 Torrent::~Torrent()
 {
-	/* If we have a thread, gracefully ask it to die */
-	if (haveThread)
-		stop();
-
 	overseer->cleanupTorrent(this);
 
 	/*
@@ -286,8 +282,7 @@ Torrent::~Torrent()
 	}
 
 	/*
-	 * Nuke all our peers. XXX we should implement signalling and exit more
-	 * gracefully.
+	 * Remove our peers; actual cleanup will be performed by the peer manager.
 	 */
 	WLOCK(peers);
 	while (true) {
@@ -296,8 +291,6 @@ Torrent::~Torrent()
 			break;
 		Peer* p = *it;
 		peers.erase(it);
-		callbackPeerGone(p);
-		delete p;
 	}
 	RWUNLOCK(peers);
 
@@ -482,6 +475,7 @@ Torrent::handleTracker(string event)
 	delete md;
 }
 
+#if 0
 void
 Torrent::go()
 {
@@ -607,6 +601,7 @@ Torrent::go()
 		RWUNLOCK(peers);
 	}
 }
+#endif
 
 void
 Torrent::callbackPiecesAdded(Peer* p, vector<unsigned int>& pieces)
@@ -991,33 +986,6 @@ Torrent::scheduleHashing(unsigned int piece, bool registerHashing)
 	overseer->queueHashPiece(this, piece);
 }
 
-void*
-torrent_thread(void* ptr)
-{
-	((Torrent*)ptr)->go();
-	return NULL;
-}
-
-void
-Torrent::start()
-{
-	assert(!haveThread);
-
-	pthread_create(&thread, NULL, torrent_thread, this);
-	haveThread = true;
-}
-
-void
-Torrent::stop()
-{
-	assert(haveThread);
-
-	terminating = true;
-	pthread_join(thread, NULL);
-
-	haveThread = false;
-}
-
 void
 Torrent::updateBandwidth()
 {
@@ -1059,8 +1027,36 @@ private:
 };
 
 void
-Torrent::callbackPeerGone(Peer* p)
+Torrent::registerPeer(Peer* p)
 {
+	assert(p->getPeerID().size() == TORRENT_PEERID_LEN);
+
+	WLOCK(peers);
+	peers.push_back(p);
+	RWUNLOCK(peers);
+}
+
+void
+Torrent::unregisterPeer(Peer* p)
+{
+	/*
+	 * First of all, remove the peer from our list. This ensures we won't
+	 * try to obtain statistics or schedule requests.
+	 */
+	WLOCK(peers)
+	vector<Peer*>::iterator peerit = peers.begin();
+	while (peerit != peers.end()) {
+		Peer* peer = *peerit;
+		if (peer != p) {
+			peerit++;
+			continue;
+		}
+
+		peers.erase(peerit);
+		break;
+	}
+	RWUNLOCK(peers);
+	
 	/*
 	 * Deregister any requested pieces by this peer. This is safe to call without
 	 * locking since the select(2) call notifies us of any changes and thus,
@@ -1072,27 +1068,12 @@ Torrent::callbackPeerGone(Peer* p)
 	for (unsigned int j = 0; j < numPieces * (pieceLen / TORRENT_CHUNK_SIZE); j++)
 		haveRequestedChunk[j].remove_if(peervector_matches(p));
 	UNLOCK(data);
-
-	/* Inform the overseer as well */
-	overseer->callbackPeerRemoved(p);
 }
 
 const uint8_t*
 Torrent::getPeerID()
 {
 	return overseer->getPeerID();
-}
-
-void
-Torrent::addPeer(Peer* p)
-{
-	assert(p->getPeerID().size() == TORRENT_PEERID_LEN);
-
-	WLOCK(peers);
-	peers.push_back(p);
-	RWUNLOCK(peers);
-
-	overseer->callbackPeerAdded(p);
 }
 
 void
@@ -1108,7 +1089,7 @@ Torrent::heartbeat()
 {
 	/* Don't bother doing anything if we aren't fully launched */
 	LOCK(data);
-	if (!haveThread || numPiecesHashing > 0) {
+	if (numPiecesHashing > 0) {
 		UNLOCK(data);
 		return;
 	}
@@ -1128,6 +1109,42 @@ Torrent::heartbeat()
 
 	if (time(NULL) >= lastChokingAlgorithm + TORRENT_DELTA_CHOKING_ALGO) {
 		handleUnchokingAlgorithm();
+	}
+
+	/* If we can fill up our peer slots, try it */
+	while (true) {
+		unsigned int numPeers = getNumPeers();
+		if (numPeers >= TORRENT_DESIRED_PEERS)
+				break;
+
+		LOCK(data);
+		if (pendingPeers.empty()) {
+			UNLOCK(data);
+			break;
+		}
+		PendingPeer* pp = pendingPeers.front();
+		pendingPeers.pop_front();
+		UNLOCK(data);
+
+		Peer* p = pp->connect();
+		delete pp;
+
+		if (p != NULL) {
+			/*
+			 * It seems possible to connct to this peer; we should add it to both ourselves
+			 * and the peer manager.
+			 */
+			WLOCK(peers);
+			peers.push_back(p);
+			RWUNLOCK(peers);
+			overseer->callbackPeerAdded(p);
+
+			/*
+			 * Send the handshake; we can only do this after we have added the
+			 * peer since the Sender won't know of it otherwise.
+			 */
+			p->sendHandshake();
+		}
 	}
 }
 
@@ -1356,20 +1373,6 @@ Torrent::getTracer() {
 }
 
 void
-Torrent::getSendablePeers(list<int>& m)
-{
-	RLOCK(peers);
-	for (vector<Peer*>::iterator it = peers.begin();
-	     it != peers.end(); it++) {
-		Peer* p = *it;
-		if (p->isSenderQueueEmpty())
-			continue;
-		m.push_back(p->getFD());
-	}
-	RWUNLOCK(peers);
-}
-
-void
 Torrent::signalSender()
 {
 	overseer->signalSender();
@@ -1379,15 +1382,14 @@ bool
 Torrent::canAcceptPeer()
 {	
 	LOCK(data);
-	bool b = haveThread;
 	unsigned int n = numPiecesHashing;
 	UNLOCK(data);
 
 	/*
-	 * Only accept if we have a worker thread (we won't do much without it), we
-	 * have finished hashing and we have enough peer slots left.
+	 * Only accept if we have finished hashing and if there are enough peer slots
+	 * left.
 	 */
-	return b && n == 0 && getNumPeers() < TORRENT_MAX_PEERS;
+	return n == 0 && getNumPeers() < TORRENT_MAX_PEERS;
 }
 
 unsigned int

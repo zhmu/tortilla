@@ -114,8 +114,8 @@ private:
  *  [M=x] variable protected by mutex x
  */
 class Torrent {
-friend void* torrent_thread(void* ptr);
 friend class Peer;
+friend class PeerManager;
 friend class Overseer;
 friend class Hasher;
 friend class SenderRequest;
@@ -128,15 +128,6 @@ public:
 
 	//! \brief Destructs the torrent object
 	~Torrent();
-
-	//! \brief Starts the torrent thread
-	void start();
-
-	//! \brief Stops the torrent thread
-	void stop();
-
-	//! \brief Is the torrent started?
-	inline bool isStarted() {  return haveThread; }
 
 	//! \brief Fetch the info hash
 	const uint8_t* getInfoHash() { return infoHash; }
@@ -174,7 +165,7 @@ public:
 	/*! \brief Add an peer to us
 	 *  \param p Peer
 	 */
-	void addPeer(Peer* p);
+	void registerPeer(Peer* p);
 
 	//! \brief Retrieve the number of pieces we are hashing
 	unsigned int getNumPiecesHashing();
@@ -255,20 +246,11 @@ protected:
 	//! \brief Called if the torrent download is complete
 	void callbackCompleteTorrent();
 
-	//! \brief Called by a peer just before it is gone
-	void callbackPeerGone(Peer* p);
-
 	//! \brief Called by a peer if it changes interest
 	void callbackPeerChangedInterest(Peer* p);
 
 	//! \brief Called by a peer if it becomes choked or unchoked
 	void callbackPeerChangedChoking(Peer* p);
-
-	/*! \brief Go, speedracer, go -- handles the torrent activites
-	 *
- 	 *  This generally resides in an own thread.
-	 */
-	void go();
 
 	//! \brief Called periodically to update bandwidth use
 	void updateBandwidth();
@@ -278,6 +260,13 @@ protected:
 	 *  This should implement choking/unchoking of peers.
 	 */
 	void heartbeat();
+
+	/*! \brief Unregister the peer
+	 *  \param p Peer to unregister
+	 *
+	 *  Once completed, any reference to the peer will be removed.
+	 */
+	void unregisterPeer(Peer* p);
 
 	/*! \brief Retrieves a piece from the output files
 	 *  \param piece Piece number to read
@@ -439,12 +428,6 @@ private:
 
 	//! \brief Overseer object
 	Overseer* /* [R] */ overseer;
-
-	//! \brief Torrent thread
-	pthread_t thread;
-
-	//! \brief Have we created a torrent thread?
-	bool haveThread;
 
 	//! \brief Are we terminating?
 	bool terminating;

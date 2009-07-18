@@ -10,6 +10,7 @@
 
 class Tracer;
 class FileManager;
+class PeerManager;
 
 /*! \brief Responsible for overseeing all torrents
  */
@@ -104,15 +105,6 @@ protected:
 	//! \brief Called if a torrent ditches a peer
 	void callbackPeerRemoved(Peer* p);
 
-	/*! \brief Retrieve a peer by file descriptor and lock it for sending
-	 *  \param fd File descriptor to find
-	 *  \returns Peer object, or NULL
-	 *
-	 *  If this function returns, the peer will be locked for sending and
-	 *  will not be removed.
-	 */
-	Peer* findPeerByFDAndLock(int fd);
-
 	//! \brief Adds a file to the list of files
 	void addFile(File* f);
 
@@ -125,12 +117,11 @@ protected:
 	//! \brief Read from a file
 	void readFile(File* f, off_t offset, void* buf, size_t len);
 
+	Peer* findPeerByFDAndLock(int fd);
+
 private:
 	//! \brief Info hash to torrent mappings
 	std::map<std::string, Torrent*> torrents;
-
-	//! \brief Hash used to map file descriptors -> peers
-	std::map<int, Peer*> fdMap;
 
 	//! \brief are we terminating?
 	bool terminating;
@@ -176,6 +167,9 @@ private:
 
 	//! \brief File manager used
 	FileManager* filemanager;
+
+	//! \brief Peer manager used
+	PeerManager* peermanager;
 };
 
 #endif /* __OVERSEER_H__ */
