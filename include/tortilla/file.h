@@ -59,8 +59,11 @@ protected:
 	//! \brief Is the file opened?
 	bool isOpened();
 
-	//! \brief Locks the file object
-	void lock();
+	//! \brief Locks the file object for read
+	void lockRead();
+
+	//! \brief Locks the file object for write
+	void lockWrite();
 
 	//! \brief Unlocks the file object
 	void unlock();
@@ -82,7 +85,7 @@ private:
 	time_t lastInteraction;
 
 	//! \brief Mutex used to guard the file from open/close-ing
-	pthread_mutex_t mtx_file;
+	pthread_rwlock_t rwl_file;
 };
 
 #endif /*  __FILE_H__ */

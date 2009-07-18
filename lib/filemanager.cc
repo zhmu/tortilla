@@ -28,7 +28,7 @@ FileManager::~FileManager()
 void
 FileManager::writeFile(File* f, off_t offset, const void* buf, size_t len)
 {
-	f->lock();
+	f->lockWrite();
 	prepare(f);
 	f->write(offset, buf, len);
 	f->unlock();
@@ -37,7 +37,7 @@ FileManager::writeFile(File* f, off_t offset, const void* buf, size_t len)
 void
 FileManager::readFile(File* f, off_t offset, void* buf, size_t len)
 {
-	f->lock();
+	f->lockRead();
 	prepare(f);
 	f->read(offset, buf, len);
 	f->unlock();
@@ -80,15 +80,16 @@ FileManager::cleanup(File* f)
 		/* Skip the file we are cleaning up for; it is already locked by us */
 		if (file == f)
 			continue;
-		file->lock();
-		if (!file->isOpened()) {
-			file->unlock();
+
+		/* XXX this may ignore/close too many files some of the files! */
+		if (!file->isOpened())
 			continue;
-		}
 
 		/* This old file is open; close it */
+		file->lockWrite();
 		file->close();
 		file->unlock();
+
 		WLOCK(data);
 		curFiles--;
 		RWUNLOCK(data);

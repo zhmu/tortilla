@@ -12,7 +12,7 @@ using namespace std;
 File::File(std::string path, off_t len)
 {
 	filename = path; length = len; reopened = false; lastInteraction = time(NULL);
-	INIT_MUTEX(file);
+	INIT_RWLOCK(file);
 
 	/*
 	 * First of all, try to open the file; if this works, we know the
@@ -90,10 +90,10 @@ File::read(off_t offset, void* buf, size_t len)
 File::~File()
 {
 	/* Lock the file before closing it; this ensures we wait until consumers are done */
-	LOCK(file);
+	WLOCK(file);
 	close();
 	
-	DESTROY_MUTEX(file);
+	DESTROY_RWLOCK(file);
 }
 
 bool
@@ -128,15 +128,21 @@ File::close()
 }
 
 void
-File::lock()
+File::lockRead()
 {
-	LOCK(file);
+	RLOCK(file);
+}
+
+void
+File::lockWrite()
+{
+	WLOCK(file);
 }
 
 void
 File::unlock()
 {
-	UNLOCK(file);
+	RWUNLOCK(file);
 }
 
 bool
