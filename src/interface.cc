@@ -6,6 +6,7 @@
 #include <sstream>
 #include <string.h>
 #include "tortilla/exceptions.h"
+#include "tortilla/info.h"
 #include "tortilla/overseer.h"
 #include "interface.h"
 #include "overview.h"
@@ -247,7 +248,7 @@ Interface::handleCompletion()
 	/* First of all, dissect the input in path/fname parts */
 	string::size_type pos = addString.find_last_of("/");
 	if (pos != string::npos) {
-		path = addString.substr(0, pos - 1);
+		path = addString.substr(0, pos);
 		fname = addString.substr(pos + 1);
 	} else {
 		path = ".";
