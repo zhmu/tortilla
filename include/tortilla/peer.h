@@ -355,4 +355,18 @@ private:
 	pthread_rwlock_t rwl_send_queue;
 };
 
+//! \brief Helper object, used to determine whether a peer matches
+class peervector_matches {
+public:
+	peervector_matches(Peer* p) { peer = p; }
+
+	bool operator() (const Peer* p) { return p == peer; }
+
+private:
+	Peer* peer;
+};
+
+//! \brief List of peers
+typedef std::list<Peer*> PeerList;
+
 #endif /* __PEER_H__ */

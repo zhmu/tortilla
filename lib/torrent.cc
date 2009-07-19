@@ -18,6 +18,7 @@
 #include "file.h"
 #include "hasher.h"
 #include "http.h"
+#include "info.h"
 #include "macros.h"
 #include "overseer.h"
 #include "peer.h"
@@ -290,6 +291,7 @@ Torrent::~Torrent()
 		if (it == peers.end())
 			break;
 		Peer* p = *it;
+		p->shutdown();
 		peers.erase(it);
 	}
 	RWUNLOCK(peers);
@@ -917,7 +919,7 @@ Torrent::handleChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size
 	 * stuff until we run out of stuff to write.
 	 */
 	while (length > 0) {
-		uint32_t partlen = MIN(f->getLength() - absolutePos, length);
+		size_t partlen = MIN(f->getLength() - absolutePos, length);
     
 		if (writing)
 			overseer->writeFile(f, absolutePos, buf, partlen);
@@ -1015,16 +1017,6 @@ Torrent::getRateCounters(uint32_t* rx, uint32_t* tx)
 	*rx = rx_rate; *tx = tx_rate;
 	UNLOCK(data);
 }
-
-class peervector_matches {
-public:
-	peervector_matches(Peer* p) { peer = p; }
-
-	bool operator() (const Peer* p) { return p == peer; }
-
-private:
-	Peer* peer;
-};
 
 void
 Torrent::registerPeer(Peer* p)
@@ -1313,19 +1305,6 @@ Torrent::getPieceDetails()
 	return pi;
 }
 
-PeerInfo::PeerInfo(Peer* p)
-{
-	snubbed = p->isPeerSnubbed();
-	peer_interested = p->isPeerInterested();
-	peer_choked = p->isPeerChoked();
-	interested = p->isInterested();
-	choking = p->isChoking();
-	incoming = p->isIncoming();
-	p->getAverageRate(&rx, &tx);
-	endpoint = p->getEndpoint();
-	num_pieces = p->getNumPeerPieces();
-}
-
 vector<PeerInfo>
 Torrent::getPeerDetails()
 {
@@ -1535,13 +1514,6 @@ Torrent::debugDump(FILE* f)
 	UNLOCK(data);
 
 #undef PRINT
-}
-
-FileInfo::FileInfo(File* f, unsigned int piece, unsigned int num)
-{
-	fname = f->getFilename();
-	length = f->getLength();
-	firstPiece = piece; numPieces = num;
 }
 
 std::vector<FileInfo>
