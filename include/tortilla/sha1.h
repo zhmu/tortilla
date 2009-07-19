@@ -1,8 +1,8 @@
 #include <openssl/sha.h>
 #include <string>
 
-#ifndef __SHA1_H__
-#define __SHA1_H__
+#ifndef __TORTILLA_SHA1_H__
+#define __TORTILLA_SHA1_H__
 
 class HashSHA1 {
 public:
@@ -35,4 +35,4 @@ private:
 	uint8_t hash[SHA_DIGEST_LENGTH];
 };
 
-#endif /* __SHA1_H__ */
+#endif /* __TORTILLA_SHA1_H__ */

@@ -7,8 +7,8 @@
 #include "peer.h"
 #include "metadata.h"
 
-#ifndef __TORRENT_H__
-#define __TORRENT_H__
+#ifndef __TORTILLA_TORRENT_H__
+#define __TORTILLA_TORRENT_H__
 
 #define TORRENT_HASH_LEN 20
 
@@ -442,5 +442,4 @@ private:
 	std::list<std::string> /* [M=log] */ messageLog;
 };
 
-
-#endif /* __TORRENT_H__ */
+#endif /* __TORTILLA_TORRENT_H__ */

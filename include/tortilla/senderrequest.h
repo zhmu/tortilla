@@ -1,8 +1,8 @@
 #include <pthread.h>
 #include <string>
 
-#ifndef __SENDERREQUEST_H__
-#define __SENDERREQUEST_H__
+#ifndef __TORTILLA_SENDERREQUEST_H__
+#define __TORTILLA_SENDERREQUEST_H__
 
 /*! \brief A message to be sent */
 class SenderRequest {
@@ -78,4 +78,4 @@ private:
 };
 
 
-#endif /* __SENDERREQUEST_H__ */
+#endif /* __TORTILLA_SENDERREQUEST_H__ */

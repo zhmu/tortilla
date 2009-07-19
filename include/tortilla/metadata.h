@@ -4,8 +4,8 @@
 #include <string>
 #include "metafield.h"
 
-#ifndef __METADATA_H__
-#define __METADATA_H__
+#ifndef __TORTILLA_METADATA_H__
+#define __TORTILLA_METADATA_H__
 
 /*! \brief Contains torrent file metadata
  */
@@ -52,4 +52,4 @@ private:
 	std::istream& is;
 };
 
-#endif /* __METADATA_H__ */
+#endif /* __TORTILLA_METADATA_H__ */

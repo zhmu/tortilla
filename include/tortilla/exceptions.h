@@ -1,8 +1,8 @@
 #include <exception>
 #include <string>
 
-#ifndef __EXCEPTION_H__
-#define __EXCEPTION_H__
+#ifndef __TORTILLA_EXCEPTION_H__
+#define __TORTILLA_EXCEPTION_H__
 
 //! \brief Base exception class
 class TortillaException : public std::exception {
@@ -56,4 +56,4 @@ public:
 };
 
 
-#endif /* __EXCEPTION_H__ */
+#endif /* __TORTILLA_EXCEPTION_H__ */

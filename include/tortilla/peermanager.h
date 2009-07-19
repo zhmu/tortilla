@@ -3,8 +3,8 @@
 #include <map>
 #include "file.h"
 
-#ifndef __PEERMANAGER_H__
-#define __PEERMANAGER_H__
+#ifndef __TORTILLA_PEERMANAGER_H__
+#define __TORTILLA_PEERMANAGER_H__
 
 class Overseer;
 class Peer;
@@ -74,4 +74,4 @@ private:
 	bool terminating;
 };
 
-#endif /* __FILEMANAGER_H__ */
+#endif /* __TORTILLA_FILEMANAGER_H__ */

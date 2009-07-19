@@ -1,8 +1,8 @@
 #include <map>
 #include <string>
 
-#ifndef __HTTP_H__
-#define __HTTP_H__
+#ifndef __TORTILLA_HTTP_H__
+#define __TORTILLA_HTTP_H__
 
 class HTTP {
 public:
@@ -16,4 +16,4 @@ public:
 	static std::string get(std::string url, std::map<std::string, std::string> parms);
 };
 
-#endif /* __HTTP_H__ */
+#endif /* __TORTILLA_HTTP_H__ */

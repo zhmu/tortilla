@@ -3,8 +3,8 @@
 class Peer;
 class File;
 
-#ifndef __INFO_H__
-#define __INFO_H__
+#ifndef __TORTILLA_INFO_H__
+#define __TORTILLA_INFO_H__
 
 class PieceInfo {
 public:
@@ -61,4 +61,4 @@ private:
 	unsigned int firstPiece, numPieces;
 };
 
-#endif /* __INFO_H__ */
+#endif /* __TORTILLA_INFO_H__ */

@@ -2,8 +2,8 @@
 #include <list>
 #include "file.h"
 
-#ifndef __FILEMANAGER_H__
-#define __FILEMANAGER_H__
+#ifndef __TORTILLA_FILEMANAGER_H__
+#define __TORTILLA_FILEMANAGER_H__
 
 class Overseer;
 
@@ -68,4 +68,4 @@ private:
 	pthread_rwlock_t rwl_data;
 };
 
-#endif /* __FILEMANAGER_H__ */
+#endif /* __TORTILLA_FILEMANAGER_H__ */

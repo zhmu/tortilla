@@ -2,8 +2,8 @@
 #include <sys/socket.h>
 #include <string>
 
-#ifndef __CONNECTION_H__
-#define __CONNECTION_H__
+#ifndef __TORTILLA_CONNECTION_H__
+#define __TORTILLA_CONNECTION_H__
 
 /*! \brief Implements a TCP connection
  */
@@ -74,4 +74,4 @@ private:
 	std::string endpoint;
 };
 
-#endif /* __CONNECTION_H__ */
+#endif /* __TORTILLA_CONNECTION_H__ */

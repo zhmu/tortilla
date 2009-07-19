@@ -3,8 +3,8 @@
 #include <map>
 #include <string>
 
-#ifndef __METAFIELD_H__
-#define __METAFIELD_H__
+#ifndef __TORTILLA_METAFIELD_H__
+#define __TORTILLA_METAFIELD_H__
 
 class MetaField {
 public:
@@ -100,4 +100,4 @@ private:
 	std::list<StringFieldMap*> dictionary;
 };
 
-#endif /* __METAFIELD_H__ */
+#endif /* __TORTILLA_METAFIELD_H__ */

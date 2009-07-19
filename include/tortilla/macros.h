@@ -1,5 +1,5 @@
-#ifndef __MACROS_H__
-#define __MACROS_H__
+#ifndef __TORTILLA_MACROS_H__
+#define __TORTILLA_MACROS_H__
 
 #define MIN(a,b) \
 	(((a) < (b)) ? (a) : (b))
@@ -82,4 +82,4 @@ do { \
 	           (((ptr)[(offs) + 3])      ))
 
 
-#endif /* __MACROS_H__ */
+#endif /* __TORTILLA_MACROS_H__ */

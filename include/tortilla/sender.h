@@ -5,8 +5,8 @@
 
 class Overseer;
 
-#ifndef __UPLOADER_H__
-#define __UPLOADER_H__
+#ifndef __TORTILLA_SENDER_H__
+#define __TORTILLA_SENDER_H__
 
 /*! \brief Handles sending data to peers
  *
@@ -61,4 +61,4 @@ private:
 	Overseer* overseer;
 };
 
-#endif /*  __UPLOADER_H__ */
+#endif /* __TORTILLA_SENDER_H__ */

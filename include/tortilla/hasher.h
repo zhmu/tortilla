@@ -2,8 +2,8 @@
 #include <queue>
 #include "torrent.h"
 
-#ifndef __HASHER_H__
-#define __HASHER_H__
+#ifndef __TORTILLA_HASHER_H__
+#define __TORTILLA_HASHER_H__
 
 //! \brief Number of bytes used to calculate hash
 #define HASHER_CHUNK_SIZE 16384
@@ -76,4 +76,4 @@ private:
 	Overseer* overseer;
 };
 
-#endif /* __HASHER_H__ */
+#endif /* __TORTILLA_HASHER_H__ */

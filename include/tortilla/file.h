@@ -2,8 +2,8 @@
 #include <string>
 #include <time.h>
 
-#ifndef __FILE_H__
-#define __FILE_H__
+#ifndef __TORTILLA_FILE_H__
+#define __TORTILLA_FILE_H__
 
 class FileManager;
 
@@ -88,4 +88,4 @@ private:
 	pthread_rwlock_t rwl_file;
 };
 
-#endif /*  __FILE_H__ */
+#endif /*  __TORTILLA_FILE_H__ */

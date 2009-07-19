@@ -1,8 +1,8 @@
 #include <string>
 #include "peer.h"
 
-#ifndef __PENDINGPEER_H__
-#define __PENDINGPEER_H__
+#ifndef __TORTILLA_PENDINGPEER_H__
+#define __TORTILLA_PENDINGPEER_H__
 
 /*! \brief Implements a pending peer
  *
@@ -36,5 +36,4 @@ private:
 	std::string peerid;
 };
 
-
-#endif /* __PENDINGPEER_H__ */
+#endif /* __TORTILLA_PENDINGPEER_H__ */

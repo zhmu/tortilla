@@ -5,8 +5,8 @@
 #include "torrent.h"
 #include "sender.h"
 
-#ifndef __OVERSEER_H__
-#define __OVERSEER_H__
+#ifndef __TORTILLA_OVERSEER_H__
+#define __TORTILLA_OVERSEER_H__
 
 class Tracer;
 class FileManager;
@@ -172,4 +172,4 @@ private:
 	PeerManager* peermanager;
 };
 
-#endif /* __OVERSEER_H__ */
+#endif /* __TORTILLA_OVERSEER_H__ */

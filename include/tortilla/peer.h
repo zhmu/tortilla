@@ -5,8 +5,8 @@
 #include <vector>
 #include "connection.h"
 
-#ifndef __PEER_H__
-#define __PEER_H__
+#ifndef __TORTILLA_PEER_H__
+#define __TORTILLA_PEER_H__
 
 class Torrent;
 class SenderRequest;
@@ -369,4 +369,4 @@ private:
 //! \brief List of peers
 typedef std::list<Peer*> PeerList;
 
-#endif /* __PEER_H__ */
+#endif /* __TORTILLA_PEER_H__ */
