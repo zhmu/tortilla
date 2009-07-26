@@ -60,7 +60,7 @@ Interface::run()
 		struct timeval tv;
 		tv.tv_sec = 1; tv.tv_usec = 0;
 		if (select (STDIN_FILENO + 1, &fds, NULL, NULL, &tv) < 0)
-			break;
+			continue;
 		if (FD_ISSET(STDIN_FILENO, &fds))
 			handleInput();
 	}
