@@ -179,9 +179,7 @@ PeerManager::process()
 		/* If we need to accept new connections, handle that */
 		if (FD_ISSET(listenerFD, &readfds)) {
 			Connection* c = overseer->getIncoming()->acceptConnection();
-TRACE(NETWORK, "connection ok, conn=%p", c);
 			if (c != NULL) {
-				TRACE(NETWORK, "accepted: connection=%p, fd=%u", c, c->getFD());
 				overseer->handleIncomingConnection(c);
 			}
 		}

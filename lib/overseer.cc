@@ -197,12 +197,12 @@ Overseer::handleIncomingConnection(Connection* c)
 	struct timeval tv;
 	int fd = c->getFD();
 
-	tv.tv_sec = 5; tv.tv_usec = 0;
+	tv.tv_sec = 3; tv.tv_usec = 0;
 	FD_ZERO(&fds);
 	FD_SET(fd, &fds);
 	if (select(fd + 1, &fds, NULL, NULL, &tv) <= 0 || !FD_ISSET(fd, &fds)) {
 		/* No data! So sad... */
-		TRACE(NETWORK, "timeout waiting for handshake: connection=%p", c);
+		TRACE(NETWORK, "timeout waiting for handshake from %s", c->getEndpoint().c_str());
 		delete c;
 		return;
 	}
@@ -213,7 +213,7 @@ Overseer::handleIncomingConnection(Connection* c)
 	 */
 	uint8_t handshake[1024 /* XXX */];
 	c->read((void*)handshake, 1 + strlen(PEER_PSTR) + 8 + TORRENT_HASH_LEN, true);
-	TRACE(NETWORK, "got handshake (part 1): connection=%p", c);
+	TRACE(NETWORK, "got handshake (part 1): connection=%s", c->getEndpoint().c_str());
 	
 	/* So, we have part one of the handshake; dissect and validate it */
 	uint8_t reserved[8];
@@ -221,7 +221,7 @@ Overseer::handleIncomingConnection(Connection* c)
 	string info((const char*)(handshake + 1 + strlen(PEER_PSTR) + 8), TORRENT_HASH_LEN);
 	if (handshake[0] != strlen(PEER_PSTR) ||
 			memcmp((handshake + 1), PEER_PSTR, strlen(PEER_PSTR))) {
-		TRACE(NETWORK, "got bad protocol version from connection=%p, dropping!", c);
+		TRACE(NETWORK, "got bad protocol version from %s, dropping!", c->getEndpoint().c_str());
 		delete c;
 		return;
 	}
@@ -234,14 +234,14 @@ Overseer::handleIncomingConnection(Connection* c)
 		t = it->second;
 	UNLOCK(torrents);
 	if (t == NULL) {
-		TRACE(TORRENT, "connection %p: peer requests unknown info hash, dropping", c);
+		TRACE(TORRENT, "connection %s: peer requests unknown info hash, dropping", c->getEndpoint().c_str());
 		delete c;
 		return;
 	}
 
 	/* Ensure the torrent can still accept a new peer; if not, ditch the connection */
 	if (!t->canAcceptPeer()) {
-		TRACE(TORRENT, "connection %p: rejected by torrent, dropping", c);
+		TRACE(TORRENT, "connection %s: rejected by torrent, dropping", c->getEndpoint().c_str());
 		delete c;
 		return;
 	}
@@ -259,7 +259,7 @@ Overseer::handleIncomingConnection(Connection* c)
 	 * We sent our stuff; wait for the final 20 bytes indicating the torrent's peer ID.
 	 */
 	c->read((void*)handshake, TORRENT_PEERID_LEN);
-	TRACE(NETWORK, "got handshake (part 2): connection=%p", p);
+	TRACE(NETWORK, "got handshake (part 2): connection=%p", c->getEndpoint().c_str());
 	string peer((const char*)(handshake), TORRENT_PEERID_LEN);
 	if (!memcmp(handshake, peerid, TORRENT_PEERID_LEN)) {
 		TRACE(NETWORK, "handshake aborted: connection=%p,peer=%s is us", c, c->getEndpoint().c_str());
