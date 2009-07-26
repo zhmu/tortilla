@@ -116,6 +116,15 @@ PeerManager::process()
 		RWUNLOCK(data);
 
 		/*
+		 * Add the listener socket; it makes absolutely no sense to monitor this
+		 * socket seperately from the rest.
+		 */
+		int listenerFD = overseer->getIncoming()->getFD();
+		FD_SET(listenerFD, &readfds);
+		if (maxfd < listenerFD)
+			maxfd = listenerFD;
+
+		/*
 		 *
 		 * Note that, for busy torrents, this 0.5 second loop will never be reached.
 		 */
@@ -166,6 +175,16 @@ PeerManager::process()
 			}
 		}
 		RWUNLOCK(data);
+
+		/* If we need to accept new connections, handle that */
+		if (FD_ISSET(listenerFD, &readfds)) {
+			Connection* c = overseer->getIncoming()->acceptConnection();
+TRACE(NETWORK, "connection ok, conn=%p", c);
+			if (c != NULL) {
+				TRACE(NETWORK, "accepted: connection=%p, fd=%u", c, c->getFD());
+				overseer->handleIncomingConnection(c);
+			}
+		}
 	}
 }
 

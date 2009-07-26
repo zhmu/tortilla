@@ -16,10 +16,10 @@ class PeerManager;
  */
 class Overseer {
 friend void* bandwidth_thread(void* ptr);
-friend void* listener_thread(void* ptr);
 friend void* heartbeat_thread(void* ptr);
 friend class Torrent;
 friend class Sender;
+friend class PeerManager;
 public:
 	/*! \brief Constructs a new overseer
 	 *  \param portnr TCP port number to use for incoming connections
@@ -74,9 +74,6 @@ protected:
 	//! \brief Seperate thread handling bandwidth monitoring
 	void bandwidthThread();
 
-	//! \brief Seperate thread handling incoming connections
-	void listenerThread();
-
 	//! \brief Seperate thread handling torrent silicon heartbeat
 	void heartbeatThread();
 
@@ -118,6 +115,9 @@ protected:
 	void readFile(File* f, off_t offset, void* buf, size_t len);
 
 	Peer* findPeerByFDAndLock(int fd);
+
+	//! \brief Retrieve the incoming socket
+	Connection* getIncoming() { return incoming; }
 
 private:
 	//! \brief Info hash to torrent mappings

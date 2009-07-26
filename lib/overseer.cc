@@ -22,7 +22,6 @@ x ## _thread(void* ptr) \
 }
 
 OVERSEER_THREAD(bandwidth);
-OVERSEER_THREAD(listener);
 OVERSEER_THREAD(heartbeat);
 
 Overseer::Overseer(unsigned int portnum, Tracer* tr)
@@ -45,11 +44,11 @@ Overseer::Overseer(unsigned int portnum, Tracer* tr)
 	INIT_MUTEX(torrents);
 	INIT_MUTEX(data);
 
+	incoming = new Connection(port);
 	peermanager = new PeerManager(this);
 	hasher = new Hasher(this);
 	sender = new Sender(this);
 	filemanager = new FileManager(this, 64 /* XXX make me configurable! */);
-	incoming = new Connection(port);
 
 	/* Block SIGPIPE - the appropriate thread will notice this anyway */
 	sigset_t sm;
@@ -58,7 +57,6 @@ Overseer::Overseer(unsigned int portnum, Tracer* tr)
 	pthread_sigmask(SIG_BLOCK, &sm, NULL);
 
 	pthread_create(&thread_bandwidth_monitor, NULL, bandwidth_thread, this);
-	pthread_create(&thread_listener, NULL, listener_thread, this);
 	pthread_create(&thread_heartbeat, NULL, heartbeat_thread, this);
 }
 
@@ -68,7 +66,6 @@ Overseer::~Overseer()
 
 	/* Remove all helper threads */
 	pthread_join(thread_bandwidth_monitor, NULL);
-	pthread_join(thread_listener, NULL);
 	pthread_join(thread_heartbeat, NULL);
 
 	/* Get rid of the torrents; these will remove any peers and hashing requests too */
@@ -80,10 +77,10 @@ Overseer::~Overseer()
 		torrents.erase(it);
 	}
 
-	delete incoming;
 	delete hasher;
 	delete sender;
 	delete peermanager;
+	delete incoming;
 	delete filemanager;
 
 	DESTROY_MUTEX(torrents);
@@ -150,40 +147,6 @@ Overseer::bandwidthThread()
 			t->updateBandwidth();
 		}
 		UNLOCK(torrents);
-	}
-}
-
-void
-Overseer::listenerThread()
-{
-	while (!terminating) {
-		/*
-		 * Wait for at most second for a request; this means we stall at most
-		 * one second while terminating.
-		 */
-		struct timeval tv;
-		tv.tv_sec = 1; tv.tv_usec = 0;
-
-		fd_set fds;
-		int fd = incoming->getFD();
-		FD_ZERO(&fds);
-		FD_SET(fd, &fds);
-		if (select(fd + 1, &fds, NULL, NULL, &tv) == 0 || !FD_ISSET(fd, &fds) || terminating)
-			continue;
-
-		/*
-		 * Incoming connection! Note that we wait here at most 5 seconds until data
-		 * arrives; if we haven't seen anything, we assume the client is broken or
-		 * just not interesting. The specification states that 'The initiator of a
-		 * connection is expected to transmit their handshake immediately', so
-		 * 5 seconds seems reasonable.
-		 */
-		Connection* c = incoming->acceptConnection();
-		if (c == NULL)
-			continue;
-		TRACE(NETWORK, "accepted: connection=%p, fd=%u", c, c->getFD());
-
-		handleIncomingConnection(c);
 	}
 }
 
