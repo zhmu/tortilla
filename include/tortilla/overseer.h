@@ -96,11 +96,11 @@ protected:
 	//! \brief Used to signal a sender
 	void signalSender();
 
-	//! \brief Called if a torrent adds a peer
-	void callbackPeerAdded(Peer* p);
+	//! \brief Add a peer
+	void addPeer(Peer* p);
 
-	//! \brief Called if a torrent ditches a peer
-	void callbackPeerRemoved(Peer* p);
+	//! \brief Remove a peer
+	void removePeer(Peer* p);
 
 	//! \brief Adds a file to the list of files
 	void addFile(File* f);

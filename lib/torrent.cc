@@ -286,14 +286,12 @@ Torrent::~Torrent()
 	 * Remove our peers; actual cleanup will be performed by the peer manager.
 	 */
 	WLOCK(peers);
-	while (true) {
-		vector<Peer*>::iterator it = peers.begin();
-		if (it == peers.end())
-			break;
+	for (vector<Peer*>::iterator it = peers.begin();
+	     it != peers.end(); it++) {
 		Peer* p = *it;
-		p->shutdown();
-		peers.erase(it);
+		overseer->removePeer(p);
 	}
+	peers.clear();
 	RWUNLOCK(peers);
 
 	/* Close all files, too */
@@ -1001,7 +999,7 @@ Torrent::heartbeat()
 			WLOCK(peers);
 			peers.push_back(p);
 			RWUNLOCK(peers);
-			overseer->callbackPeerAdded(p);
+			overseer->addPeer(p);
 
 			/*
 			 * Send the handshake; we can only do this after we have added the

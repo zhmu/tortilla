@@ -303,13 +303,13 @@ Overseer::signalSender()
 }
 
 void
-Overseer::callbackPeerAdded(Peer* p)
+Overseer::addPeer(Peer* p)
 {
 	peermanager->addPeer(p);
 }
 
 void
-Overseer::callbackPeerRemoved(Peer* p)
+Overseer::removePeer(Peer* p)
 {
 	peermanager->removePeer(p);
 }
