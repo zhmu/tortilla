@@ -138,12 +138,10 @@ main(int argc, char** argv)
 	delete md;
 
 	signal(SIGINT, sigint);
-	overseer->start();
 
 	run();
 
 	printf(">> Cleaning up...\n");
-	overseer->stop();
 
 	delete overseer;
 	delete tracer;
