@@ -4,7 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 #include "filemanager.h"
-#include "peermanager.h"
+#include "receiver.h"
 #include "macros.h"
 #include "overseer.h"
 #include "peer.h"
@@ -45,7 +45,7 @@ Overseer::Overseer(unsigned int portnum, Tracer* tr)
 	INIT_MUTEX(data);
 
 	incoming = new Connection(port);
-	peermanager = new PeerManager(this);
+	receiver = new Receiver(this);
 	hasher = new Hasher(this);
 	sender = new Sender(this);
 	filemanager = new FileManager(this, 64 /* XXX make me configurable! */);
@@ -79,7 +79,7 @@ Overseer::~Overseer()
 
 	delete hasher;
 	delete sender;
-	delete peermanager;
+	delete receiver;
 	delete incoming;
 	delete filemanager;
 
@@ -261,7 +261,7 @@ Overseer::handleIncomingConnection(Connection* c)
 
 	/* We accept! We have no choice! */
 	t->registerPeer(p);
-	peermanager->addPeer(p);
+	receiver->addPeer(p);
 	TRACE(NETWORK, "accepted peer %p for torrent %p",
 	 c, t);
 
@@ -300,25 +300,25 @@ Overseer::signalSender()
 void
 Overseer::addPeer(Peer* p)
 {
-	peermanager->addPeer(p);
+	receiver->addPeer(p);
 }
 
 void
 Overseer::removePeer(Peer* p)
 {
-	peermanager->removePeer(p);
+	receiver->removePeer(p);
 }
 
 Peer*
 Overseer::findPeerByFDAndLock(int fd)
 {
-	return peermanager->findPeerByFDAndLock(fd);
+	return receiver->findPeerByFDAndLock(fd);
 }
 
 void
 Overseer::getSendablePeers(list<int>& m)
 {
-	return peermanager->getSendablePeers(m);
+	return receiver->getSendablePeers(m);
 }
 
 

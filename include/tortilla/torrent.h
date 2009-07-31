@@ -60,7 +60,7 @@ class Tracer;
  */
 class Torrent {
 friend class Peer;
-friend class PeerManager;
+friend class Receiver;
 friend class Overseer;
 friend class Hasher;
 friend class SenderRequest;

@@ -10,7 +10,7 @@
 
 class Tracer;
 class FileManager;
-class PeerManager;
+class Receiver;
 
 /*! \brief Responsible for overseeing all torrents
  */
@@ -19,7 +19,7 @@ friend void* bandwidth_thread(void* ptr);
 friend void* heartbeat_thread(void* ptr);
 friend class Torrent;
 friend class Sender;
-friend class PeerManager;
+friend class Receiver;
 public:
 	/*! \brief Constructs a new overseer
 	 *  \param portnr TCP port number to use for incoming connections
@@ -96,7 +96,7 @@ protected:
 	//! \brief Used to signal a sender
 	void signalSender();
 
-	/** PeerManager **/
+	/** Receiver **/
 
 	//! \brief Add a peer
 	void addPeer(Peer* p);
@@ -152,6 +152,9 @@ private:
 	//! \brief Sender object used for all torrents
 	Sender* sender;
 
+	//! \brief Receiver object used for all torrents
+	Receiver* receiver;
+
 	//! \brief Hasher thread
 	Hasher* hasher;
 
@@ -172,9 +175,6 @@ private:
 
 	//! \brief File manager used
 	FileManager* filemanager;
-
-	//! \brief Peer manager used
-	PeerManager* peermanager;
 };
 
 #endif /* __TORTILLA_OVERSEER_H__ */

@@ -4,7 +4,7 @@
 #include <list>
 #include "exceptions.h"
 #include "peer.h"
-#include "peermanager.h"
+#include "receiver.h"
 #include "macros.h"
 #include "overseer.h"
 #include "tracer.h"
@@ -14,21 +14,21 @@ using namespace std;
 #define TRACER (overseer->getTracer())
 
 void*
-peermanager_thread(void* ptr)
+receiver_thread(void* ptr)
 {
-	((PeerManager*)ptr)->process();
+	((Receiver*)ptr)->process();
 	return NULL;
 }
 
-PeerManager::PeerManager(Overseer* o)
+Receiver::Receiver(Overseer* o)
 {
 	INIT_RWLOCK(data);
 	overseer = o; terminating = false;
 
-	pthread_create(&thread, NULL, peermanager_thread, this);
+	pthread_create(&thread, NULL, receiver_thread, this);
 }
 
-PeerManager::~PeerManager()
+Receiver::~Receiver()
 {
 	terminating = true;
 	pthread_join(thread, NULL);
@@ -37,7 +37,7 @@ PeerManager::~PeerManager()
 }
 
 void
-PeerManager::addPeer(Peer* p)
+Receiver::addPeer(Peer* p)
 {
 	WLOCK(data);
 	peers.push_back(p);
@@ -46,7 +46,7 @@ PeerManager::addPeer(Peer* p)
 }
 
 void
-PeerManager::removePeer(Peer* p)
+Receiver::removePeer(Peer* p)
 {
 	WLOCK(data);
 	fdMap.erase(p->getFD());
@@ -57,7 +57,7 @@ PeerManager::removePeer(Peer* p)
 }
 
 Peer*
-PeerManager::findPeerByFDAndLock(int fd)
+Receiver::findPeerByFDAndLock(int fd)
 {
 	RLOCK(data);
 	Peer* p = NULL;
@@ -71,7 +71,7 @@ PeerManager::findPeerByFDAndLock(int fd)
 }
 
 void
-PeerManager::process()
+Receiver::process()
 {
 	while (!terminating) {
 		fd_set readfds, writefds;
@@ -187,7 +187,7 @@ PeerManager::process()
 }
 
 void
-PeerManager::getSendablePeers(list<int>& m)
+Receiver::getSendablePeers(list<int>& m)
 {
 	RLOCK(data);
 	for (list<Peer*>::iterator it = peers.begin();

@@ -3,37 +3,37 @@
 #include <map>
 #include "file.h"
 
-#ifndef __TORTILLA_PEERMANAGER_H__
-#define __TORTILLA_PEERMANAGER_H__
+#ifndef __TORTILLA_RECEIVER_H__
+#define __TORTILLA_RECEIVER_H__
 
 class Overseer;
 class Peer;
 
-/*! \brief Responsible for handling the pool of torrent peers
+/*! \brief Handles receiver of data to peers / torrents
  *
- *  This object keeps track of all peers that are known to any
- *  torrent; this includes handling incoming data and passing it
- *  to the appropriate peer and closing of a connection.
+ *  This object will also keep track of all peers that are known to any
+ *  torrent; this includes handling incoming data and passing it to the
+ *  appropriate peer and closing of a connection.
  *
  *  The use of this object greatly simplifies locking,
  *  since because it keeps track of all peers, it can safely
- *  decide one it's safe to remove any.
+ *  decide once it's safe to remove any.
  */
-class PeerManager {
-friend	void* peermanager_thread(void* ptr);
+class Receiver {
+friend	void* receiver_thread(void* ptr);
 public:
-	/*! \brief Constructs a new peer manager
+	/*! \brief Constructs a new downloader
 	 *  \param o Overseer object to use
 	 */
-	PeerManager(Overseer* o);
+	Receiver(Overseer* o);
 
-	/*! \brief Destroys the peer manager
+	/*! \brief Destroys the downloader
 	 *
 	 *  This will not delete any peers managed; this is up to the torrent.
 	 */
-	~PeerManager();
+	~Receiver();
 
-	//! \brief Adds a peer to the manager
+	//! \brief Adds a peer to handke downloading from
 	void addPeer(Peer* p);
 
 	//! \brief Removes a peer
@@ -42,11 +42,11 @@ public:
 	//! \brief Handles incoming data and disconnecting peers
 	void process();
 
-	/*! \brief Retrieve a peer by file descriptor and lock it for sending
+	/*! \brief Retrieve a peer by file descriptor and lock it for transfer
 	 *  \param fd File descriptor to find
 	 *  \returns Peer object, or NULL
 	 *
-	 *  If this function returns, the peer will be locked for sending and
+	 *  If this function returns, the peer will be locked for transfer and
 	 *  will not be removed.
 	 */
 	Peer* findPeerByFDAndLock(int fd);
