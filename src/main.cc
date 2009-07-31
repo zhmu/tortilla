@@ -84,10 +84,8 @@ main(int argc, char** argv)
 	}
 
 	signal(SIGINT, sigint);
-	overseer->start();
 
 	interface->run();
-	overseer->stop();
 
 	delete interface;
 	delete overseer;
