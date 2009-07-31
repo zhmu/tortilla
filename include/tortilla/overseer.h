@@ -36,12 +36,6 @@ public:
 	//! \brief Remove a torrent from the overseer
 	void removeTorrent(Torrent* t);
 
-	//! \brief Go, and oversee!
-	void start();
-
-	//! \brief Stop
-	void stop();
-
 	//! \brief Request termination
 	void terminate();
 
@@ -80,27 +74,43 @@ protected:
 	//! \brief Handles a new incoming socket
 	void handleIncomingConnection(Connection* c);
 
+	//! \brief Retrieve the incoming socket
+	Connection* getIncoming() { return incoming; }
+
+	/*
+ 	 * All functions below here are designed to honor the
+	 * principe of least knowledge; all they do is simply
+	 * pass the call to the objects that implement them.
+	 */
+
+	/** Hasher **/
+
 	//! \brief Request hashing of a piece
 	void queueHashPiece(Torrent* t, uint32_t piece);
 
-	/*! \brief Cleans up the torrent state so it can be deleted
-	 *
-	 *  This must be called in the destructor of Torrent; this call
-	 *  ensures any references to the torrent will be removed.
-	 */
-	void cleanupTorrent(Torrent* t);
+	//! \brief Cancels any hashing scheduled for a torrent
+	void cancelHashing(Torrent* t);
 
-	//! \brief Request a map of file descriptor for sending
-	void getSendablePeers(std::list<int>& m);
+	/** Sender **/
 
 	//! \brief Used to signal a sender
 	void signalSender();
+
+	/** PeerManager **/
 
 	//! \brief Add a peer
 	void addPeer(Peer* p);
 
 	//! \brief Remove a peer
 	void removePeer(Peer* p);
+
+	//! \brief Find a peer by file descriptor and lock the peer for sending
+	Peer* findPeerByFDAndLock(int fd);
+
+	//! \brief Request a map of file descriptor for sending
+	void getSendablePeers(std::list<int>& m);
+
+	/** FileManager **/
 
 	//! \brief Adds a file to the list of files
 	void addFile(File* f);
@@ -113,11 +123,6 @@ protected:
 
 	//! \brief Read from a file
 	void readFile(File* f, off_t offset, void* buf, size_t len);
-
-	Peer* findPeerByFDAndLock(int fd);
-
-	//! \brief Retrieve the incoming socket
-	Connection* getIncoming() { return incoming; }
 
 private:
 	//! \brief Info hash to torrent mappings

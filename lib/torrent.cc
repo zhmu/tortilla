@@ -269,7 +269,8 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 
 Torrent::~Torrent()
 {
-	overseer->cleanupTorrent(this);
+	// Cancel any hashing attempt, as we'll close the files soon enough */
+	overseer->cancelHashing(this);
 
 	/*
 	 * Inform the tracker that we are going away. We care not

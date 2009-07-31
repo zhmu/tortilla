@@ -112,16 +112,6 @@ Overseer::removeTorrent(Torrent* t)
 
 
 void
-Overseer::start()
-{
-}
-
-void
-Overseer::stop()
-{
-}
-
-void
 Overseer::terminate()
 {
 	terminating = true;
@@ -284,6 +274,11 @@ Overseer::handleIncomingConnection(Connection* c)
 	p->sendBitfield();
 }
 
+/*
+ * Below are principe of least knowledge functions which just forward the call to the
+ * appropriate object.
+ */
+
 void
 Overseer::queueHashPiece(Torrent* t, uint32_t piece)
 {
@@ -291,7 +286,7 @@ Overseer::queueHashPiece(Torrent* t, uint32_t piece)
 }
 
 void
-Overseer::cleanupTorrent(Torrent* t)
+Overseer::cancelHashing (Torrent* t)
 {
 	hasher->cancelTorrent(t);
 }
@@ -314,17 +309,18 @@ Overseer::removePeer(Peer* p)
 	peermanager->removePeer(p);
 }
 
-void
-Overseer::writeFile(File* f, off_t offset, const void* buf, size_t len)
+Peer*
+Overseer::findPeerByFDAndLock(int fd)
 {
-	filemanager->writeFile(f, offset, buf, len);
+	return peermanager->findPeerByFDAndLock(fd);
 }
 
 void
-Overseer::readFile(File* f, off_t offset, void* buf, size_t len)
+Overseer::getSendablePeers(list<int>& m)
 {
-	filemanager->readFile(f, offset, buf, len);
+	return peermanager->getSendablePeers(m);
 }
+
 
 void
 Overseer::addFile(File* f)
@@ -338,16 +334,16 @@ Overseer::removeFile(File* f)
 	filemanager->removeFile(f);
 }
 
-Peer*
-Overseer::findPeerByFDAndLock(int fd)
+void
+Overseer::writeFile(File* f, off_t offset, const void* buf, size_t len)
 {
-	return peermanager->findPeerByFDAndLock(fd);
+	filemanager->writeFile(f, offset, buf, len);
 }
 
 void
-Overseer::getSendablePeers(list<int>& m)
+Overseer::readFile(File* f, off_t offset, void* buf, size_t len)
 {
-	return peermanager->getSendablePeers(m);
+	filemanager->readFile(f, offset, buf, len);
 }
 
 /* vim:set ts=2 sw=2: */
