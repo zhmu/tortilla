@@ -269,7 +269,7 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 
 Torrent::~Torrent()
 {
-	// Cancel any hashing attempt, as we'll close the files soon enough */
+	/* Cancel any hashing attempt, as we'll close the files soon enough */
 	overseer->cancelHashing(this);
 
 	/*
@@ -509,7 +509,8 @@ Torrent::schedulePeerRequests(Peer* p)
 {
 	/*
 	 * If we have the full torrent already, the peer is choking us,
-	 * or the peer is going away, * don't bother trying to schedule something.
+	 * or the peer is going away,
+	 * don't bother trying to schedule something.
 	 */
 	if (complete || p->isChoking() || p->isShuttingDown())
 		return;
@@ -715,7 +716,9 @@ Torrent::callbackCompleteHashing(unsigned int piece, bool result)
 	}
 
 	/*
-	 * Enter endgame mode if needed.
+	 * Enter endgame mode if needed. XXX doing it on a fixed percentage is stupid,
+	 * this must be restructured to only enter endgame mode if all chucks are
+	 * scheduled.
 	 */
 	if (!endgame_mode && ((total_size - left) / (float)total_size) * 100.0f >= TORRENT_ENDGAME_PERCENTAGE) {
 		endgame_mode = true;
@@ -994,7 +997,7 @@ Torrent::heartbeat()
 
 		if (p != NULL) {
 			/*
-			 * It seems possible to connct to this peer; we should add it to both ourselves
+			 * It seems possible to connect to this peer; we should add it to both ourselves
 			 * and the peer manager.
 			 */
 			WLOCK(peers);
