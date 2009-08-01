@@ -15,12 +15,6 @@
 //! \brief A chunk is an atomically transferable piece of data between peers
 #define TORRENT_CHUNK_SIZE 16384
 
-/*! \brief Maximum number of requested pieces per client
- *
- *  XXX 1 is an experiment.
- */
-#define TORRENT_PEER_MAX_REQUESTS 1
-
 /*! \brief Maximum number of peers in a torrent at any time
  *
  *  More peers than this will be rejected.
