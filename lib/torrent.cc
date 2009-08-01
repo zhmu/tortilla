@@ -17,7 +17,7 @@
 #include "exceptions.h"
 #include "file.h"
 #include "hasher.h"
-#include "http.h"
+#include "httprequest.h"
 #include "info.h"
 #include "macros.h"
 #include "overseer.h"
@@ -37,7 +37,7 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 	terminating = false; complete = false;
 	lastChokingAlgorithm = 0; unchokingRound = 0;
 	optimisticUnchokedPeer = NULL; tracker_key = "";
-	name = ""; endgame_mode = false;
+	name = ""; endgame_mode = false; trackerRequest = NULL;
 	rx_rate = 0; tx_rate = 0;
 
 	/* force the thread to contact the tracker */
@@ -269,6 +269,13 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 
 Torrent::~Torrent()
 {
+	LOCK(data);
+	if (trackerRequest != NULL) {
+		overseer->removeRequest(trackerRequest);
+		trackerRequest = NULL;
+	}
+	UNLOCK(data);
+
 	/* Cancel any hashing attempt, as we'll close the files soon enough */
 	overseer->cancelHashing(this);
 
@@ -277,8 +284,17 @@ Torrent::~Torrent()
 	 * about any errors; we are leaving anyway.
 	 */
 	try {
-		Metadata* md = contactTracker("stopped");
-		delete md;
+		contactTracker("stopped");
+
+		/* Wait for a bit until the tracker is done XXX hack, should use a condvar */
+		for (int i = 0; i < 3; i++) {
+			struct timeval tv;
+			tv.tv_sec = 1; tv.tv_usec = 0;
+			select(0, NULL, NULL, NULL, &tv);
+
+			if (trackerRequest == NULL)
+				break;
+		}
 	} catch (TortillaException e) {
 		/* ... */
 	}
@@ -322,10 +338,14 @@ Torrent::~Torrent()
 	DESTROY_RWLOCK(files);
 }
 
-Metadata*
+void
 Torrent::contactTracker(std::string event)
 {
 	map<string, string> m;
+
+	/* There is already an outstanding request */
+	if (trackerRequest != NULL)
+		return;
 
 	/* Construct the tracker request, and off it goes */
 	string h((const char*)infoHash, sizeof(infoHash));
@@ -356,23 +376,30 @@ Torrent::contactTracker(std::string event)
 		m["numwant"] = convertInteger((TORRENT_DESIRED_PEERS - numPeers) * 2);
 	}
 	lastTrackerContact = time(NULL);
-	string result;
+
 	try {
-		result = HTTP::get(announceURL, m);
+		HTTPRequest* req = new HTTPRequest(this, announceURL, m);
+		LOCK(data);
+		trackerRequest = req;
+		UNLOCK(data);
+		overseer->addRequest(req);
 	} catch (HTTPException e) {
 		log(NULL, "unable to contact tracker: %s", e.what());
-		return NULL;
 	}
+}
 
+void
+Torrent::handleTrackerReply(string reply)
+{
 	/* Parse the result as metadata (which it should be) */
 	Metadata* md;
 	try {
-		stringbuf sb(result);
+		stringbuf sb(reply);
 		istream is(&sb);
 		md = new Metadata(is);
 	} catch (MetadataException e) {
-		log(NULL, "tracker returned garbage: %s", result.c_str());
-		return NULL;
+		log(NULL, "tracker returned garbage: %s", reply.c_str());
+		return;
 	}
 
 	/*
@@ -384,18 +411,8 @@ Torrent::contactTracker(std::string event)
 		string failure = ms->getString();
 		delete md; /* Prevent memory leak */
 		log(NULL, "tracker reported failure: %s", failure.c_str());
-		return NULL;
-	}
-
-	return md;
-}
-
-void
-Torrent::handleTracker(string event)
-{
-	Metadata* md = contactTracker(event);
-	if (md == NULL)
 		return;
+	}
 
 	/*
 	 * Fetch the tracker interval times. The maximum interval must be present.
@@ -970,7 +987,7 @@ Torrent::heartbeat()
 		interval = tracker_min_interval;
 	if (time(NULL) >= lastTrackerContact + interval) {
 		/* The time is now */
-		handleTracker(lastTrackerContact == 0 ? "started" : "");
+		contactTracker(lastTrackerContact == 0 ? "started" : "");
 	}
 
 	if (time(NULL) >= lastChokingAlgorithm + TORRENT_DELTA_CHOKING_ALGO) {
@@ -1431,6 +1448,19 @@ Torrent::getFileDetails()
 	assert(piece + num == numPieces);
 
 	return fi;
+}
+
+void
+Torrent::callbackTrackerReply(HTTPRequest* r, std::string result, bool error)
+{
+	TRACE(TORRENT, "tracker reply received, error=%u", error ? 1 : 0);
+
+	if (!error)
+		handleTrackerReply(result);
+
+	LOCK(data);
+	trackerRequest = NULL;
+	UNLOCK(data);
 }
 
 /* vim:set ts=2 sw=2: */

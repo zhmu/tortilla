@@ -8,6 +8,7 @@
 
 class Overseer;
 class Peer;
+class HTTPRequest;
 
 /*! \brief Handles receiver of data to peers / torrents
  *
@@ -33,11 +34,17 @@ public:
 	 */
 	~Receiver();
 
-	//! \brief Adds a peer to handke downloading from
+	//! \brief Adds a peer to handle downloading from
 	void addPeer(Peer* p);
 
 	//! \brief Removes a peer
 	void removePeer(Peer* p);
+
+	//! \brief Adds a request to monitor
+	void addRequest(HTTPRequest* r);
+
+	//! \brief Removes a request
+	void removeRequest(HTTPRequest* r);
 
 	//! \brief Handles incoming data and disconnecting peers
 	void process();
@@ -63,6 +70,9 @@ private:
 
 	//! \brief Peers managed by us
 	std::list<Peer*> /* [M=peers] */ peers;
+
+	//! \brief Outstanding HTTP requests
+	std::list<HTTPRequest*> requests;
 
 	//! \brief Hash used to map file descriptors -> peers
 	std::map<int, Peer*> fdMap;

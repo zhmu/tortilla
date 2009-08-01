@@ -50,6 +50,7 @@ class Peer;
 class Overseer;
 class PendingPeer;
 class SenderRequest;
+class HTTPRequest;
 class Tracer;
 
 /*! \brief Implements a single, independant torrent
@@ -64,6 +65,7 @@ friend class Receiver;
 friend class Overseer;
 friend class Hasher;
 friend class SenderRequest;
+friend class HTTPRequest;
 public:
 	/*! \brief Constructs a new torrent object
 	 *  \param o Overseer to use
@@ -197,6 +199,9 @@ protected:
 	//! \brief Called by a peer if it becomes choked or unchoked
 	void callbackPeerChangedChoking(Peer* p);
 
+	//! \brief Called once the tracker reply is in
+	void callbackTrackerReply(HTTPRequest* r, std::string result, bool error);
+
 	//! \brief Called periodically to update bandwidth use
 	void updateBandwidth();
 
@@ -254,12 +259,11 @@ protected:
 private:
 	/*! \brief Contact the tracker
 	 *  \param event Event to report to the tracker
-	 *  \returns Metadata returned by the tracker
 	 *
-	 *  The caller is responsible for delete-ing the metadata once
-	 *  they are done with it.
+	 *  This function initiates tracker contact and
+	 *  results in callbackTrackerReply() being called.
 	 */
-	Metadata* contactTracker(std::string event);
+	void contactTracker(std::string event);
 
 	/*! \brief Handle a chunk from or to our output files
 	 *  \param piece Piece number to write
@@ -280,10 +284,8 @@ private:
 	 */
 	bool writeChunk(unsigned int piece, unsigned int offset, const uint8_t* buf, size_t length);
 
-	/*! \brief Handle periodic update to the tracker
-	 *  \param event Event to report to the tracker, if any
-	 */
-	void handleTracker(std::string event = "");
+	/*! \brief Handles the reply of the tracker */
+	void handleTrackerReply(std::string reply);
 
 	/*! \brief Request hashing of a piece
 	 *  \param piece Piece number to hash
@@ -437,6 +439,9 @@ private:
 	 *  any new pieces until it's done hashing.
 	 */
 	unsigned int numPiecesHashing;
+
+	//! \brief Current tracker request, if any
+	HTTPRequest* trackerRequest;
 
 	//! \brief Log of messages
 	std::list<std::string> /* [M=log] */ messageLog;

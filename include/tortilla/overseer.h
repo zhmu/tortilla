@@ -104,6 +104,12 @@ protected:
 	//! \brief Remove a peer
 	void removePeer(Peer* p);
 
+	//! \brief Add a request
+	void addRequest(HTTPRequest* r);
+
+	//! \brief Remove a request
+	void removeRequest(HTTPRequest* r);
+
 	//! \brief Find a peer by file descriptor and lock the peer for sending
 	Peer* findPeerByFDAndLock(int fd);
 

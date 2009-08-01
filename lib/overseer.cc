@@ -309,6 +309,18 @@ Overseer::removePeer(Peer* p)
 	receiver->removePeer(p);
 }
 
+void
+Overseer::addRequest(HTTPRequest* r)
+{
+	receiver->addRequest(r);
+}
+
+void
+Overseer::removeRequest(HTTPRequest* r)
+{
+	receiver->removeRequest(r);
+}
+
 Peer*
 Overseer::findPeerByFDAndLock(int fd)
 {

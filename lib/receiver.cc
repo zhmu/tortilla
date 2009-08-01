@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <list>
 #include "exceptions.h"
+#include "httprequest.h"
 #include "peer.h"
 #include "receiver.h"
 #include "macros.h"
@@ -56,6 +57,24 @@ Receiver::removePeer(Peer* p)
 	delete p;
 }
 
+void
+Receiver::addRequest(HTTPRequest* r)
+{
+	WLOCK(data);
+	requests.push_back(r);
+	RWUNLOCK(data);
+}
+
+void
+Receiver::removeRequest(HTTPRequest* r)
+{
+	WLOCK(data);
+	requests.remove(r);
+	RWUNLOCK(data);
+
+	delete r;
+}
+
 Peer*
 Receiver::findPeerByFDAndLock(int fd)
 {
@@ -95,6 +114,21 @@ Receiver::process()
 
 			peerit = peers.begin();
 		}
+
+		/* Remove any requests that need to go, too */
+		list<HTTPRequest*>::iterator reqit = requests.begin();
+		while (reqit != requests.end()) {
+			HTTPRequest* r = *reqit;
+			if (!r->mustTerminate()) {
+				reqit++;
+				continue;
+			}
+
+			requests.erase(reqit);
+			delete r;
+
+			reqit = requests.begin();
+		}
 		RWUNLOCK(data);
 
 		/*
@@ -112,6 +146,18 @@ Receiver::process()
 			if (p->areConnecting())
 				FD_SET(fd, &writefds);
 			FD_SET(fd, &readfds);
+		}
+
+		/* Handle requests, too */
+		for (list<HTTPRequest*>::iterator it = requests.begin();
+		     it != requests.end(); it++) {
+			HTTPRequest* r = *it;
+			int fd = r->getFD();
+			if (maxfd < fd) maxfd = fd;
+			if (r->isWaitingForRead())
+				FD_SET(fd, &readfds);
+			if (r->isWaitingForWrite())
+				FD_SET(fd, &writefds);
 		}
 		RWUNLOCK(data);
 
@@ -173,6 +219,15 @@ Receiver::process()
 				p->shutdown();
 				continue;
 			}
+		}
+
+		for (list<HTTPRequest*>::iterator it = requests.begin();
+		     it != requests.end(); it++) {
+			HTTPRequest* r = *it;
+			int fd = r->getFD();
+
+			if (FD_ISSET(fd, &readfds) || FD_ISSET(fd, &writefds))
+				r->process();
 		}
 		RWUNLOCK(data);
 
