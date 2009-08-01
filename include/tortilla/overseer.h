@@ -15,7 +15,7 @@ class Receiver;
 /*! \brief Responsible for overseeing all torrents
  */
 class Overseer {
-friend void* heartbeat_thread(void* ptr);
+friend void* overseer_thread(void* ptr);
 friend class Torrent;
 friend class Sender;
 friend class Receiver;
@@ -65,7 +65,7 @@ public:
 
 protected:
 	//! \brief Seperate thread handling torrent silicon heartbeat
-	void heartbeatThread();
+	void overseerThread();
 
 	//! \brief Handles a new incoming socket
 	void handleIncomingConnection(Connection* c);
@@ -157,8 +157,8 @@ private:
 	//! \brief Hasher thread
 	Hasher* hasher;
 
-	//! \brief Heartbeat thread
-	pthread_t thread_heartbeat;
+	//! \brief Overseer thread
+	pthread_t thread;
 
 	/*! \brief Upload rate, in bytes/second
 	 *

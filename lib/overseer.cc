@@ -15,9 +15,9 @@ using namespace std;
 #define TRACER (tracer)
 
 void*
-heartbeat_thread(void* ptr)
+overseer_thread(void* ptr)
 {
-	((Overseer*)ptr)->heartbeatThread();
+	((Overseer*)ptr)->overseerThread();
 	return NULL;
 }
 
@@ -53,15 +53,15 @@ Overseer::Overseer(unsigned int portnum, Tracer* tr)
 	sigaddset(&sm, SIGPIPE);
 	pthread_sigmask(SIG_BLOCK, &sm, NULL);
 
-	pthread_create(&thread_heartbeat, NULL, heartbeat_thread, this);
+	pthread_create(&thread, NULL, overseer_thread, this);
 }
 
 Overseer::~Overseer()
 {
 	terminating = true;
 
-	/* Remove the heartbeat thread */
-	pthread_join(thread_heartbeat, NULL);
+	/* Remove the overseer thread */
+	pthread_join(thread, NULL);
 
 	/* Get rid of the torrents; these will remove any peers and hashing requests too */
 	while (true) {
@@ -128,7 +128,7 @@ Overseer::getTorrents()
 }
 
 void
-Overseer::heartbeatThread()
+Overseer::overseerThread()
 {
 	while (!terminating) {
 		/* Wait for a second */
