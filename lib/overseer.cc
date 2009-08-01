@@ -13,16 +13,13 @@
 using namespace std;
 
 #define TRACER (tracer)
-#define OVERSEER_THREAD(x) \
-void* \
-x ## _thread(void* ptr) \
-{ \
-	((Overseer*)ptr)->x ## Thread(); \
-	return NULL; \
-}
 
-OVERSEER_THREAD(bandwidth);
-OVERSEER_THREAD(heartbeat);
+void*
+heartbeat_thread(void* ptr)
+{
+	((Overseer*)ptr)->heartbeatThread();
+	return NULL;
+}
 
 Overseer::Overseer(unsigned int portnum, Tracer* tr)
 {
@@ -56,7 +53,6 @@ Overseer::Overseer(unsigned int portnum, Tracer* tr)
 	sigaddset(&sm, SIGPIPE);
 	pthread_sigmask(SIG_BLOCK, &sm, NULL);
 
-	pthread_create(&thread_bandwidth_monitor, NULL, bandwidth_thread, this);
 	pthread_create(&thread_heartbeat, NULL, heartbeat_thread, this);
 }
 
@@ -64,8 +60,7 @@ Overseer::~Overseer()
 {
 	terminating = true;
 
-	/* Remove all helper threads */
-	pthread_join(thread_bandwidth_monitor, NULL);
+	/* Remove the heartbeat thread */
 	pthread_join(thread_heartbeat, NULL);
 
 	/* Get rid of the torrents; these will remove any peers and hashing requests too */
@@ -117,29 +112,6 @@ Overseer::terminate()
 	terminating = true;
 }
 
-void
-Overseer::bandwidthThread()
-{
-	while (!terminating) {
-		/* Wait for a second */
-		struct timeval tv;
-		tv.tv_sec = 1; tv.tv_usec = 0;
-		select(0, NULL, NULL, NULL, &tv);
-
-		/* Replenish amount of data transferrable */
-		sender->setAmountTransferrable(upload_rate);
-
-		/* Ask all torrents to update their bandwidth usage */
-		LOCK(torrents);
-		for (map<string, Torrent*>::iterator it = torrents.begin();
-				 it != torrents.end(); it++) {
-			Torrent* t = it->second;
-			t->updateBandwidth();
-		}
-		UNLOCK(torrents);
-	}
-}
-
 vector<Torrent*>
 Overseer::getTorrents()
 {
@@ -164,15 +136,20 @@ Overseer::heartbeatThread()
 		tv.tv_sec = 1; tv.tv_usec = 0;
 		select(0, NULL, NULL, NULL, &tv);
 
+		/* Replenish amount of data transferrable */
+		sender->setAmountTransferrable(upload_rate);
+
 		/*
-		 * Tell all torrents to heartbeat. The reason this is done in a seperate
-		 * thread is because the heartbeat may stall.
+		 * Tell all torrents to heartbeat and update their
+	 	 * bandwidth usage. This implies heartbeat() may not
+		 * block or stall.
 		 */
 		LOCK(torrents);
 		for (map<string, Torrent*>::iterator it = torrents.begin();
 				 it != torrents.end(); it++) {
 			Torrent* t = it->second;
 			UNLOCK(torrents); /* XXX why - unsafe! */
+			t->updateBandwidth();
 			t->heartbeat();
 			LOCK(torrents);
 		}

@@ -15,7 +15,6 @@ class Receiver;
 /*! \brief Responsible for overseeing all torrents
  */
 class Overseer {
-friend void* bandwidth_thread(void* ptr);
 friend void* heartbeat_thread(void* ptr);
 friend class Torrent;
 friend class Sender;
@@ -65,9 +64,6 @@ public:
 	Tracer* getTracer() { return tracer; } 
 
 protected:
-	//! \brief Seperate thread handling bandwidth monitoring
-	void bandwidthThread();
-
 	//! \brief Seperate thread handling torrent silicon heartbeat
 	void heartbeatThread();
 
@@ -137,9 +133,6 @@ private:
 	//! \brief are we terminating?
 	bool terminating;
 
-	//! \brief Bandwidth monitor thread
-	pthread_t thread_bandwidth_monitor;
-
 	//! \brief Mutex used to protect the torrents list
 	pthread_mutex_t mtx_torrents;
 
@@ -163,9 +156,6 @@ private:
 
 	//! \brief Hasher thread
 	Hasher* hasher;
-
-	//! \brief Incoming listener thread
-	pthread_t thread_listener;
 
 	//! \brief Heartbeat thread
 	pthread_t thread_heartbeat;
