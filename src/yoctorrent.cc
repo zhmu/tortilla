@@ -9,7 +9,6 @@
 #include <unistd.h>
 #include "tortilla/exceptions.h"
 #include "tortilla/metadata.h"
-#include "tortilla/http.h"
 #include "tortilla/overseer.h"
 #include "tortilla/tracer.h"
 #include "tortilla/torrent.h"
