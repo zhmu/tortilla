@@ -855,6 +855,8 @@ Torrent::callbackCompleteTorrent()
 {
 	complete = true;
 
+	/* XXX inform tracker */
+
 	/* Kick anyone who is also a seeder */
 	processPeerStatus();
 }
