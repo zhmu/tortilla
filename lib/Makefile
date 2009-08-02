@@ -4,7 +4,6 @@ OBJS =		metadata.o metafield.o sha1.o httprequest.o torrent.o peer.o \
 		info.o
 CXXFLAGS =	-I../include/tortilla -g -Wall
 LDFLAGS +=	-lssl
-#CXXFLAGS +=	-DDEBUG_LOCKING
 # Below are flags that are needed for FreeBSD
 CXXFLAGS += 	-I/usr/local/include
 LDFLAGS +=	-L/usr/local/lib

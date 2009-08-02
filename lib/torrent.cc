@@ -932,7 +932,7 @@ Torrent::unregisterPeer(Peer* p)
 	 * First of all, remove the peer from our list. This ensures we won't
 	 * try to obtain statistics or schedule requests.
 	 */
-	WLOCK(peers)
+	WLOCK(peers);
 	vector<Peer*>::iterator peerit = peers.begin();
 	while (peerit != peers.end()) {
 		Peer* peer = *peerit;
