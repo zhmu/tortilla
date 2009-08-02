@@ -929,6 +929,4 @@ Peer::lockForSending()
 	LOCK(sending);
 }
 
-#undef WRITE_UINT32
-
 /* vim:set ts=2 sw=2: */

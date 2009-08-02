@@ -409,9 +409,6 @@ private:
 	//! \brief Last (un)choking algorithm interval
 	time_t lastChokingAlgorithm;
 
-	//! \brief Current unchoking round
-	int unchokingRound;
-
 	//! \brief Algorithm's 'optimistic unchoked peer'
 	Peer* optimisticUnchokedPeer;
 

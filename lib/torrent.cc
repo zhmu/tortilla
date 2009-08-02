@@ -35,7 +35,7 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 {
 	overseer = o; downloaded = 0; uploaded = 0; left = 0;
 	terminating = false; complete = false;
-	lastChokingAlgorithm = 0; unchokingRound = 0;
+	lastChokingAlgorithm = 0;
 	optimisticUnchokedPeer = NULL; tracker_key = "";
 	name = ""; endgame_mode = false; trackerRequest = NULL;
 	rx_rate = 0; tx_rate = 0;
@@ -810,7 +810,11 @@ Torrent::handleChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size
 	 * stuff until we run out of stuff to write.
 	 */
 	while (length > 0) {
-		size_t partlen = MIN(f->getLength() - absolutePos, length);
+		/*
+		 * This size_t cast is safe, since we want the minimum and max_value(size_t) <
+		 * max_value(off_t),
+		 */
+		size_t partlen = MIN((size_t)(f->getLength() - absolutePos), length);
     
 		if (writing)
 			overseer->writeFile(f, absolutePos, buf, partlen);
@@ -1430,7 +1434,7 @@ Torrent::getFileDetails()
 
 		piece = offset / pieceLen;
 		num = 0;
-		size_t fileLength = f->getLength();
+		off_t fileLength = f->getLength();
 		if (offset % pieceLen > 0) {
 			/* This piece uses part of the current block, so add that */
 			num++; fileLength -= MIN(pieceLen - (offset % pieceLen), fileLength);

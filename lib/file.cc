@@ -59,7 +59,7 @@ File::File(std::string path, off_t len)
 void
 File::write(off_t offset, const void* buf, size_t len)
 {
-	assert(offset + len <= length);
+	assert(offset + (off_t)len <= length);
 	assert(isOpened());
 
 
@@ -75,7 +75,7 @@ File::write(off_t offset, const void* buf, size_t len)
 void
 File::read(off_t offset, void* buf, size_t len)
 {
-	assert(offset + len <= length);
+	assert(offset + (off_t)len <= length);
 	assert(isOpened());
 
 	/*
