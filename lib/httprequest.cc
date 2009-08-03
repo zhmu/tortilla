@@ -112,7 +112,7 @@ HTTPRequest::process()
 
 	/* We got data! */
 	char buf[65535 /* XXX */];
-	size_t len = connection->read(buf, sizeof(buf));
+	ssize_t len = connection->read(buf, sizeof(buf));
 	if (len < 0) {
 		/* Can't connect */
 		torrent->callbackTrackerReply(this, "", true);

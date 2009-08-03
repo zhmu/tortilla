@@ -140,7 +140,7 @@ Connection::~Connection()
 	close(fd);
 }
 
-size_t
+ssize_t
 Connection::read(void* buf, size_t len, bool block)
 {
 	if (!block)
@@ -148,8 +148,8 @@ Connection::read(void* buf, size_t len, bool block)
 
 	/* Keep reading until we fill the buffer */
 	char* ptr = (char*)buf;
-	size_t got = 0;
-	while (got < len) {
+	ssize_t got = 0;
+	while (got < (ssize_t)len) {
 		ssize_t l = ::read(fd, ptr, len - got);
 		if (l <= 0)
 			return -1;

@@ -36,7 +36,7 @@ public:
 	 *  \param block If true, block until all len bytes are read
 	 *  \returns Number of bytes read, always len if block is true
 	 */
-	size_t read(void* buf, size_t len, bool block = false);
+	ssize_t read(void* buf, size_t len, bool block = false);
 
 	/*! \brief Accepts a new connection on a listening socket
 	 *  \returns A new connection object
