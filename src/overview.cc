@@ -6,7 +6,7 @@ using namespace std;
 Overview::Overview(WINDOW* w, Interface* iface)
 {
 	window = w; interface = iface;
-	curSelection = 0;
+	curSelection = 0; firstTorrentIndex = 0;
 }
 
 void
@@ -15,11 +15,22 @@ Overview::draw()
 	vector<Torrent*> torrents = interface->getOverseer()->getTorrents();
 
 	unsigned int y = 1;
-	unsigned int num = 0;
 	werase(window);
-	for (vector<Torrent*>::iterator it = torrents.begin();
-	    it != torrents.end(); it++) {
-		Torrent* t = *it;
+
+	/*
+	 * First of all, ensure the current selected torrent fits on the screen; this
+	 * works by updating firstTorrentIndex to ensure the torrent we are looking
+	 * for is in the center, if it's not visible already.
+	 */
+	unsigned int rows, cols;
+	getmaxyx(window, rows, cols);
+	unsigned int torrentsPerScreen = rows / 4;
+	if (curSelection >= firstTorrentIndex + torrentsPerScreen || curSelection < firstTorrentIndex)
+		firstTorrentIndex = (curSelection > (torrentsPerScreen / 2)) ? 
+			curSelection - (torrentsPerScreen / 2) : 0;
+
+	for (unsigned int i = firstTorrentIndex; i < torrents.size(); i++) {
+		Torrent* t = torrents[i];
 		uint32_t rx, tx;
 		t->getRateCounters(&rx, &tx);
 
@@ -39,9 +50,9 @@ Overview::draw()
 				 Interface::formatNumber(t->getBytesUploaded()).c_str(),
 				 Interface::formatNumber(t->getBytesDownloaded()).c_str());
 		}
-		mvwprintw(window, y    , 2, "%c", (curSelection == num) ? '*' : ' ');
+		mvwprintw(window, y    , 2, "%c", (curSelection == i) ? '*' : ' ');
 		
-		y += 4; num++;
+		y += 4;
 	}
 
 	wrefresh(window);

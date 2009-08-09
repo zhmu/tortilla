@@ -19,7 +19,7 @@ private:
 	WINDOW* window;
 	Interface* interface;
 
-	unsigned int curSelection;
+	unsigned int curSelection, firstTorrentIndex;
 };
 
 #endif /* __OVERVIEW_H__ */
