@@ -90,7 +90,8 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 
 	/*
 	 * Construct the chunk overview. XXX ideally, TORRENT_CHUNK_SIZE should be
-	 * variable and adjusted.
+	 * variable and adjusted (the specification does not state any restrictions
+	 * on the piece length, but everyone seems to use >=2**18=256KB anyway)
 	 */
 	if (pieceLen % TORRENT_CHUNK_SIZE != 0)
 		throw TorrentException("torrent piece length is not a multiple of chunk size!");
@@ -112,7 +113,6 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 	 *    info['name'] refers to the directory where the files must be
 	 *    places.
 	 *   
-	 *
 	 * In case (2), there is a 'files' list, which houses the
 	 * dictionaries containing 'length' and 'path' information.
 	 */
@@ -437,7 +437,9 @@ Torrent::handleTrackerReply(string reply)
 	if (peerslist != NULL && !complete) {
 		/*
 		 * The tracker has provided us with (possibly new) peers. Add them to the
-		 * list if applicable - note that we only do this if we aren't seeding!
+		 * list if applicable - note that we only do this if the torrent is
+		 * incomplete, as it makes no sense to try to find new peers in such
+		 * a case (let them find us instead)
 		 */
 		for (list<MetaField*>::iterator it = peerslist->getList().begin();
 		    it != peerslist->getList().end(); it++) {
@@ -468,17 +470,26 @@ Torrent::handleTrackerReply(string reply)
 		}
 	}
 
+	int compactpeerSize = 6;
+
 	MetaString* peerstring = dynamic_cast<MetaString*>((*md->getDictionary())["peers"]);
-	if (peerstring != NULL && peerstring->getString().size() % TORRENT_COMPACTPEER_SIZE == 0) {
-		/* We got a compact peer list! */
+	if (peerstring != NULL && peerstring->getString().size() % compactpeerSize == 0) {
+		/*We got a compact peer list! */
 		TRACE(TRACKER, "contacted tracker: torrent=%p, compact peers=%u",
-		 this, peerstring->getString().size() / TORRENT_COMPACTPEER_SIZE);
-		for (unsigned int i = 0; i < peerstring->getString().size() / TORRENT_COMPACTPEER_SIZE; i++) {
+		 this, peerstring->getString().size() / compactpeerSize);
+		for (unsigned int i = 0; i < peerstring->getString().size() / compactpeerSize; i++) {
 			char ip[32];
 			uint16_t port;
 
-			/* XXX this makes eyes bleed */
-			const uint8_t* ptr = (const uint8_t*)(peerstring->getString().c_str() + i * TORRENT_COMPACTPEER_SIZE);
+			/*
+			 * A compact peer list means we just get N times 6-byte entry
+			 * A,B,C,D,E,F; which means we have connect to IP address
+		 	 * A.B.C.D, with E * 256 + F. Convert this to a string and
+			 * feed it into PendingPeer (both PendingPeer and Connection
+			 * can only deal with strings anyway since they can be used to
+			 * express both IPv4 and IPv6 adresses)
+		 	 */
+			const uint8_t* ptr = (const uint8_t*)(peerstring->getString().c_str() + i * compactpeerSize);
 			snprintf(ip,   sizeof(ip),   "%u.%u.%u.%u",
 			 (uint8_t)ptr[0], (uint8_t)ptr[1],
 			 (uint8_t)ptr[2], (uint8_t)ptr[3]);
@@ -603,8 +614,9 @@ Torrent::callbackCompletePiece(Peer* p, unsigned int piece)
 	UNLOCK(data);
 
 	/*
-	 * Ask the hasher to verify this chunk - using the callback, we figure out if
-	 * we have to refetch the piece or accept that we think it's fine.
+	 * Ask the hasher to verify this chunk - once it is done, we use
+	 * the callback to figure out whether we have to refetch the piece or accept
+	 * that we think it's fine.
 	 */
 	scheduleHashing(piece);
 }
@@ -732,7 +744,7 @@ Torrent::callbackCompleteHashing(unsigned int piece, bool result)
 		return;
 	}
 
-	/* At least someone has this piece... we! */
+	/* At least someone has this piece... we do! */
 	pieceCardinality[piece]++;
 	if (piece == numPieces - 1) {
 		left -= getTotalSize() % pieceLen > 0 ?
@@ -752,8 +764,9 @@ Torrent::callbackCompleteHashing(unsigned int piece, bool result)
 	}
 
 	/*
-	 * Inform our peers that we have this piece. We let go of the
-	 * data lock, since we don't care if data changes here.
+	 * Inform our peers that we have this piece. We let go of the data lock,
+	 * since we don't care if data changes here (we cannot lose the piece
+	 * anymore, as the hash checked out)
 	 */
 	UNLOCK(data);
 	RLOCK(peers);
@@ -776,7 +789,7 @@ Torrent::callbackCompleteHashing(unsigned int piece, bool result)
 		}
 	UNLOCK(data);
 
-	/* Yeah! */
+	/* We have all pieces and are hashing none of them; torrent must be in */
 	complete = true;
 	TRACE(TORRENT, "torrent completed: torrent=%p", this);
 	callbackCompleteTorrent();
@@ -787,6 +800,12 @@ Torrent::handleChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size
 {
 	assert(piece < numPieces);
 	assert(length <= TORRENT_CHUNK_SIZE);
+
+	/*
+	 * XXX this entire mess should be rewritten to use a tree structure; this
+	 * would reduce the time needed to find the file from O(#files) to
+	 * O(lg(#files))
+	 */
 
 	/* Calculate the absolute position */
 	off_t absolutePos = (off_t)piece * (off_t)pieceLen + (off_t)offset;
@@ -881,9 +900,9 @@ Torrent::scheduleHashing(unsigned int piece, bool registerHashing)
 
 	/*
 	 * Mark the piece as being hashed before we actually add it; since the
-	 * hasher is in a seperate thread, there is a small chance it completes
-	 * before this thread continues, which means we clear the 'hashing' flag,
-	 * resulting in a torrent that will never be flagged as completed...
+	 * hasher is in a seperate thread, there would be a tiny window where
+	 * the hasher finished hashing the piece yet this function sets the
+	 * hashing flag...
 	 */
 	LOCK(data);
 	assert(!hashingPiece[piece]);
@@ -956,11 +975,8 @@ Torrent::unregisterPeer(Peer* p)
 	RWUNLOCK(peers);
 	
 	/*
-	 * Deregister any requested pieces by this peer. This is safe to call without
-	 * locking since the select(2) call notifies us of any changes and thus,
-	 * nothing can change while we are nuking requests...
-	 *
-	 * Note that this will be called with peers locked anyway!
+	 * Deregister any requested pieces by this peer. This results in these pieces
+	 * being rescheduled during a next call to schedulePeerRequests().
 	 */
 	LOCK(data);
 	for (unsigned int j = 0; j < numPieces * (pieceLen / TORRENT_CHUNK_SIZE); j++)
@@ -994,8 +1010,9 @@ Torrent::heartbeat()
 	UNLOCK(data);
 
 	/*
-	 * If we need to chat with the tracker, do so. Note that we use the minimum interval
-	 * if we are in dire need of peers, and the maximum interval otherwise.
+	 * If we need to chat with the tracker, do so. Note that we use the minimum
+	 * interval if we need peers (i.e. the torrent isn't completed yet), and the
+	 * maximum interval otherwise.
 	 */
 	int interval = tracker_interval;
 	if (!complete && tracker_min_interval > 0)
