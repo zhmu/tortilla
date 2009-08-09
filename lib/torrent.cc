@@ -719,6 +719,15 @@ Torrent::callbackCompleteHashing(unsigned int piece, bool result)
 		 * XXX we should identify and ban seeders that provide us with bad content.
 		 */
 		havePiece[piece] = false;
+
+		/*
+		 * Furthermore, we need to clear the individual 'have chunk' too,
+		 * since we need to fetch the entire piece again (maybe only a single
+	 	 * chunk is bad, but there is no way of knowing...)
+	   */
+		for (unsigned int j = 0; j < calculateChunksInPiece(piece); j++) {
+			haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j] = false;
+		}
 		UNLOCK(data);
 		return;
 	}
