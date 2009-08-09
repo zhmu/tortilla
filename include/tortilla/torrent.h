@@ -30,9 +30,6 @@
 //! \brief Delta in seconds between running (un)choking algorithm
 #define TORRENT_DELTA_CHOKING_ALGO 10
 
-//! \brief Size of a peer in compact form
-#define TORRENT_COMPACTPEER_SIZE 6
-
 //! \brief Percentage completed when we enter endgame mode
 #define TORRENT_ENDGAME_PERCENTAGE	95
 
