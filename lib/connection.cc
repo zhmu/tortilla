@@ -105,21 +105,6 @@ Connection::Connection(int s, struct sockaddr* soa, socklen_t slen)
 ssize_t
 Connection::write(const void* buf, size_t len)
 {
-#if 0
-	/*
-	 * Try a maximum of one second to write; if this fails, don't try to write to
-	 * the socket.
-	 */
-	fd_set fds;
-	struct timeval tv;
-	FD_ZERO(&fds);
-	FD_SET(fd, &fds);
-	tv.tv_sec = 1; tv.tv_usec = 0;
-	if (select(fd + 1, NULL, &fds, NULL, &tv) == 0 || !FD_ISSET(fd, &fds))
-		return 0;
-	/* We cannot be connecting if this worked */
-	connecting = false;
-#endif
 	return ::write(fd, buf, len);
 }
 
