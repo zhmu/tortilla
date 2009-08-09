@@ -300,7 +300,7 @@ Torrent::~Torrent()
 	}
 
 	/*
-	 * Remove our peers; actual cleanup will be performed by the peer manager.
+	 * Remove our peers; actual cleanup will be handled by the overseer.
 	 */
 	WLOCK(peers);
 	for (vector<Peer*>::iterator it = peers.begin();
@@ -1030,7 +1030,7 @@ Torrent::heartbeat()
 		if (p != NULL) {
 			/*
 			 * It seems possible to connect to this peer; we should add it to both ourselves
-			 * and the peer manager.
+			 * and the overseer.
 			 */
 			WLOCK(peers);
 			peers.push_back(p);
