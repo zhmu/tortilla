@@ -123,7 +123,6 @@ Receiver::process()
 				reqit++;
 				continue;
 			}
-
 			requests.erase(reqit);
 			delete r;
 

@@ -5,17 +5,17 @@
 #ifndef __TORTILLA_HTTPREQUEST_H__
 #define __TORTILLA_HTTPREQUEST_H__
 
-class Torrent;
+class TrackerTalker;
 
 class HTTPRequest {
 friend class Receiver;
 public:
 	/*! \brief Initialize a HTTP request
-	 *  \param t Torrent the request belongs to
+	 *  \param tt Tracker communicator the request belongs to
 	 *  \param url URL to use
 	 *  \param params Map of key => value arguments
 	 */
-	HTTPRequest(Torrent* t, std::string url, std::map<std::string, std::string> parms);
+	HTTPRequest(TrackerTalker* tt, std::string url, std::map<std::string, std::string> parms);
 
 	//! \brief Tear down the HTTP request
 	~HTTPRequest();
@@ -40,8 +40,8 @@ protected:
 	bool isWaitingForWrite() { return waitingForWrite; }
 
 private:
-	//! \brief Torrent we are bound to
-	Torrent* torrent;
+	//! \brief Tracker communicator we belong to
+	TrackerTalker* talker;
 
 	//! \brief Connection used
 	Connection* connection;

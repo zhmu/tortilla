@@ -55,5 +55,10 @@ public:
 	FileException(const std::string errstr) : TortillaException(errstr) { }
 };
 
+//! \brief Exception used for tracker errors
+class TrackerException : public TortillaException {
+public:
+	TrackerException(const std::string errstr) : TortillaException(errstr) { }
+};
 
 #endif /* __TORTILLA_EXCEPTION_H__ */

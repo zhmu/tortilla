@@ -11,6 +11,7 @@
 class Tracer;
 class FileManager;
 class Receiver;
+class HTTPRequest;
 
 /*! \brief Responsible for overseeing all torrents
  */

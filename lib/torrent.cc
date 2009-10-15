@@ -26,6 +26,7 @@
 #include "sha1.h"
 #include "tracer.h"
 #include "torrent.h"
+#include "trackertalker.h"
 
 using namespace std;
 
@@ -35,13 +36,13 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 {
 	overseer = o; downloaded = 0; uploaded = 0; left = 0;
 	terminating = false; complete = false;
-	lastChokingAlgorithm = 0;
+	lastChokingAlgorithm = 0; pendingRequest = NULL;
 	optimisticUnchokedPeer = NULL; tracker_key = "";
-	name = ""; endgame_mode = false; trackerRequest = NULL;
+	name = ""; endgame_mode = false;
 	rx_rate = 0; tx_rate = 0;
 
-	/* force the thread to contact the tracker */
-	tracker_interval = 0; tracker_min_interval = 0;
+	/* force the thread to contact the tracker - but try so only each 10 minutes */
+	tracker_interval = 600; tracker_min_interval = 0;
 	lastTrackerContact = 0;
 
 	INIT_RWLOCK(peers);
@@ -57,10 +58,6 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 	MetaDictionary* info = dynamic_cast<MetaDictionary*>((*dictionary)["info"]);
 	if (info == NULL)
 		throw TorrentException("metadata doesn't contain an info dictionary");
-	MetaString* msAnnounce = dynamic_cast<MetaString*>((*dictionary)["announce"]);
-	if (msAnnounce == NULL)
-		throw TorrentException("metadata doesn't contain an announce URL");
-	announceURL = msAnnounce->getString();
 
 	MetaInteger* miPieceLength = dynamic_cast<MetaInteger*>((*info)["piece length"]);
 	MetaString* miPieces = dynamic_cast<MetaString*>((*info)["pieces"]);
@@ -265,38 +262,39 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 	 * We must have processed as many pieces as there are in the file.
 	 */
 	assert(piecenum == numPieces);
+
+	/* Initializer our talker; this will speak with the trackers */
+	trackerTalker = new TrackerTalker(this, dictionary);
 }
 
 Torrent::~Torrent()
 {
-	LOCK(data);
-	if (trackerRequest != NULL) {
-		overseer->removeRequest(trackerRequest);
-		trackerRequest = NULL;
-	}
-	UNLOCK(data);
-
 	/* Cancel any hashing attempt, as we'll close the files soon enough */
 	overseer->cancelHashing(this);
 
-	/*
-	 * Inform the tracker that we are going away. We care not
-	 * about any errors; we are leaving anyway.
-	 */
-	try {
-		contactTracker("stopped");
+	if (trackerTalker != NULL) {
+		/*
+		 * Inform the tracker that we are going away. We care not
+		 * about any errors; we are leaving anyway.
+		 */
+		try {
+			contactTracker("stopped");
 
-		/* Wait for a bit until the tracker is done XXX hack, should use a condvar */
-		for (int i = 0; i < 3; i++) {
-			struct timeval tv;
-			tv.tv_sec = 1; tv.tv_usec = 0;
-			select(0, NULL, NULL, NULL, &tv);
-
-			if (trackerRequest == NULL)
-				break;
+			/* Wait for a bit until the tracker is done XXX hack, should use a condvar */
+			for (int i = 0; i < 3; i++) {
+				struct timeval tv;
+				tv.tv_sec = 1; tv.tv_usec = 0;
+				select(0, NULL, NULL, NULL, &tv);
+			}
+		} catch (TortillaException e) {
+			/* ... */
 		}
-	} catch (TortillaException e) {
-		/* ... */
+
+		/* Remove our talker */
+		LOCK(data);
+		delete trackerTalker;
+		trackerTalker = NULL;
+		UNLOCK(data);
 	}
 
 	/*
@@ -343,10 +341,6 @@ Torrent::contactTracker(std::string event)
 {
 	map<string, string> m;
 
-	/* There is already an outstanding request */
-	if (trackerRequest != NULL)
-		return;
-
 	/* Construct the tracker request, and off it goes */
 	string h((const char*)infoHash, sizeof(infoHash));
 	string peerID((const char*)overseer->getPeerID(), TORRENT_PEERID_LEN);
@@ -377,15 +371,7 @@ Torrent::contactTracker(std::string event)
 	}
 	lastTrackerContact = time(NULL);
 
-	try {
-		HTTPRequest* req = new HTTPRequest(this, announceURL, m);
-		LOCK(data);
-		trackerRequest = req;
-		UNLOCK(data);
-		overseer->addRequest(req);
-	} catch (HTTPException e) {
-		log(NULL, "unable to contact tracker: %s", e.what());
-	}
+	trackerTalker->request(m);
 }
 
 void
@@ -484,7 +470,7 @@ Torrent::handleTrackerReply(string reply)
 			/*
 			 * A compact peer list means we just get N times 6-byte entry
 			 * A,B,C,D,E,F; which means we have connect to IP address
-		 	 * A.B.C.D, with E * 256 + F. Convert this to a string and
+		 	 * A.B.C.D port E * 256 + F. Convert this to a string and
 			 * feed it into PendingPeer (both PendingPeer and Connection
 			 * can only deal with strings anyway since they can be used to
 			 * express both IPv4 and IPv6 adresses)
@@ -1009,6 +995,14 @@ Torrent::heartbeat()
 	}
 	UNLOCK(data);
 
+	LOCK(data);
+	HTTPRequest* req = pendingRequest;
+	pendingRequest = NULL;
+	UNLOCK(data);
+	if (req != NULL) {
+		overseer->addRequest(req);
+	}
+
 	/*
 	 * If we need to chat with the tracker, do so. Note that we use the minimum
 	 * interval if we need peers (i.e. the torrent isn't completed yet), and the
@@ -1483,15 +1477,22 @@ Torrent::getFileDetails()
 }
 
 void
-Torrent::callbackTrackerReply(HTTPRequest* r, std::string result, bool error)
+Torrent::callbackTrackerReply(std::string result, bool error)
 {
 	TRACE(TORRENT, "tracker reply received, error=%u", error ? 1 : 0);
 
-	if (!error)
+	if (!error) {
 		handleTrackerReply(result);
+		return;
+	}
+}
 
+void
+Torrent::addRequest(HTTPRequest* r)
+{
+	assert(pendingRequest == NULL);
 	LOCK(data);
-	trackerRequest = NULL;
+	pendingRequest = r;
 	UNLOCK(data);
 }
 

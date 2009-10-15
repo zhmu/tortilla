@@ -7,6 +7,7 @@
 #include "receiver.h"
 #include "macros.h"
 #include "overseer.h"
+#include "httprequest.h"
 #include "peer.h"
 #include "tracer.h"
 

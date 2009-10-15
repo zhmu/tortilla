@@ -38,10 +38,11 @@
     
 class Connection;
 class Peer;
+class HTTPRequest;
 class Overseer;
 class PendingPeer;
 class SenderRequest;
-class HTTPRequest;
+class TrackerTalker;
 class Tracer;
 
 /*! \brief Implements a single, independant torrent
@@ -56,7 +57,7 @@ friend class Receiver;
 friend class Overseer;
 friend class Hasher;
 friend class SenderRequest;
-friend class HTTPRequest;
+friend class TrackerTalker;
 public:
 	/*! \brief Constructs a new torrent object
 	 *  \param o Overseer to use
@@ -191,7 +192,7 @@ protected:
 	void callbackPeerChangedChoking(Peer* p);
 
 	//! \brief Called once the tracker reply is in
-	void callbackTrackerReply(HTTPRequest* r, std::string result, bool error);
+	void callbackTrackerReply(std::string result, bool error);
 
 	//! \brief Called periodically to update bandwidth use
 	void updateBandwidth();
@@ -246,6 +247,9 @@ protected:
 	 *  \param fmt Format specifier
 	 */
 	void log(Peer* p, const char* fmt, ...);
+
+	//! \brief Adds a request to the overseer
+	void addRequest(HTTPRequest* r);
 
 private:
 	/*! \brief Contact the tracker
@@ -309,9 +313,6 @@ private:
 
 	/*! \brief Total size of the torrent, in bytes */
 	uint64_t /* [R] */ total_size;
-
-	//! \brief Announce URL of the tracker
-	std::string /* [R] */ announceURL;
 
 	/*! \brief Contains the hash values for each piece */
 	uint8_t* /* [R] */ pieceHash;
@@ -428,11 +429,14 @@ private:
 	 */
 	unsigned int numPiecesHashing;
 
-	//! \brief Current tracker request, if any
-	HTTPRequest* trackerRequest;
+	//! \brief Class used to communicate with the tracker
+	TrackerTalker* trackerTalker;
 
 	//! \brief Log of messages
 	std::list<std::string> /* [M=log] */ messageLog;
+
+	//! \brief Pending request, if any
+	HTTPRequest* pendingRequest;
 };
 
 #endif /* __TORTILLA_TORRENT_H__ */

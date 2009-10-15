@@ -2,14 +2,13 @@
 #include <string.h>
 #include "exceptions.h"
 #include "httprequest.h"
-	#include "torrent.h"
+#include "trackertalker.h"
 
 using namespace std;
 
-HTTPRequest::HTTPRequest(Torrent* t, string url, map<string, string> params)
+HTTPRequest::HTTPRequest(TrackerTalker* tt, string url, map<string, string> params)
 {
-	torrent = t; terminate = false;
-//url = "http://www.foo.nl:1/a/b";
+	talker = tt; terminate = false;
 
 	/*
 	 * First of all, the URL must begin with 'http://'; nothing else is
@@ -115,7 +114,7 @@ HTTPRequest::process()
 	ssize_t len = connection->read(buf, sizeof(buf));
 	if (len < 0) {
 		/* Can't connect */
-		torrent->callbackTrackerReply(this, "", true);
+		talker->callbackTrackerRequest("", true);
 
 		/* We have done our duty */
 		terminate = true;
@@ -132,7 +131,7 @@ HTTPRequest::process()
 		}
 
 		/* Inform the torrent */
-		torrent->callbackTrackerReply(this, buffer, false);
+		talker->callbackTrackerRequest(buffer, buffer.length() == 0);
 
 		/* We have our data; leave */
 		terminate = true;
