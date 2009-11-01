@@ -231,7 +231,7 @@ Receiver::process()
 		RWUNLOCK(data);
 
 		/* If we need to accept new connections, handle that */
-		if (FD_ISSET(listenerFD, &readfds)) {
+		if (FD_ISSET(listenerFD, &readfds) && !terminating) {
 			Connection* c = overseer->getIncoming()->acceptConnection();
 			if (c != NULL) {
 				overseer->handleIncomingConnection(c);
