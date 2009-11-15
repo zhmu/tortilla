@@ -55,7 +55,11 @@ HTTPRequest::HTTPRequest(TrackerTalker* tt, string url, map<string, string> para
 	requestString = url + "?" + args;
 
 	/* Create a connection to the server */
-	connection = new Connection(server, port);
+	try {
+		connection = new Connection(server, port);
+	} catch (ConnectionException e) {
+		throw HTTPException(string("can't set up connection: ") + e.what());
+	}
 
 	/* That's all for now - we need to wait until the connection is made */
 	waitingForWrite = true; waitingForRead = false;
