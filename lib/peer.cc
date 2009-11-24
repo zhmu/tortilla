@@ -459,6 +459,11 @@ Peer::msgRequest(const uint8_t* msg, uint32_t len)
 	uint32_t begin = READ_UINT32(msg, 4);
 	uint32_t length = READ_UINT32(msg, 8);
 	TRACE(PROTOCOL, "request: peer=%s, index=%u, begin=%u, length=%u", getID().c_str(), index, begin, length);
+	if (length > TORRENT_CHUNK_SIZE) {
+		TRACE(PROTOCOL, "ignoring request of peer=%s, length=%u: too large", getID().c_str(), length());
+		/* Disconnect the peer; no sense making them wait for things we're never going to give */
+		return true;
+	}
 
 	queueSenderRequest(new SenderRequest(getTorrent(), index, begin, length));
 	return false;
