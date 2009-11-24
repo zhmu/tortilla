@@ -305,6 +305,12 @@ Overseer::findPeerByFDAndLock(int fd)
 	return receiver->findPeerByFDAndLock(fd);
 }
 
+void 
+Overseer::removePeerByFD(int fd)
+{
+	return receiver->removePeerByFD(fd);
+}
+
 void
 Overseer::getSendablePeers(list<int>& m)
 {

@@ -110,6 +110,9 @@ protected:
 	//! \brief Find a peer by file descriptor and lock the peer for sending
 	Peer* findPeerByFDAndLock(int fd);
 
+	//! \brief Find a peer by file descriptor and remove it
+	void removePeerByFD(int fd);
+
 	//! \brief Request a map of file descriptor for sending
 	void getSendablePeers(std::list<int>& m);
 

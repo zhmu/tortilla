@@ -96,6 +96,17 @@ Sender::process()
 		 */
 		vector<unsigned int>peerFDs;
 		for (unsigned int pfd = 0; pfd < cur_pfd; pfd++) {
+			assert(!(pfds[pfd].revents & POLLERR));
+			if (pfds[pfd].revents & POLLHUP) {
+				/*
+				 * The socket is gone; this means we have to disconnect the
+				 * peer. The receiver should find this condition as well,
+				 * but since we already are aware of the dead peer, just
+				 * remove it and be done with it.
+				 */
+				overseer->removePeerByFD(pfds[pfd].fd);
+				continue;
+			}
 			if (!(pfds[pfd].revents & POLLOUT))
 				continue;
 

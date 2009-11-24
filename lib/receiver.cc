@@ -90,6 +90,29 @@ Receiver::findPeerByFDAndLock(int fd)
 }
 
 void
+Receiver::removePeerByFD(int fd)
+{
+	/*
+	 * We must acquire a write-lock here, because we can't upgrade the readlock
+	 * to a writelock; dropping and re-acquiring the lock would introduce a race,
+	 * which we hereby avoid, at the cost of duplicating some effort from
+	 * removePeer().
+	 */
+	WLOCK(data);
+	Peer* p = NULL;
+	map<int, Peer*>::iterator it = fdMap.find(fd);
+	if (it != fdMap.end()) {
+		p = it->second;
+		fdMap.erase(p->getFD());
+		peers.remove(p);
+	}
+	RWUNLOCK(data);
+
+	if (p != NULL)
+		delete p;
+}
+
+void
 Receiver::process()
 {
 	while (!terminating) {
