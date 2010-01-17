@@ -128,7 +128,7 @@ public:
 	void getRateCounters(uint32_t* rx, uint32_t* tx);
 
 	//! \brief Retrieve the torrent name
-	std::string getName() { return name; }
+	std::string getName() const { return name; }
 
 	/*! \brief Fetch the number of peers */
 	unsigned int getNumPeers();
@@ -165,6 +165,10 @@ public:
 
 	//! \brief Perform a debugging dump of the entire torrent status
 	void debugDump(FILE* f);
+
+	//! \brief Ordering operators, can be used for sorting
+	bool operator<(Torrent* rhs) { return getName() < rhs->getName(); }
+	bool operator<(Torrent  rhs) { return getName() < rhs.getName(); }
 
 protected:
 	/*! \brief Called by a peer if pieces are added to the map */

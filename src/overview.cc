@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <string.h>
 #include "overview.h"
 
@@ -13,6 +14,7 @@ void
 Overview::draw()
 {
 	vector<Torrent*> torrents = interface->getOverseer()->getTorrents();
+	sort(torrents.begin(), torrents.end());
 
 	unsigned int y = 1;
 	werase(window);
