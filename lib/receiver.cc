@@ -93,23 +93,17 @@ void
 Receiver::removePeerByFD(int fd)
 {
 	/*
-	 * We must acquire a write-lock here, because we can't upgrade the readlock
-	 * to a writelock; dropping and re-acquiring the lock would introduce a race,
-	 * which we hereby avoid, at the cost of duplicating some effort from
-	 * removePeer().
+	 * This is called by the sender, once it determines that a peer is dead and
+	 * should be removed. We can never actually remove the peer here, since there
+	 * may still be references to it -- we just schedule it for termination and
+	 * have the receiver do the dirty work.
 	 */
-	WLOCK(data);
-	Peer* p = NULL;
+	RLOCK(data);
 	map<int, Peer*>::iterator it = fdMap.find(fd);
 	if (it != fdMap.end()) {
-		p = it->second;
-		fdMap.erase(p->getFD());
-		peers.remove(p);
+		it->second->shutdown();
 	}
 	RWUNLOCK(data);
-
-	if (p != NULL)
-		delete p;
 }
 
 void
@@ -119,8 +113,9 @@ Receiver::process()
 		fd_set readfds, writefds;
 
 		/*
-	 	 * Gracefully handle any peers that are going away.
-		  */
+		 * Gracefully handle any peers that are going away
+		 * XXX this is O(|peers|) which we can often skip if no peers are shutting down
+		 */
 		WLOCK(data);
 		list<Peer*>::iterator peerit = peers.begin();
 		while (peerit != peers.end()) {
