@@ -812,10 +812,10 @@ Torrent::handleChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size
 	if (f == NULL) {
 		/*
 		 * Invalid offset was presented - this should only happen if the
-		 * torrent is terminating.
+		 * torrent is terminating, but do not rely on it; bad people
+	 	 * may use it to crash us.
 		 */
 		RWUNLOCK(files);
-		assert(terminating);
 		return false;
 	}
 
