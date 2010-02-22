@@ -14,7 +14,7 @@ void
 Overview::draw()
 {
 	vector<Torrent*> torrents = interface->getOverseer()->getTorrents();
-	sort(torrents.begin(), torrents.end());
+	/*sort(torrents.begin(), torrents.end());*/
 
 	unsigned int y = 1;
 	werase(window);
@@ -42,7 +42,9 @@ Overview::draw()
 		 ((float)(t->getTotalSize() - t->getBytesLeft()) / (float)t->getTotalSize()) * 100.0f,
 		t->getName().c_str());
 
-		if (numHashing > 0) {
+		if (t->isTerminating()) {
+			mvwprintw(window, y + 1, 4, "[terminating]");
+		} else if (numHashing > 0) {
 			mvwprintw(window, y + 1, 4, "Hashing, %.02f%% completed",
 			 100.0f - ((float)numHashing / (float)t->getNumPieces()) * 100.0f);
 		} else {
@@ -71,7 +73,11 @@ Overview::getSelectedTorrent()
 void
 Overview::downTorrent()
 {
-	curSelection = (curSelection + 1) % interface->getOverseer()->getTorrents().size();
+	int num = interface->getOverseer()->getTorrents().size();
+	if (num > 0)
+		curSelection = (curSelection + 1) % num;
+	else
+		curSelection = 0;
 }
 
 void
