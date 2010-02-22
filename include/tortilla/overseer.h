@@ -8,6 +8,14 @@
 #ifndef __TORTILLA_OVERSEER_H__
 #define __TORTILLA_OVERSEER_H__
 
+/*! \brief Number of seconds a torrent is given to shutdown
+ *
+ *  This is the amount of time it has to tell its tracker that it is
+ *  terminating. After this much time, the torrent will be removed
+ *  no matter what.
+ */
+#define OVERSEER_TORRENT_SHUTDOWN_TIMEOUT	3
+
 class Tracer;
 class FileManager;
 class Receiver;
@@ -137,8 +145,8 @@ private:
 	//! \brief are we terminating?
 	bool terminating;
 
-	//! \brief Mutex used to protect the torrents list
-	pthread_mutex_t mtx_torrents;
+	//! \brief Read/write lock used to protect the torrents list
+	pthread_rwlock_t rwl_torrents;
 
 	//! \brief Mutex used to protect the data fields
 	pthread_mutex_t mtx_data;

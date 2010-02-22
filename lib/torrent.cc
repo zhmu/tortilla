@@ -35,7 +35,7 @@ using namespace std;
 Torrent::Torrent(Overseer* o, Metadata* md)
 {
 	overseer = o; downloaded = 0; uploaded = 0; left = 0;
-	terminating = false; complete = false;
+	terminating = false; terminateTime = 0; removeOK = false; complete = false;
 	lastChokingAlgorithm = 0; pendingRequest = NULL;
 	optimisticUnchokedPeer = NULL; tracker_key = "";
 	name = ""; endgame_mode = false;
@@ -272,31 +272,6 @@ Torrent::~Torrent()
 	/* Cancel any hashing attempt, as we'll close the files soon enough */
 	overseer->cancelHashing(this);
 
-	if (trackerTalker != NULL) {
-		/*
-		 * Inform the tracker that we are going away. We care not
-		 * about any errors; we are leaving anyway.
-		 */
-		try {
-			contactTracker("stopped");
-
-			/* Wait for a bit until the tracker is done XXX hack, should use a condvar */
-			for (int i = 0; i < 3; i++) {
-				struct timeval tv;
-				tv.tv_sec = 1; tv.tv_usec = 0;
-				select(0, NULL, NULL, NULL, &tv);
-			}
-		} catch (TortillaException e) {
-			/* ... */
-		}
-
-		/* Remove our talker */
-		LOCK(data);
-		delete trackerTalker;
-		trackerTalker = NULL;
-		UNLOCK(data);
-	}
-
 	/*
 	 * Remove our peers; actual cleanup will be handled by the overseer.
 	 */
@@ -340,6 +315,8 @@ void
 Torrent::contactTracker(std::string event)
 {
 	map<string, string> m;
+
+TRACE(DEBUG, "contacttracker: '%s'\n", event.c_str());
 
 	/* Construct the tracker request, and off it goes */
 	string h((const char*)infoHash, sizeof(infoHash));
@@ -522,11 +499,11 @@ void
 Torrent::schedulePeerRequests(Peer* p)
 {
 	/*
-	 * If we have the full torrent already, the peer is choking us,
-	 * or the peer is going away,
-	 * don't bother trying to schedule something.
+	 * If we have the full torrent already, are shutting down, the peer is
+	 * choking us, or the peer is going away, don't bother trying to schedule
+	 * something.
 	 */
-	if (complete || p->isChoking() || p->isShuttingDown())
+	if (complete || terminating || p->isChoking() || p->isShuttingDown())
 		return;
 
 	/*
@@ -1004,6 +981,13 @@ Torrent::heartbeat()
 	}
 
 	/*
+	 * If we are terminating, don't bother initiating tracker contact or
+ 	 * dealing with peers.
+	 */
+	if (terminating)
+		return;
+
+	/*
 	 * If we need to chat with the tracker, do so. Note that we use the minimum
 	 * interval if we need peers (i.e. the torrent isn't completed yet), and the
 	 * maximum interval otherwise.
@@ -1139,14 +1123,14 @@ void
 Torrent::callbackPeerChangedInterest(Peer* p)
 {
 	/* We need to rerun the unchoking algorithm if the peer was unchoked */
-	if (!p->isPeerChoked())
+	if (!p->isPeerChoked() && !terminating)
 		handleUnchokingAlgorithm();
 }
 
 void
 Torrent::callbackPeerChangedChoking(Peer* p)
 {
-	if (p->isChoking())
+	if (p->isChoking() || terminating)
 		return;
 
 	/*
@@ -1481,6 +1465,16 @@ Torrent::callbackTrackerReply(std::string result, bool error)
 {
 	TRACE(TORRENT, "tracker reply received, error=%u", error ? 1 : 0);
 
+	/*
+	 * If we were terminating, just accept anything the tracker gives us. There's
+	 * nothing left to gain.
+	 */
+	if (terminating) {
+		TRACE(TORRENT, "removeOK! [%s]\n", result.c_str());
+		removeOK = true;
+		return;
+	}
+
 	if (!error) {
 		handleTrackerReply(result);
 		return;
@@ -1490,10 +1484,37 @@ Torrent::callbackTrackerReply(std::string result, bool error)
 void
 Torrent::addRequest(HTTPRequest* r)
 {
-	assert(pendingRequest == NULL);
+	/*
+	 * If we are terminating, allow the request can and should be overwritten.
+	 * Otherwise, there is a bug.
+	 */
+	assert(terminating || pendingRequest == NULL);
 	LOCK(data);
 	pendingRequest = r;
 	UNLOCK(data);
+}
+
+void
+Torrent::shutdown()
+{
+	/*
+	 * First of all, set the 'terminating' value. This prevents new chunks from
+	 * being scheduled, new requests from being handeled etc.
+	 */
+	LOCK(data);
+	terminating = true; terminateTime = time(NULL);
+	UNLOCK(data);
+
+	/* Cancel any hashing attempt; it's a waste of resources at this point */
+	overseer->cancelHashing(this);
+
+	if (trackerTalker == NULL)
+		return;
+
+	/*
+	 * Inform the tracker that we are going away.
+	 */
+	contactTracker("stopped");
 }
 
 /* vim:set ts=2 sw=2: */

@@ -163,8 +163,28 @@ public:
 	//! \brief Are we currently in endgame mode?
 	inline bool isEndgameMode() { return endgame_mode; }
 
+	//! \brief Are we terminating?
+	inline bool isTerminating() { return terminating; }
+
+	//! \brief At which time were we terminating?
+	inline time_t getTerminationTime() { return terminateTime; }
+
+	/*! \brief Can we be deleted?
+	 *
+	 *  This will be set if the torrent was requested to terminate and
+	 *  it has heard from the tracker.
+	 */
+	inline bool canBeDeleted() { return removeOK; }
+
 	//! \brief Perform a debugging dump of the entire torrent status
 	void debugDump(FILE* f);
+
+	/*! \brief Requests a torrent to cleanup
+	 *
+	 *  This will initiate cleaning up; the overseer will actually remove
+	 *  the torrent itself.
+	 */
+	void shutdown();
 
 	//! \brief Ordering operators, can be used for sorting
 	bool operator<(Torrent* rhs) { return getName() < rhs->getName(); }
@@ -374,6 +394,12 @@ private:
 
 	//! \brief Are we terminating?
 	bool terminating;
+
+	//! \brief At which time were we scheduling terminating?
+	time_t terminateTime;
+
+	//! \brief Is it OK to remove us?
+	bool removeOK;
 
 	//! \brief Mutex protecting the peers list
 	pthread_rwlock_t rwl_peers;
