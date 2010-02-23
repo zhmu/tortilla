@@ -5,6 +5,9 @@
 #ifndef __INTERFACE_H__
 #define __INTERFACE_H__
 
+//! \brief Number of seconds after which we reset the status message
+#define INTERFACE_STATUS_TIMEOUT 5
+
 class Overview;
 class Info;
 
@@ -21,6 +24,7 @@ public:
 	static std::string formatHex(const uint8_t* hex, unsigned int len);
 
 	void addTorrent(std::string fname);
+	void setStatusMessage(std::string msg);
 
 protected:
 	void update();
@@ -37,6 +41,10 @@ private:
 
 	WINDOW* overviewWindow;
 	WINDOW* infoWindow;
+	WINDOW* statusLine;
+
+	//! \brief Last time we updated the status message
+	time_t statusTime;
 
 	//! \brief Are we currently adding a torrent?
 	bool adding;

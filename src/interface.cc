@@ -18,14 +18,15 @@ using namespace std;
 
 Interface::Interface(Overseer* o)
 {
-	overseer = o; adding = false;
+	overseer = o; adding = false; statusTime = 0;
 
 	initscr(); start_color();
 	raw(); cbreak(); keypad(stdscr, TRUE);
 	noecho(); curs_set(0); refresh();
 
-	overviewWindow = newwin(0, COLS / 2, 0, 0);
-	infoWindow = newwin(0, COLS / 2, 0, COLS / 2);
+	overviewWindow = newwin(LINES - 1, COLS / 2, 0, 0);
+	infoWindow = newwin(LINES - 1, COLS / 2, 0, COLS / 2);
+	statusLine = newwin(0, 0, LINES - 1, 0);
 
 	overview = new Overview(overviewWindow, this);
 	info = new Info(infoWindow, this);
@@ -174,9 +175,9 @@ Interface::handleAddInput(int ch)
 			if (addString.size() != 0) {
 				try {
 					addTorrent(addString);
-					statusMessage = "Torrent successfully added";
+					setStatusMessage("Torrent successfully added");
 				} catch (exception e) {
-					statusMessage = string("Failed to add torrent: ") + e.what();
+					setStatusMessage(string("Failed to add torrent: ") + e.what());
 				}
 			}
 			adding = false;
@@ -214,10 +215,33 @@ Interface::update()
 {
 	unsigned int y = getmaxy(overviewWindow);
 
-	if (statusMessage != "") {
-		mvwprintw(overviewWindow, y - 1, 0, "%s", statusMessage.c_str());
-		y--;
+	/* Reset the status message if it has timed out */
+	if (statusMessage != "" && statusTime + INTERFACE_STATUS_TIMEOUT < time(NULL))
+		statusMessage = "";
+
+	/* If there is no status message, show overview */
+	if (statusMessage == "") {
+		vector<Torrent*> torrents = getOverseer()->getTorrents();
+		uint32_t totalRx = 0, totalTx = 0;
+		uint64_t totalUp = 0, totalDown = 0;
+		for (vector<Torrent*>::iterator it = torrents.begin();
+		     it != torrents.end(); it++) {
+			uint32_t rx, tx;
+			Torrent* t = *it;
+			t->getRateCounters(&rx, &tx);
+			totalRx += rx; totalTx += tx;
+			totalUp += t->getBytesUploaded();
+			totalDown += t->getBytesDownloaded();
+		}
+		string status;
+		status  = "RX/TX: rate " + Interface::formatNumber(totalRx) + " / " + Interface::formatNumber(totalTx);
+		status += ", total " + Interface::formatNumber(totalDown) + " / " + Interface::formatNumber(totalUp);
+
+		werase(statusLine);
+		mvwprintw(statusLine, 0, 0, "%s", status.c_str());
+		wrefresh(statusLine);
 	}
+
 	if (!adding)
 		return;
 	mvwprintw(overviewWindow, y - 1, 0, "filename> %s_", addString.c_str());
@@ -230,12 +254,28 @@ Interface::update()
 }
 
 void
+Interface::setStatusMessage(std::string msg)
+{
+	statusMessage = msg;
+	werase(statusLine);
+	mvwprintw(statusLine, 0, 0, "%s", statusMessage.c_str());
+	wrefresh(statusLine);
+	statusTime = time(NULL);
+}
+
+void
 Interface::addTorrent(std::string fname)
 {
 	ifstream is;
 	is.open(fname.c_str(), ios::binary);
 	Metadata* md = new Metadata(is);
-	overseer->addTorrent(new Torrent(overseer, md));
+	try {
+		overseer->addTorrent(new Torrent(overseer, md));
+	} catch (exception e) {
+		/* Prevent memory leak */
+		delete md;
+		throw e;
+	}
 	delete md;
 }
 
@@ -317,9 +357,10 @@ Interface::alterUploadRate(int delta)
 	} else {
 		snprintf(tmp, sizeof(tmp), "%u", rate / 1024);
 	}
-	statusMessage  = "Upload rate changed to ";
-	statusMessage += tmp;
-	statusMessage += " KB/sec";
+	std::string msg = "Upload rate changed to ";
+	msg += tmp;
+	msg += " KB/sec";
+	setStatusMessage(msg);
 }
 
 /* vim:set ts=2 sw=2: */
