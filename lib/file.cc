@@ -151,4 +151,17 @@ File::compareByLastInteraction(File* a, File* b)
 	return a->getLastInteraction() < b->getLastInteraction();
 }
 
+bool
+File::rename(std::string newpath)
+{
+	WLOCK(file);
+	if (::rename(filename.c_str(), newpath.c_str()) < 0) {
+		RWUNLOCK(file);
+		return false;
+	}
+	filename = newpath;
+	RWUNLOCK(file);
+	return true;
+}
+
 /* vim:set ts=2 sw=2: */

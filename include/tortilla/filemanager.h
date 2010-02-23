@@ -39,11 +39,20 @@ public:
 	//! \brief Read from a file
 	void readFile(File* f, off_t offset, void* buf, size_t len);
 
+	/*! \brief Sets the maximum number of files that will be opened
+	 *  \param max New maximum number
+	 */
+	void setMaxOpenFiles(int max);
+
 protected:
 	/*! \brief Used to close unused files
 	 *  \param f The file we are cleaning up for
+	 *
+	 *  Using a value of NULL for f means we aren't cleaning up
+	 *  for a specific file, and are just intending to update
+	 *  for a possible new value of maxFiles.
 	 */
-	void cleanup(File* f);
+	void cleanup(File* f = NULL);
 
 	/*! \brief Ensures the file is usuable for reading/writing
 	 *

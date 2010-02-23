@@ -49,6 +49,14 @@ public:
 	//! \brief Compares two files based on last interaction timestamp
 	static bool compareByLastInteraction(File* a, File* b);
 
+	/*! \brief Rename the file
+	 *  \param newpath New path of the file
+	 *  \returns true if the rename was successful
+	 *
+	 *  Upon success, the filename in the object will also be updated.
+	 */
+	bool rename(std::string newpath);
+
 protected:
 	//! \brief Open the file
 	void open();

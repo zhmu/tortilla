@@ -115,5 +115,15 @@ FileManager::removeFile(File* f)
 	RWUNLOCK(data);
 }
 
+void
+FileManager::setMaxOpenFiles(int max)
+{
+	WLOCK(data);
+	maxFiles = max;
+	RWUNLOCK(data);
+
+	/* ensure the new maximum is honored (XXX is this safe to call?) */
+	cleanup();
+}
 
 /* vim:set ts=2 sw=2: */
