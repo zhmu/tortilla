@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <unistd.h>
+#include "tortilla/callbacks.h"
 #include "tortilla/exceptions.h"
 #include "tortilla/metadata.h"
 #include "tortilla/overseer.h"
@@ -15,8 +16,57 @@
 
 using namespace std;
 
+class yoctoCallbacks : public Callbacks {
+public:
+	void gotTrackerReply(Torrent* t, int newPeers, std::string message);
+	void completedPiece(Torrent* t, int piece);
+	void completedTorrent(Torrent* t);
+	void removingTorrent(Torrent* t);
+	void addedPeer(Torrent* t, Peer* p);
+	void removingPeer(Torrent* t, Peer* p);
+};
+
 Overseer* overseer = NULL;
 Tracer* tracer = NULL;
+Callbacks* callbacks = NULL;
+
+void
+yoctoCallbacks::gotTrackerReply(Torrent* t, int newPeers, std::string message)
+{
+	printf(">>>> Got a tracker %s reply, %i new peers, message '%s'\n",
+	 newPeers >= 0 ? "success" : "FAILURE",
+	 newPeers, message.c_str());
+}
+
+void
+yoctoCallbacks::completedPiece(Torrent* t, int piece)
+{
+	printf(">>>> Completed piece %u\n", piece);
+}
+
+void
+yoctoCallbacks::completedTorrent(Torrent* t)
+{
+	printf(">>>> Completed torrent\n");
+}
+
+void
+yoctoCallbacks::removingTorrent(Torrent* t)
+{
+	printf(">>>> Torrent removed from torrent list\n");
+}
+
+void
+yoctoCallbacks::addedPeer(Torrent* t, Peer* p)
+{
+	printf(">>>> Peer %s added to torrent\n", p->getID().c_str());
+}
+
+void
+yoctoCallbacks::removingPeer(Torrent* t, Peer* p)
+{
+	printf(">>>> Peer %s removed from torrent\n", p->getID().c_str());
+}
 
 void
 sigint(int s)
@@ -126,8 +176,9 @@ main(int argc, char** argv)
 
 	/* XXX handle it if the connection burns */
 	//overseer = new Overseer(1024 + rand() % 10000);
+	//callbacks = new yoctoCallbacks();
 	tracer = new Tracer();
-	overseer = new Overseer(port, tracer);
+	overseer = new Overseer(port, tracer, callbacks);
 	overseer->setUploadRate(upload * 1024);
 
 	ifstream is;
