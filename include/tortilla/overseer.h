@@ -17,6 +17,7 @@
 #define OVERSEER_TORRENT_SHUTDOWN_TIMEOUT	3
 
 class Tracer;
+class Callbacks;
 class FileManager;
 class Receiver;
 class HTTPRequest;
@@ -32,8 +33,9 @@ public:
 	/*! \brief Constructs a new overseer
 	 *  \param portnr TCP port number to use for incoming connections
 	 *  \param tr Tracer object to use, or NULL
+	 *  \param cb Callbacks object to use, or NULL
 	 */
-	Overseer(unsigned int portnr, Tracer* tr);
+	Overseer(unsigned int portnr, Tracer* tr, Callbacks* cb = NULL);
 
 	//! \brief Destroys the overseer and all torrents it manages
 	~Overseer();
@@ -81,6 +83,9 @@ protected:
 
 	//! \brief Retrieve the incoming socket
 	Connection* getIncoming() { return incoming; }
+
+	//! \brief Retrieve the callback handler
+	Callbacks* getCallbacks() { return callbacks; }
 
 	/*
  	 * All functions below here are designed to honor the
@@ -183,6 +188,9 @@ private:
 
 	//! \brief File manager used
 	FileManager* filemanager;
+
+	//! \brief Callbacks object used
+	Callbacks* callbacks;
 };
 
 #endif /* __TORTILLA_OVERSEER_H__ */

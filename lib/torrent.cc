@@ -14,6 +14,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <time.h>
+#include "callbacks.h"
 #include "exceptions.h"
 #include "file.h"
 #include "hasher.h"
@@ -31,6 +32,9 @@
 using namespace std;
 
 #define TRACER (overseer->getTracer())
+
+#define CALLBACK(x,args...) \
+	overseer->getCallbacks()->x(args)
 
 Torrent::Torrent(Overseer* o, Metadata* md)
 {
@@ -362,6 +366,7 @@ Torrent::handleTrackerReply(string reply)
 		md = new Metadata(is);
 	} catch (MetadataException e) {
 		log(NULL, "tracker returned garbage: %s", reply.c_str());
+		CALLBACK(gotTrackerReply, this, -1, "<cannot parse result>");
 		return;
 	}
 
@@ -374,6 +379,7 @@ Torrent::handleTrackerReply(string reply)
 		string failure = ms->getString();
 		delete md; /* Prevent memory leak */
 		log(NULL, "tracker reported failure: %s", failure.c_str());
+		CALLBACK(gotTrackerReply, this, -1, "<cannot parse result>");
 		return;
 	}
 
@@ -393,6 +399,7 @@ Torrent::handleTrackerReply(string reply)
 	if (msKey != NULL)
 		tracker_key = msKey->getString();
 
+	int numNewPeers = 0;
 	MetaList* peerslist = dynamic_cast<MetaList*>((*md->getDictionary())["peers"]);
 	TRACE(TRACKER, "contacted tracker: torrent=%p, interval=%u, min_interval=%u, key='%s',peers=%u",
 	 this, tracker_interval, tracker_min_interval, tracker_key.c_str(),
@@ -430,6 +437,7 @@ Torrent::handleTrackerReply(string reply)
 			LOCK(data);
 			pendingPeers.push_back(new PendingPeer(this, msHost->getString(), msPort->getInteger(), msPeerID->getString()));
 			UNLOCK(data);
+			numNewPeers++;
 		}
 	}
 
@@ -461,10 +469,12 @@ Torrent::handleTrackerReply(string reply)
 			LOCK(data);
 			pendingPeers.push_back(new PendingPeer(this, string(ip), port, ""));
 			UNLOCK(data);
+			numNewPeers++;
 		}
 	}
-
 	delete md;
+
+	CALLBACK(gotTrackerReply, this, numNewPeers, "");
 }
 
 void
@@ -743,6 +753,9 @@ Torrent::callbackCompleteHashing(unsigned int piece, bool result)
 	/* Try to use this as an attempt to signal disinterest in peers */
 	processPeerStatus();
 
+	/* Before we check the total state, tell the client we have yet another piece */
+	CALLBACK(completedPiece, this, piece);
+
 	/* If we have all pieces, rejoice */
 	LOCK(data);
 	for (unsigned int i = 0; i < numPieces; i++)
@@ -854,6 +867,9 @@ Torrent::callbackCompleteTorrent()
 
 	/* Kick anyone who is also a seeder */
 	processPeerStatus();
+
+	/* Victory */
+	CALLBACK(completedTorrent, this);
 }
 
 void
@@ -914,6 +930,8 @@ Torrent::registerPeer(Peer* p)
 	WLOCK(peers);
 	peers.push_back(p);
 	RWUNLOCK(peers);
+
+	CALLBACK(addedPeer, this, p);
 }
 
 void
@@ -945,6 +963,8 @@ Torrent::unregisterPeer(Peer* p)
 	for (unsigned int j = 0; j < numPieces * (pieceLen / TORRENT_CHUNK_SIZE); j++)
 		haveRequestedChunk[j].remove_if(peervector_matches(p));
 	UNLOCK(data);
+
+	CALLBACK(removingPeer, this, p);
 }
 
 const uint8_t*
@@ -1479,6 +1499,7 @@ Torrent::callbackTrackerReply(std::string result, bool error)
 		handleTrackerReply(result);
 		return;
 	}
+	CALLBACK(gotTrackerReply, this, -1, "<unable to establish connection>");
 }
 
 void

@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "callbacks.h"
 #include "filemanager.h"
 #include "receiver.h"
 #include "macros.h"
@@ -23,9 +24,13 @@ overseer_thread(void* ptr)
 	return NULL;
 }
 
-Overseer::Overseer(unsigned int portnum, Tracer* tr)
+Overseer::Overseer(unsigned int portnum, Tracer* tr, Callbacks* cb)
 {
 	terminating = false; port = portnum; tracer = tr;
+	if (cb == NULL)
+		callbacks = new Callbacks();
+	else
+		callbacks = cb;
 	upload_rate = 0;
 
 	/*
@@ -81,6 +86,7 @@ Overseer::~Overseer()
 	delete receiver;
 	delete incoming;
 	delete filemanager;
+	delete callbacks;
 
 	DESTROY_RWLOCK(torrents);
 	DESTROY_MUTEX(data);
@@ -199,7 +205,10 @@ Overseer::overseerThread()
 			Torrent* t = it->second;
 			if (t->isTerminating() &&
 			   (t->canBeDeleted() || t->getTerminationTime() + OVERSEER_TORRENT_SHUTDOWN_TIMEOUT < now)) {
-				/* Either the torrent wants to be removed, or it has run out of time */
+				/*
+				 * Either the torrent wants to be removed, or it has run out of time.
+				 * Run the callback first, */
+				callbacks->removingTorrent(t);
 				delete t;
 				torrents.erase(it);
 				it = torrents.begin();
@@ -318,7 +327,7 @@ Overseer::queueHashPiece(Torrent* t, uint32_t piece)
 }
 
 void
-Overseer::cancelHashing (Torrent* t)
+Overseer::cancelHashing(Torrent* t)
 {
 	hasher->cancelTorrent(t);
 }
