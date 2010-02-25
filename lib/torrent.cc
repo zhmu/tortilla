@@ -197,12 +197,49 @@ Torrent::Torrent(Overseer* o, Metadata* md)
  	memcpy(infoHash, sha1.getHash(), sizeof(infoHash));
 
 	/*
+	 * Make a copy of the torrent dictionary. As our torrent status data is just
+	 * the torrent dictionary extended with status fields, it makes more sense
+	 * to just copy the torrent dictionary than having to regenerate it (which
+	 * would gain only a few KB of memory)
+	 */
+	torrentDictionary = new MetaDictionary(*md->getDictionary());
+
+	/*
+	 * If there is a 'taStatus' dictionary in the torrent, we must parse it. This is a
+	 * Tortilla-specific dictionary containing the current torrent status, which we
+	 * will use to prevent duplicate downloading of informating, needness hashing etc.
+	 */
+	bool restoredStatus = false;
+	MetaDictionary* status = dynamic_cast<MetaDictionary*>((*dictionary)["taStatus"]);
+	if (status != NULL) {
+		/*
+		 * Before we do anything with the status data, we must have all files in
+		 * this torrent available; if not, we discard any stored status. This may
+		 * seem excessive, but if files are missing, we can only assume the user
+		 * has been playing with them and we dare not trust the status at all.
+		 * Better safe than sorry.
+		 */
+		bool filesOK = true;
+		for (unsigned int i = 0; i < files.size(); i++) {
+			if (!files[i]->haveReopened()) {
+				filesOK = false;
+				break;
+			}
+		}
+
+		if (filesOK) {
+			restoredStatus = restoreStatus(status);
+			TRACE(TORRENT, "%s embedded torrent status", restoredStatus ? "accepted" : "rejected");
+		} else {
+			TRACE(TORRENT, "found embedded torrent status but couldn't re-open any files - status discarded");
+		}
+	}
+
+	/*
 	 * If one or more files were pre-existing (this means they existed and
 	 * have the correct length), we already have the pieces. Since we have
 	 * no away of knowing whether the full file was retrieved or just a
 	 * portion, hash away!
-	 *
-	 * XXX we should be able to dump / restore such state information
 	 */
 	unsigned int piecenum = 0;
 	unsigned int leftoverLength = 0;
@@ -227,7 +264,7 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 
 			/* This file is big enough to process the previous missing pieces */
 			havePiece[piecenum] = previousFileReopened && f->haveReopened();
-			if (havePiece[piecenum]) {
+			if (havePiece[piecenum] && !restoredStatus) {
 				scheduleHashing(piecenum, true);
 			}
 			piecenum++;
@@ -243,7 +280,7 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 		 */
 		while (fileLength > pieceLen) {
 			havePiece[piecenum] = f->haveReopened();
-			if (f->haveReopened())
+			if (f->haveReopened() && !restoredStatus)
 				scheduleHashing(piecenum, true);
 			piecenum++;
 			fileLength -= pieceLen;
@@ -257,7 +294,7 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 	/* If the final file has leftover pieces, add an extra full piece to cope */
 	if (leftoverLength > 0) {
 		havePiece[piecenum] = previousFileReopened;
-		if (havePiece[piecenum])
+		if (havePiece[piecenum] && !restoredStatus)
 			scheduleHashing(piecenum, true);
 		piecenum++;
 	}
@@ -313,6 +350,8 @@ Torrent::~Torrent()
 	DESTROY_MUTEX(data);
 	DESTROY_RWLOCK(peers);
 	DESTROY_RWLOCK(files);
+
+	delete torrentDictionary;
 }
 
 void
@@ -1536,6 +1575,112 @@ Torrent::shutdown()
 	 * Inform the tracker that we are going away.
 	 */
 	contactTracker("stopped");
+}
+
+Metadata*
+Torrent::storeStatus()
+{
+	Metadata* md = new Metadata(*torrentDictionary);
+
+	/*
+	 * We have a clone of the torrent's main dictionary. We'll add a 'taStatus'
+	 * dictionary containing the following:
+	 *
+	 * - 'chunkOK': one bit per chunk indicating whether it's obtained.
+	 * - 'pieceOK': one bit per piece indicating whether it's hashed OK.
+	 */
+	MetaDictionary* status = new MetaDictionary();
+	md->getDictionary()->assign("taStatus", status);
+
+	int piecemapLen = (numPieces + 7) / 8;
+	int chunkmapLen = (numPieces * (pieceLen / TORRENT_CHUNK_SIZE) + 7) / 8;
+	char* piecemap = new char[piecemapLen];
+	char* chunkmap = new char[chunkmapLen];
+	memset(piecemap, 0, piecemapLen);
+	memset(chunkmap, 0, chunkmapLen);
+
+	LOCK(data);
+	for (unsigned int piece = 0; piece < numPieces; piece++) {
+		/* We have the full piece if it's not hashing */
+		if (!hashingPiece[piece] && havePiece[piece])
+			piecemap[piece / 8] |= (1 << (piece % 8));
+
+		/* Add the chunks one by one */
+		for (unsigned int chunk = 0; chunk < calculateChunksInPiece(piece); chunk++) {
+			int chunkIdx = (piece * (pieceLen / TORRENT_CHUNK_SIZE)) + chunk;
+			if (haveChunk[chunkIdx])
+				chunkmap[chunkIdx / 8] |= (1 << (chunkIdx % 8));
+		}
+	}
+	UNLOCK(data);
+
+	status->assign("pieceOK", new MetaString(string(piecemap, piecemapLen)));
+	status->assign("chunkOK", new MetaString(string(chunkmap, chunkmapLen)));
+
+	delete[] chunkmap;
+	delete[] piecemap;
+
+	return md;
+}
+
+bool
+Torrent::restoreStatus(MetaDictionary* status)
+{
+	MetaString* pieceOK = dynamic_cast<MetaString*>((*status)["pieceOK"]);
+	MetaString* chunkOK = dynamic_cast<MetaString*>((*status)["chunkOK"]);
+	if (pieceOK == NULL || chunkOK == NULL)
+		return false;
+
+	/*
+	 * The required fields of the status-dictionary are present. Perform sanity
+	 * checks first, to ensure the information is not bogus.
+	 */
+	if (pieceOK->getString().size() != ((numPieces + 7) / 8) &&
+			chunkOK->getString().size() != ((numPieces * (pieceLen / TORRENT_CHUNK_SIZE) + 7) / 8))
+		return false;
+
+	const char* pieces = pieceOK->getString().c_str();
+	const char* chunks = chunkOK->getString().c_str();
+
+	/*
+	 * This is added paranoia: pieces and chunks that cannot exist in the torrent
+	 * yet had to be stored (due to a byte being 8 bits) should be zero. This check
+	 * may be overly pedentic.
+	 */
+	for (unsigned int phantomPiece = numPieces;
+	     phantomPiece < (numPieces | 7); phantomPiece++)
+		if (pieces[phantomPiece / 8] & (1 << (phantomPiece % 8)))
+			return false;
+	for (unsigned int phantomChunk = haveChunk.size();
+	     phantomChunk < (haveChunk.size() | 7); phantomChunk++)
+		if (chunks[phantomChunk / 8] & (1 << (phantomChunk % 8)))
+			return false;
+
+	/* Parse all piece/chunk information one by one */
+	LOCK(data);
+	for (unsigned int piece = 0; piece < numPieces; piece++) {
+		if (pieces[piece / 8] & (1 << (piece % 8))) {
+			havePiece[piece] = true;
+
+			/* Update the cardinality and left counters */
+			pieceCardinality[piece]++;
+			if (piece == numPieces - 1) {
+				left -= getTotalSize() % pieceLen > 0 ?
+								getTotalSize() % pieceLen : pieceLen;
+			} else {
+				left -= pieceLen;
+			}
+		}
+
+		for (unsigned int chunk = 0; chunk < calculateChunksInPiece(piece); chunk++) {
+			int chunkIdx = (piece * (pieceLen / TORRENT_CHUNK_SIZE)) + chunk;
+			if (chunks[chunkIdx / 8] & (1 << (chunkIdx % 8)))
+				haveChunk[chunkIdx] = true;
+		}
+	}
+	UNLOCK(data);
+
+	return true;
 }
 
 /* vim:set ts=2 sw=2: */

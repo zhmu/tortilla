@@ -190,6 +190,11 @@ public:
 	bool operator<(Torrent* rhs) { return getName() < rhs->getName(); }
 	bool operator<(Torrent  rhs) { return getName() < rhs.getName(); }
 
+	/*! \brief Returns the torrent metadata with current status
+	 *  \returns Metadata structure consistant with torrent structure
+	 */
+	Metadata* storeStatus();
+
 protected:
 	/*! \brief Called by a peer if pieces are added to the map */
 	void callbackPiecesAdded(Peer* p, std::vector<unsigned int>& pieces);
@@ -274,6 +279,11 @@ protected:
 
 	//! \brief Adds a request to the overseer
 	void addRequest(HTTPRequest* r);
+
+	/*! \brief Parses a status metadata structure
+	 *  \returns true on success
+	 */
+	bool restoreStatus(MetaDictionary* status);
 
 private:
 	/*! \brief Contact the tracker
@@ -467,6 +477,9 @@ private:
 
 	//! \brief Pending request, if any
 	HTTPRequest* pendingRequest;
+
+	//! \brief Metadata dictionary of the torrent
+	MetaDictionary* torrentDictionary;
 };
 
 #endif /* __TORTILLA_TORRENT_H__ */
