@@ -33,6 +33,15 @@ void MetaList::stream(ostream& os) const
 	os << "e";
 }
 
+MetaList::MetaList(MetaList& ml)
+{
+	std::list<MetaField*> srcList = ml.getList();
+	for (std::list<MetaField*>::const_iterator it = srcList.begin();
+	     it != srcList.end(); it++) {
+		list.push_back(MetaField::clone(*it));
+	}
+}
+
 std::ostream& operator<<(std::ostream& os, const StringFieldMap& sfm)
 {
 	MetaString ms(sfm.key);
@@ -72,6 +81,39 @@ MetaDictionary::~MetaDictionary()
 		delete sfm;
 		it = dictionary.begin();
 	}
+}
+
+MetaDictionary::MetaDictionary(MetaDictionary& src)
+{
+	std::list<StringFieldMap*> srcDictionary = src.getDictionary();
+
+	for (std::list<StringFieldMap*>::const_iterator it = srcDictionary.begin();
+	     it != srcDictionary.end(); it++) {
+		StringFieldMap* sfm = *it;
+		assign(sfm->getKey(), MetaField::clone(sfm->getValue()));
+	}
+}
+
+MetaField*
+MetaField::clone(MetaField* src)
+{
+	/*
+	 * I wish I could just use MetaField::MetaField() as copy constructor; but it
+	 * has a pure virtual, so that won't work :-(
+	 */
+	MetaString* ms = dynamic_cast<MetaString*>(src);
+	if (ms != NULL)
+		return new MetaString(*ms);
+	MetaInteger* mi = dynamic_cast<MetaInteger*>(src);
+	if (mi != NULL)
+		return new MetaInteger(*mi);
+	MetaList* ml = dynamic_cast<MetaList*>(src);
+	if (ml != NULL)
+		return new MetaList(*ml);
+	MetaDictionary* md = dynamic_cast<MetaDictionary*>(src);
+	if (md != NULL)
+		return new MetaDictionary(*md);
+	return NULL;
 }
 
 /* vim:set ts=2 sw=2: */

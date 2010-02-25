@@ -10,7 +10,7 @@ MetaField*
 Metadata::handleField()
 {
 	uint8_t b = getByte();
-	if (is.eof())
+	if (is->eof())
 		return NULL;
 
 	if (b >= '0' && b <= '9') {
@@ -67,11 +67,24 @@ Metadata::handleField()
 }
 
 Metadata::Metadata(std::istream& s)
-	 : is(s)
 {
+	is = &s;
+
 	dictionary = dynamic_cast<MetaDictionary*>(handleField());
 	if (dictionary == NULL)
 		throw MetadataException("metadata content isn't a dictionary");
+}
+
+Metadata::Metadata()
+{
+	is = NULL;
+	dictionary = new MetaDictionary();
+}
+
+Metadata::Metadata(MetaDictionary& md)
+{
+	is = NULL;
+	dictionary = new MetaDictionary(md);
 }
 
 Metadata::~Metadata()
@@ -83,7 +96,7 @@ uint8_t
 Metadata::getByte()
 {
 	uint8_t c;
-	is.read((char*)&c, 1);
+	is->read((char*)&c, 1);
 	return c;
 }
 

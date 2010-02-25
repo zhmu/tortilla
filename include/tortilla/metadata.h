@@ -16,6 +16,12 @@ public:
 	 */
 	Metadata(std::istream& s);
 
+	//! \brief Constructs a new empty metadata object
+	Metadata();
+
+	//! \brief Constructs a metadata object from a given dictionary
+	Metadata(MetaDictionary& md);
+
 	//! \brief Destructs the metadata object
 	~Metadata();
 
@@ -49,7 +55,7 @@ private:
 	MetaField* handleField();
 
 	//! \brief The input stream used
-	std::istream& is;
+	std::istream* is;
 };
 
 #endif /* __TORTILLA_METADATA_H__ */

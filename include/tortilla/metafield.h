@@ -11,7 +11,10 @@ public:
 	friend std::ostream& operator<<(std::ostream& os, const MetaField& mf);
 	friend std::istream& operator>>(std::istream& is, const MetaField& mf);
 
+	MetaField() { };
 	inline virtual ~MetaField() { }
+
+	static MetaField* clone(MetaField* src);
 
 protected:
 	/*! \brief Stream field to an output stream
@@ -24,6 +27,7 @@ protected:
 class MetaString : public MetaField {
 public:
 	inline MetaString(std::string s) { string = s; }
+	inline MetaString(MetaString& ms) { string = ms.getString(); }
 	inline const std::string getString() { return string; }
 
 protected:
@@ -38,6 +42,9 @@ public:
 	inline MetaInteger (uint64_t i) {
 		integer = i;
 	}
+	inline MetaInteger(MetaInteger& mi) {
+		integer = mi.getInteger();
+	}
 
 	inline uint64_t getInteger() { return integer; }
 
@@ -50,6 +57,9 @@ private:
 
 class MetaList : public MetaField {
 public:
+	MetaList() { };
+	MetaList(MetaList& ml);
+
 	inline void addItem(MetaField* f) {
 		list.push_back(f);
 	}
@@ -84,6 +94,8 @@ private:
 
 class MetaDictionary : public MetaField {
 public:
+	MetaDictionary() { };
+	MetaDictionary(MetaDictionary& mi);
 	virtual ~MetaDictionary();
 
 	inline void assign(std::string str, MetaField* f) {
@@ -95,6 +107,7 @@ public:
 
 protected:
 	void stream(std::ostream& o) const;
+	std::list<StringFieldMap*> getDictionary() { return dictionary; }
 
 private:
 	std::list<StringFieldMap*> dictionary;
