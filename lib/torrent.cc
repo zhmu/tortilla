@@ -36,7 +36,7 @@ using namespace std;
 #define CALLBACK(x,args...) \
 	overseer->getCallbacks()->x(args)
 
-Torrent::Torrent(Overseer* o, Metadata* md)
+Torrent::Torrent(Overseer* o, Metadata* md, std::string path)
 {
 	overseer = o; downloaded = 0; uploaded = 0; left = 0;
 	terminating = false; terminateTime = 0; removeOK = false; complete = false;
@@ -144,12 +144,6 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 				string fullPath = msName->getString();
 				for (list<MetaField*>::iterator itt = mlPath->getList().begin();
 						 itt != mlPath->getList().end(); itt++) {
-
-					/* If the path doesn't exist, create it */
-					struct stat fs;
-					if (stat(fullPath.c_str(), &fs) < 0)
-						mkdir(fullPath.c_str(), 0755);
-
 					MetaString* ms = dynamic_cast<MetaString*>(*itt);
 					if (ms == NULL)
 						throw TorrentException("file path list doesn't contain strings");
@@ -157,7 +151,7 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 					fullPath += "/" + ms->getString();
 				}
 
-				File* f = new File(fullPath, miLength->getInteger());
+				File* f = new File(fullPath, miLength->getInteger(), path);
 				files.push_back(f);
 				overseer->addFile(f);
 				total_size += miLength->getInteger();
@@ -168,7 +162,7 @@ Torrent::Torrent(Overseer* o, Metadata* md)
 		if (miLength == NULL)
 			throw TorrentException("info dictionary doesn't contain a length");
 
-		File* f = new File(msName->getString(), miLength->getInteger());
+		File* f = new File(msName->getString(), miLength->getInteger(), path);
 		files.push_back(f);
 		overseer->addFile(f);
 		total_size += miLength->getInteger();
@@ -1681,6 +1675,36 @@ Torrent::restoreStatus(MetaDictionary* status)
 	UNLOCK(data);
 
 	return true;
+}
+
+bool
+Torrent::setFilePath(std::string path)
+{
+	bool ok = true;
+	WLOCK(files);
+
+	/* Obtain the old root path, in case we have to restore the old path */
+	assert(files.size() > 0);
+	string old_path = files[0]->getRootPath();
+
+	for (vector<File*>::iterator it = files.begin();
+	     it != files.end() && ok; it++) {
+		ok = (*it)->moveRootPath(path);
+	}
+
+	/*
+	 * If 'ok' is not true, some file failed; move 'm all back. Note that we
+	 * cannot let go of the lock in between, and we ignore the result code as
+	 * this is best-effort.
+	 */
+	if (!ok) {
+		for (vector<File*>::iterator it = files.begin();
+				 it != files.end() && ok; it++) {
+			(*it)->moveRootPath(old_path);
+		}
+	}
+	RWUNLOCK(files);
+	return ok;
 }
 
 /* vim:set ts=2 sw=2: */

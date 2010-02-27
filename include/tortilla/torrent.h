@@ -62,8 +62,9 @@ public:
 	/*! \brief Constructs a new torrent object
 	 *  \param o Overseer to use
 	 *  \param md Metadata to use
+	 *  \param path Path under which the files will be created
 	 */
-	Torrent(Overseer* o, Metadata* md);
+	Torrent(Overseer* o, Metadata* md, std::string path);
 
 	//! \brief Destructs the torrent object
 	~Torrent();
@@ -284,6 +285,15 @@ protected:
 	 *  \returns true on success
 	 */
 	bool restoreStatus(MetaDictionary* status);
+
+	/*! \brief Sets the new path of the torrent files
+	 *  \param path New path to use
+	 *  \returns true on success
+	 *
+	 *  This will move all files in place; either all files will be
+	 *  moved, or none at all.
+	 */
+	bool setFilePath(std::string path);
 
 private:
 	/*! \brief Contact the tracker

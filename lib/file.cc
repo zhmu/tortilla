@@ -9,19 +9,21 @@
 
 using namespace std;
 
-File::File(std::string path, off_t len)
+File::File(std::string path, off_t len, std::string root_path)
 {
-	filename = path; length = len; reopened = false; lastInteraction = time(NULL);
+  rootpath = root_path; filename = path; length = len; reopened = false; lastInteraction = time(NULL);
 	INIT_RWLOCK(file);
 
 	/*
 	 * First of all, try to open the file; if this works, we know the
 	 * file pre-existed and we should refetch all of it (hopefully)
 	 */
-	if ((fd = ::open(path.c_str(), O_RDWR)) < 0) {
+	string fullpath = rootpath + filename;
+	makePath(fullpath);
+	if ((fd = ::open(fullpath.c_str(), O_RDWR)) < 0) {
 		/* This failed; attempt to create the file */
-		if ((fd = ::open(path.c_str(), O_CREAT | O_TRUNC | O_RDWR, 0644)) < 0)
-			throw FileException("unable to create '" + path + "'");
+		if ((fd = ::open(fullpath.c_str(), O_CREAT | O_TRUNC | O_RDWR, 0644)) < 0)
+			throw FileException("unable to create '" + fullpath + "'");
 	} else {
 		/* We reopened the file, but maybe the length is invalid */
 		off_t filesize = lseek(fd, 0, SEEK_END);
@@ -61,7 +63,6 @@ File::write(off_t offset, const void* buf, size_t len)
 {
 	assert(offset + (off_t)len <= length);
 	assert(isOpened());
-
 
 	/*
 	 * Don't consider short writes a failure if the call was interrupted;
@@ -108,12 +109,13 @@ File::open()
 	if (fd >= 0)
 		return;
 
-	if ((fd = ::open(filename.c_str(), O_RDWR)) < 0) {
+	string fullpath = rootpath + filename;
+	if ((fd = ::open(fullpath.c_str(), O_RDWR)) < 0) {
 		/*
 		 * If we couldn't re-open the file, that's weird. We could do it in the
 	 	 * constructor...
 		 */
-		throw FileException("unable to re-open '" + filename + "'");
+		throw FileException("unable to re-open '" + fullpath + "'");
 	}
 }
 
@@ -155,13 +157,52 @@ bool
 File::rename(std::string newpath)
 {
 	WLOCK(file);
-	if (::rename(filename.c_str(), newpath.c_str()) < 0) {
+	if (::rename(string(rootpath + filename).c_str(), string(rootpath + newpath).c_str()) < 0) {
 		RWUNLOCK(file);
 		return false;
 	}
 	filename = newpath;
 	RWUNLOCK(file);
 	return true;
+}
+
+bool
+File::moveRootPath(std::string newpath)
+{
+	WLOCK(file);
+	string old_path = rootpath + filename;
+	string new_path = newpath + filename;
+	try {
+		makePath(new_path);
+	} catch (FileException e) {
+		RWUNLOCK(file);
+		return false;
+	}
+	if (::rename(old_path.c_str(), new_path.c_str()) < 0) {
+		RWUNLOCK(file);
+		return false;
+	}
+	rootpath = newpath;
+	RWUNLOCK(file);
+	return true;
+}
+
+void
+File::makePath(std::string path)
+{
+	size_t offset = 0;
+	struct stat st;
+
+	while (true) {
+		size_t pos = path.find('/', offset);
+		if (pos == string::npos)
+			break;
+		std::string prefix = path.substr(0, pos - 1);
+		if (stat(prefix.c_str(), &st) < 0)
+			if (mkdir(prefix.c_str(), 0755) < 0)
+				throw FileException("cannot create prefix path '" + prefix + "' to cover entire path '" + path + "'");
+		offset = pos + 1;
+	}
 }
 
 /* vim:set ts=2 sw=2: */

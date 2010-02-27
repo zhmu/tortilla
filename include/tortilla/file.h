@@ -14,8 +14,12 @@ public:
 	/*! \brief Construct a new file
 	 *  \param path Path to use
 	 *  \param len Length of the file
+	 *  \param root_path Root directory of the file path
+	 *
+	 *  The full filename is root_path + path, without any '/'. This is
+	 *  useful for moving the file in place.
 	 */
-	File(std::string path, off_t len);
+	File(std::string path, off_t len, std::string root_path);
 
 	//! \brief Closes the file
 	~File();
@@ -57,6 +61,15 @@ public:
 	 */
 	bool rename(std::string newpath);
 
+	//! \brief Retrieve the root path
+	std::string getRootPath() { return rootpath; }
+
+	/*! \brief Move the file to a new root path
+	 *  \param newpath New root path to use
+	 *  \returns true on success
+	 */
+	bool moveRootPath(std::string newpath);
+
 protected:
 	//! \brief Open the file
 	void open();
@@ -76,6 +89,15 @@ protected:
 	//! \brief Unlocks the file object
 	void unlock();
 
+	/*! \brief Creates a directory structure for a pathname
+	 *  \param pathname The path that will be used
+	 *
+	 *  This will ensure that pathname can be stored under the current root;
+	 *  if 'pathname' is 'a/b/c/d.bin', it will ensure 'a', 'a/b' and 'a/b/c'
+	 *  exist once this function returns.
+	 */
+	void makePath(std::string path);
+
 private:
 	//! \brief Length of the file
 	off_t length;
@@ -88,6 +110,9 @@ private:
 
 	//! \brief Name of the file
 	std::string filename;
+
+	//! \brief Root path where the file is
+	std::string rootpath;
 
 	//! \brief Timestamp of the last interaction
 	time_t lastInteraction;
