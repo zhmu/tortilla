@@ -197,7 +197,7 @@ File::makePath(std::string path)
 		size_t pos = path.find('/', offset);
 		if (pos == string::npos)
 			break;
-		std::string prefix = path.substr(0, pos - 1);
+		std::string prefix = path.substr(0, pos);
 		if (stat(prefix.c_str(), &st) < 0)
 			if (mkdir(prefix.c_str(), 0755) < 0)
 				throw FileException("cannot create prefix path '" + prefix + "' to cover entire path '" + path + "'");
