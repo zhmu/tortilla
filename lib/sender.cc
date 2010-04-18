@@ -96,13 +96,18 @@ Sender::process()
 		 */
 		vector<unsigned int>peerFDs;
 		for (unsigned int pfd = 0; pfd < cur_pfd; pfd++) {
-			assert(!(pfds[pfd].revents & POLLERR));
-			if (pfds[pfd].revents & POLLHUP) {
+			if ((pfds[pfd].revents & POLLHUP) ||
+			    (pfds[pfd].revents & POLLERR)) {
 				/*
 				 * The socket is gone; this means we have to disconnect the
 				 * peer. The receiver should find this condition as well,
 				 * but since we already are aware of the dead peer, just
 				 * remove it and be done with it.
+				 *
+				 * Note that Linux seems to report both POLLERR and POLLHUP
+				 * in a single go, so we just check for either of them - if
+			 	 * the polling failed, the socket is of no futher interest
+				 * and should go anyway...
 				 */
 				overseer->removePeerByFD(pfds[pfd].fd);
 				continue;
