@@ -184,7 +184,7 @@ main(int argc, char** argv)
 	ifstream is;
 	is.open(argv[0], ios::binary);
 	Metadata* md = new Metadata(is);
-	overseer->addTorrent(new Torrent(overseer, md));
+	overseer->addTorrent(new Torrent(overseer, md, ""));
 	delete md;
 
 	signal(SIGINT, sigint);

@@ -270,7 +270,7 @@ Interface::addTorrent(std::string fname)
 	is.open(fname.c_str(), ios::binary);
 	Metadata* md = new Metadata(is);
 	try {
-		overseer->addTorrent(new Torrent(overseer, md));
+		overseer->addTorrent(new Torrent(overseer, md, ""));
 	} catch (exception e) {
 		/* Prevent memory leak */
 		delete md;
