@@ -1735,7 +1735,11 @@ Torrent::constructInfoHash(Metadata* md, uint8_t* hash)
 bool
 Torrent::compareTorrentNames(const Torrent* a, const Torrent* b)
 {
-	return a->getName() < b->getName();
+	string nameA = a->getName();
+	string nameB = b->getName();
+	transform(nameA.begin(), nameA.end(), nameA.begin(), ::tolower);
+	transform(nameB.begin(), nameB.end(), nameB.begin(), ::tolower);
+	return nameA < nameB;
 }
 
 /* vim:set ts=2 sw=2: */
