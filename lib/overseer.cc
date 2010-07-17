@@ -315,6 +315,21 @@ Overseer::handleIncomingConnection(Connection* c)
 	p->sendBitfield();
 }
 
+Torrent*
+Overseer::findTorrent(const uint8_t* hash)
+{
+	string hash_string((const char*)hash, TORRENT_HASH_LEN);
+	Torrent* t = NULL;
+
+	RLOCK(torrents);
+	map<string, Torrent*>::iterator it = torrents.find(hash_string);
+	if (it != torrents.end())
+		t = it->second;
+	RWUNLOCK(torrents);
+
+	return t;
+}
+
 /*
  * Below are principe of least knowledge functions which just forward the call to the
  * appropriate object.

@@ -61,6 +61,12 @@ public:
 	//! \brief Retrieve a list of torrents
 	std::vector<Torrent*> getTorrents();
 
+	/*! \brief Find a torrent by hash
+	 *  \param hash Hash to find
+	 *  \return Torrent object, or NULL if not found
+	 */
+	Torrent* findTorrent(const uint8_t* hash);
+
 	/*! \brief Set the upload rate, in bytes/second
 	 *
 	 *  An upload rate of zero indicates no upload rate throtteling is

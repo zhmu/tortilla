@@ -196,6 +196,13 @@ public:
 	 */
 	Metadata* storeStatus();
 
+	/*! \brief Obtain a torrent info hash from metadata
+	 *  \param md Metadata to use
+	 *  \param hash Information hash storage
+	 *  \return true on success
+	 */
+	static bool constructInfoHash(Metadata* md, uint8_t* hash);
+
 protected:
 	/*! \brief Called by a peer if pieces are added to the map */
 	void callbackPiecesAdded(Peer* p, std::vector<unsigned int>& pieces);

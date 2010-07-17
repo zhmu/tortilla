@@ -1707,4 +1707,29 @@ Torrent::setFilePath(std::string path)
 	return ok;
 }
 
+bool
+Torrent::constructInfoHash(Metadata* md, uint8_t* hash)
+{
+	/*
+	 * A torrent's 'info' hash is just the SHA1 hash of the
+	 * 'info' dictionary. So, first of all, grab the
+	 * dictionary.
+	 */
+	MetaDictionary* dictionary = md->getDictionary();
+	MetaDictionary* info = dynamic_cast<MetaDictionary*>((*dictionary)["info"]);
+	if (info == NULL)
+		return false;
+
+	/* Stream the info-part of the torrent to a buffer... */
+	stringbuf sb;
+	ostream os(&sb);
+	os << *info;
+
+	/* ...and SHA1 that so we get our info hash */
+	HashSHA1 sha1;
+	sha1.process(sb.str().c_str(), sb.str().size());
+ 	memcpy(hash, sha1.getHash(), TORRENT_HASH_LEN);
+	return true;
+}
+
 /* vim:set ts=2 sw=2: */

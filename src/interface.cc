@@ -266,6 +266,23 @@ Interface::addTorrent(std::string fname)
 	ifstream is;
 	is.open(fname.c_str(), ios::binary);
 	Metadata* md = new Metadata(is);
+
+	/*
+	 * Grab the torrent's info hash - we use it to figure out whether the torrent
+	 * is already added (without this, we would just overwrite the previous
+	 * torrent into oblivion)
+	 */
+	uint8_t infohash[TORRENT_HASH_LEN];
+	if (!Torrent::constructInfoHash(md, infohash)) {
+		/* We couldn't build a hash; this means the torrent won't get far either */
+		delete md;
+		throw TorrentException("Cannot generate info hash of source file (corrupt .torrent?)");
+	}
+	if (overseer->findTorrent(infohash) != NULL) {
+		delete md;
+		throw TorrentException("Torrent already added");
+	}
+
 	try {
 		overseer->addTorrent(new Torrent(overseer, md, ""));
 	} catch (exception e) {
