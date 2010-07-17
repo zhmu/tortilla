@@ -26,14 +26,19 @@ public:
 	void addTorrent(std::string fname);
 	void setStatusMessage(std::string msg);
 
+	void handleResize();
+
 protected:
 	void update();
 	void alterUploadRate(int delta);
+	void redraw();
 
 private:
 	void handleInput();
 	void handleAddInput(int ch);
 	void handleCompletion();
+
+	void updateWindows();
 
 	Overseer* overseer;
 	Overview* overview;

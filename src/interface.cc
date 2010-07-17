@@ -1,4 +1,5 @@
 #include <sys/types.h>
+#include <sys/ioctl.h>
 #include <dirent.h>
 #include <iostream>
 #include <ncurses.h>
@@ -24,12 +25,12 @@ Interface::Interface(Overseer* o)
 	raw(); cbreak(); keypad(stdscr, TRUE);
 	noecho(); curs_set(0); refresh();
 
-	overviewWindow = newwin(LINES - 1, COLS / 2, 0, 0);
-	infoWindow = newwin(LINES - 1, COLS / 2, 0, COLS / 2);
-	statusLine = newwin(0, 0, LINES - 1, 0);
+	overview = new Overview(this);
+	info = new Info(this);
 
-	overview = new Overview(overviewWindow, this);
-	info = new Info(infoWindow, this);
+	overviewWindow = NULL; infoWindow = NULL;
+	updateWindows();
+
 }
 
 Interface::~Interface()
@@ -46,11 +47,7 @@ Interface::run()
 {
 
 	while (!overseer->isTerminating()) {
-		overview->draw();
-		info->draw(overview->getSelectedTorrent());
-		update();
-		wrefresh(overviewWindow);
-		refresh();
+		redraw();
 
 		/*
 		 * Wait for 1 second, or less if a keystroke is hit
@@ -361,6 +358,44 @@ Interface::alterUploadRate(int delta)
 	msg += tmp;
 	msg += " KB/sec";
 	setStatusMessage(msg);
+}
+
+void
+Interface::handleResize()
+{
+	struct winsize size;
+	if (ioctl(0, TIOCGWINSZ, &size) != 0)
+		return;
+
+	resizeterm(size.ws_row, size.ws_col);
+
+	updateWindows();
+	redraw();
+}
+
+void
+Interface::updateWindows()
+{
+	if (overviewWindow != NULL) delwin(overviewWindow);
+	if (infoWindow != NULL) delwin(infoWindow);
+	if (statusLine != NULL) delwin(statusLine);
+		
+	overviewWindow = newwin(LINES - 1, COLS / 2, 0, 0);
+	infoWindow = newwin(LINES - 1, COLS / 2, 0, COLS / 2);
+	statusLine = newwin(0, 0, LINES - 1, 0);
+
+	overview->setWindow(overviewWindow);
+	info->setWindow(infoWindow);
+}
+
+void
+Interface::redraw()
+{
+	overview->draw();
+	info->draw(overview->getSelectedTorrent());
+	update();
+	wrefresh(overviewWindow);
+	refresh();
 }
 
 /* vim:set ts=2 sw=2: */

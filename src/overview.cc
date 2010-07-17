@@ -4,9 +4,9 @@
 
 using namespace std;
 
-Overview::Overview(WINDOW* w, Interface* iface)
+Overview::Overview(Interface* iface)
 {
-	window = w; interface = iface;
+	window = NULL; interface = iface;
 	curSelection = 0; firstTorrentIndex = 0;
 }
 

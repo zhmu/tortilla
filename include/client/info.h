@@ -13,7 +13,8 @@
 
 class Info {
 public:
-	Info(WINDOW* w, Interface* iface);
+	Info(Interface* iface);
+	void setWindow(WINDOW* w) { window = w; }
 
 	void draw(Torrent* t);
 

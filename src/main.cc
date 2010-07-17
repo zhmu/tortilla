@@ -30,6 +30,14 @@ usage()
 	exit(EXIT_FAILURE);
 }
 
+
+void
+handle_resize(int)
+{
+	interface->handleResize();
+	signal(SIGWINCH, handle_resize);
+}
+
 int
 main(int argc, char** argv)
 {
@@ -39,6 +47,7 @@ main(int argc, char** argv)
 
 	/* XXX */
 	signal(SIGPIPE, SIG_IGN);
+	signal(SIGWINCH, handle_resize);
 
 	int ch;
 	while ((ch = getopt(argc, argv, "?hu:p:")) != -1) {

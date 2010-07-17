@@ -3,9 +3,9 @@
 
 using namespace std;
 
-Info::Info(WINDOW* w, Interface* iface)
+Info::Info(Interface* iface)
 {
-	window = w; interface = iface; y_offset = 0; num_lines = 0; panel = PANEL_PIECES;
+	window = NULL; interface = iface; y_offset = 0; num_lines = 0; panel = PANEL_PIECES;
 }
 
 void

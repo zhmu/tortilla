@@ -6,7 +6,8 @@
 
 class Overview {
 public:
-	Overview(WINDOW* w, Interface* iface);
+	Overview(Interface* iface);
+	void setWindow(WINDOW* w) { window = w; }
 
 	void draw();
 
