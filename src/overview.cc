@@ -65,9 +65,11 @@ Overview::draw()
 Torrent*
 Overview::getSelectedTorrent()
 {
-	if (curSelection >= interface->getOverseer()->getTorrents().size())
+	vector<Torrent*> torrents = interface->getOverseer()->getTorrents();
+	sort(torrents.begin(), torrents.end(), Torrent::compareTorrentNames);
+	if (curSelection >= torrents.size())
 		return NULL;
-	return interface->getOverseer()->getTorrents()[curSelection];
+	return torrents[curSelection];
 }
 
 void
