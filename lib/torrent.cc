@@ -1732,4 +1732,10 @@ Torrent::constructInfoHash(Metadata* md, uint8_t* hash)
 	return true;
 }
 
+bool
+Torrent::compareTorrentNames(const Torrent* a, const Torrent* b)
+{
+	return a->getName() < b->getName();
+}
+
 /* vim:set ts=2 sw=2: */

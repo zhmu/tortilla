@@ -203,6 +203,13 @@ public:
 	 */
 	static bool constructInfoHash(Metadata* md, uint8_t* hash);
 
+	/*! \brief Comparison function for sorting by name
+	 *  \param a First torrent object
+	 *  \param b Second torrent object
+	 *  \return true if a < b
+	 */
+	static bool compareTorrentNames(const Torrent* a, const Torrent* b);
+
 protected:
 	/*! \brief Called by a peer if pieces are added to the map */
 	void callbackPiecesAdded(Peer* p, std::vector<unsigned int>& pieces);

@@ -14,7 +14,7 @@ void
 Overview::draw()
 {
 	vector<Torrent*> torrents = interface->getOverseer()->getTorrents();
-	/*sort(torrents.begin(), torrents.end());*/
+	sort(torrents.begin(), torrents.end(), Torrent::compareTorrentNames);
 
 	unsigned int y = 1;
 	werase(window);
