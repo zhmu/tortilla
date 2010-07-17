@@ -89,4 +89,31 @@ Overview::upTorrent()
 		curSelection--;
 }
 
+void
+Overview::selectTorrent(Torrent* t)
+{
+	vector<Torrent*> torrents = interface->getOverseer()->getTorrents();
+	sort(torrents.begin(), torrents.end(), Torrent::compareTorrentNames);
+
+	unsigned int torrentIndex = 0;
+	for (vector<Torrent*>::iterator it = torrents.begin();
+	     it != torrents.end(); it++, torrentIndex++) {
+		Torrent* torrent = *it;
+		if (torrent != t)
+			continue;
+
+		/* Ensure the selected torrent fits */
+		unsigned int rows, cols;
+		getmaxyx(window, rows, cols);
+		unsigned int torrentsPerScreen = rows / 4;
+
+		if (curSelection < torrentIndex || curSelection > (torrentIndex + torrentsPerScreen))
+			firstTorrentIndex = torrentIndex - (torrentsPerScreen / 2);
+
+		curSelection = torrentIndex;
+	}
+
+	/* If we got here, torrent was not found; do nothing */
+}
+
 /* vim:set ts=2 sw=2: */

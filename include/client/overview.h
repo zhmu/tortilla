@@ -15,6 +15,7 @@ public:
 
 	void upTorrent();
 	void downTorrent();
+	void selectTorrent(Torrent* t);
 
 private:
 	WINDOW* window;

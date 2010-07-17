@@ -36,6 +36,7 @@ protected:
 private:
 	void handleInput();
 	void handleAddInput(int ch);
+	void handleSearchInput(int ch);
 	void handleCompletion();
 
 	void updateWindows();
@@ -54,10 +55,14 @@ private:
 	//! \brief Are we currently adding a torrent?
 	bool adding;
 
+	//! \brief Are we searching for a torrent?
+	bool searching;
+
 	//! \brief Which files match currently?
 	std::vector<std::string> tabMatches;
 
 	std::string addString;
+	std::string searchString;
 	std::string statusMessage;
 };
 

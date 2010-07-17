@@ -1,5 +1,6 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
+#include <algorithm>
 #include <dirent.h>
 #include <iostream>
 #include <ncurses.h>
@@ -19,7 +20,7 @@ using namespace std;
 
 Interface::Interface(Overseer* o)
 {
-	overseer = o; adding = false; statusTime = 0;
+	overseer = o; adding = false; searching = false; statusTime = 0;
 
 	initscr(); start_color();
 	raw(); cbreak(); keypad(stdscr, TRUE);
@@ -105,6 +106,10 @@ Interface::handleInput()
 		handleAddInput(ch);
 		return;
 	}
+	if (searching) {
+		handleSearchInput(ch);
+		return;
+	}
 
 	switch(ch) {
 		case 0x11: /* control-q */
@@ -126,6 +131,10 @@ Interface::handleInput()
 			addString = "";
 			adding = true;
 			tabMatches.clear();
+			break;
+		case '/':
+			searchString = "";
+			searching = true;
 			break;
 		case '1':
 		case '2':
@@ -237,6 +246,11 @@ Interface::update()
 		werase(statusLine);
 		mvwprintw(statusLine, 0, 0, "%s", status.c_str());
 		wrefresh(statusLine);
+	}
+
+	if (searching) {
+		mvwprintw(overviewWindow, y - 1, 0, "search> %s_", searchString.c_str());
+		return;
 	}
 
 	if (!adding)
@@ -412,6 +426,66 @@ Interface::redraw()
 	update();
 	wrefresh(overviewWindow);
 	refresh();
+}
+
+void
+Interface::handleSearchInput(int ch)
+{
+	/*
+	 * XXX this should be somehow merged with handleAddInput as most of the input
+	 * stuff is the same
+	 */
+	switch(ch) {
+		case 0x0a: /* return */
+			if (searchString.size() != 0) {
+				/* First of all, lowercase our search string so we can do case insensitive matching */
+				string s(searchString);
+				transform(s.begin(), s.end(), s.begin(), ::tolower);
+			
+				/*
+			 	 * Wade through all torrents and see if we have a match!
+			 	 */
+				vector<Torrent*> torrents = getOverseer()->getTorrents();
+				for (vector<Torrent*>::iterator it = torrents.begin();
+				     it != torrents.end(); it++) {
+					Torrent* t = *it;
+					string torrentName(t->getName());
+					if (torrentName.size() < s.size())
+						continue;
+					transform(torrentName.begin(), torrentName.end(), torrentName.begin(), ::tolower);
+
+					if (torrentName.compare(0, s.size(), s) != 0)
+						continue;
+
+					/* Got it! */
+					overview->selectTorrent(t);
+					break;
+				}
+			}
+			searching = false;
+			return;
+		case 0x1b: /* escape */
+			searching = false;
+			return;
+		case KEY_BACKSPACE:
+			if (searchString.size() > 0)
+				searchString = searchString.substr(0, searchString.size() - 1);
+			return;
+		case 0x15: /* ctrl-u */
+			searchString = "";
+			return;
+		case 0x17: /* ctrl-w */
+			string::size_type pos = searchString.find_last_of(" ");
+			if (pos != string::npos)
+				searchString = searchString.substr(0, pos);
+			else
+				searchString = "";
+			return;
+	}
+
+	if (!isprint(ch))
+		return;
+	searchString += ch;
 }
 
 /* vim:set ts=2 sw=2: */
