@@ -370,7 +370,6 @@ Interface::handleResize()
 	resizeterm(size.ws_row, size.ws_col);
 
 	updateWindows();
-	redraw();
 }
 
 void
