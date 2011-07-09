@@ -11,6 +11,7 @@
 #include <algorithm>
 
 using namespace std;
+using namespace boost::interprocess;
 
 #define TRACER (overseer->getTracer())
 
@@ -22,14 +23,9 @@ sender_thread(void* ptr)
 }
 
 Sender::Sender(Overseer* o)
+	: terminating(false), overseer(o),
+	  thread(sender_thread, this)
 {
-	terminating = false; overseer = o;
-
-	INIT_MUTEX(data);
-	pthread_cond_init(&cv, NULL);
-
-	/* Off we gooo! */
-	pthread_create(&thread, NULL, sender_thread, this);
 }
 
 Sender::~Sender()
@@ -38,11 +34,8 @@ Sender::~Sender()
 	 * Request termination and wait for the thread to die.
 	*/
 	terminating = true;
-	pthread_cond_signal(&cv);
-	pthread_join(thread, NULL);
-
-	pthread_cond_destroy(&cv);
-	DESTROY_MUTEX(data);
+	cv.notify_one();
+	thread.join();
 }
 
 void
@@ -80,9 +73,8 @@ Sender::process()
 
 		/* If there is nothing to wait for, rest and try again */
 		if (cur_pfd == 0) {
-			LOCK(data);
-			pthread_cond_wait(&cv, &mtx_data);
-			UNLOCK(data);
+			scoped_lock<interprocess_mutex> lock(mtx_data);
+			cv.wait(lock);
 			continue;
 		}
 
@@ -176,7 +168,7 @@ Sender::setAmountTransferrable(uint32_t amount)
 void
 Sender::signal()
 {
-	pthread_cond_signal(&cv);
+	cv.notify_one();
 }
 
 /* vim:set ts=2 sw=2: */

@@ -3,6 +3,7 @@
 #include <map>
 #include <stdint.h>
 #include <string>
+#include <stdint.h>
 
 #ifndef __TORTILLA_METAFIELD_H__
 #define __TORTILLA_METAFIELD_H__

@@ -1,3 +1,4 @@
+#include <boost/interprocess/sync/interprocess_mutex.hpp>
 #include <string>
 #include <vector>
 #include "metadata.h"
@@ -111,7 +112,7 @@ protected:
 	HTTPRequest* httpRequest;
 
 	//! \brief Mutex protecting the data
-	pthread_mutex_t mtx_data;
+	boost::interprocess::interprocess_mutex mtx_data;
 };
 
 #endif /* __TORTILLA_TRACKERTALKER__ */

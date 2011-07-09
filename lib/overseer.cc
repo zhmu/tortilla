@@ -44,10 +44,6 @@ Overseer::Overseer(unsigned int portnum, Tracer* tr, Callbacks* cb)
 	for (int i = 7; i < TORRENT_PEERID_LEN; i++)
 		peerid[i] = rand() % 26 + 'a';
 
-	/* Initialize the mutexes; they are being used by the sender later on */
-	INIT_RWLOCK(torrents);
-	INIT_MUTEX(data);
-
 	incoming = new Connection(port);
 	receiver = new Receiver(this);
 	hasher = new Hasher(this);
@@ -60,7 +56,7 @@ Overseer::Overseer(unsigned int portnum, Tracer* tr, Callbacks* cb)
 	sigaddset(&sm, SIGPIPE);
 	pthread_sigmask(SIG_BLOCK, &sm, NULL);
 
-	pthread_create(&thread, NULL, overseer_thread, this);
+	thread = new boost::thread(overseer_thread, this);
 }
 
 Overseer::~Overseer()
@@ -76,7 +72,7 @@ Overseer::~Overseer()
 	}
 
 	/* Remove the overseer thread */
-	pthread_join(thread, NULL);
+	delete thread;
 
 	/* The overseer thread should have removed all torrents by now */
 	assert(torrents.size() == 0);
@@ -87,9 +83,6 @@ Overseer::~Overseer()
 	delete incoming;
 	delete filemanager;
 	delete callbacks;
-
-	DESTROY_RWLOCK(torrents);
-	DESTROY_MUTEX(data);
 }
 
 void
@@ -98,7 +91,7 @@ Overseer::addTorrent(Torrent* t)
 	string info((const char*)t->getInfoHash(), TORRENT_HASH_LEN);
 	RLOCK(torrents);
 	torrents[info] = t;
-	RWUNLOCK(torrents);
+	RUNLOCK(torrents);
 }
 
 void
@@ -119,7 +112,7 @@ Overseer::removeTorrent(Torrent* t)
 		if (!t->isTerminating())
 			t->shutdown();
 	}
-	RWUNLOCK(torrents);
+	RUNLOCK(torrents);
 }
 
 void
@@ -133,7 +126,7 @@ Overseer::terminate()
 	     it != torrents.end(); it++) {
 		it->second->shutdown();
 	}
-	RWUNLOCK(torrents);
+	RUNLOCK(torrents);
 }
 
 vector<Torrent*>
@@ -146,7 +139,7 @@ Overseer::getTorrents()
 			 it != torrents.end(); it++) {
 		l.push_back(it->second);
 	}
-	RWUNLOCK(torrents);
+	RUNLOCK(torrents);
 
 	return l;
 }
@@ -180,7 +173,7 @@ Overseer::overseerThread()
 				numTerminating++;
 			}
 		}
-		RWUNLOCK(torrents);
+		RUNLOCK(torrents);
 
 		/*
 		 * If we are scheduled for termination, yet no torrents need to terminate,
@@ -217,7 +210,7 @@ Overseer::overseerThread()
 				continue;
 			}
 		}
-		RWUNLOCK(torrents);
+		WUNLOCK(torrents);
 	}
 }
 
@@ -263,7 +256,7 @@ Overseer::handleIncomingConnection(Connection* c)
 	map<string, Torrent*>::iterator it = torrents.find(info);
 	if (it != torrents.end())
 		t = it->second;
-	RWUNLOCK(torrents);
+	RUNLOCK(torrents);
 	if (t == NULL) {
 		TRACE(TORRENT, "connection %s: peer requests unknown info hash, dropping", c->getEndpoint().c_str());
 		delete c;
@@ -325,7 +318,7 @@ Overseer::findTorrent(const uint8_t* hash)
 	map<string, Torrent*>::iterator it = torrents.find(hash_string);
 	if (it != torrents.end())
 		t = it->second;
-	RWUNLOCK(torrents);
+	RUNLOCK(torrents);
 
 	return t;
 }

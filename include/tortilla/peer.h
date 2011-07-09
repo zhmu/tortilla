@@ -1,5 +1,6 @@
+#include <boost/interprocess/sync/interprocess_mutex.hpp>
+#include <boost/interprocess/sync/interprocess_upgradable_mutex.hpp>
 #include <list>
-#include <pthread.h>
 #include <stdint.h>
 #include <string>
 #include <vector>
@@ -341,7 +342,7 @@ private:
 	std::list<SenderRequest*> send_queue;
 
 	//! \brief Mutex protecting the peer data
-	pthread_mutex_t mtx_data;
+	boost::interprocess::interprocess_mutex mtx_data;
 
 	/*! \brief Mutex indicating we are sending
 	 *
@@ -349,10 +350,10 @@ private:
 	 *  is currently transmitting something, this mutex is used to wait
 	 *  until it's gone.
 	 */
-	pthread_mutex_t mtx_sending;
+	boost::interprocess::interprocess_mutex mtx_sending;
 
 	//! \brief Mutex protecting the queue
-	pthread_rwlock_t rwl_send_queue;
+	boost::interprocess::interprocess_upgradable_mutex rwl_send_queue;
 };
 
 //! \brief Helper object, used to determine whether a peer matches

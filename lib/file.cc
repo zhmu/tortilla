@@ -1,5 +1,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -10,11 +12,11 @@
 #include "macros.h"
 
 using namespace std;
+using namespace boost::interprocess;
 
 File::File(std::string path, off_t len, std::string root_path)
 {
   rootpath = root_path; filename = path; length = len; reopened = false; lastInteraction = time(NULL);
-	INIT_RWLOCK(file);
 
 	/*
 	 * First of all, try to open the file; if this works, we know the
@@ -93,10 +95,8 @@ File::read(off_t offset, void* buf, size_t len)
 File::~File()
 {
 	/* Lock the file before closing it; this ensures we wait until consumers are done */
-	WLOCK(file);
+	scoped_lock<interprocess_upgradable_mutex> lock(rwl_file);
 	close();
-	
-	DESTROY_RWLOCK(file);
 }
 
 bool
@@ -135,18 +135,23 @@ void
 File::lockRead()
 {
 	RLOCK(file);
+	read_locked = true;
 }
 
 void
 File::lockWrite()
 {
 	WLOCK(file);
+	read_locked = false;
 }
 
 void
 File::unlock()
 {
-	RWUNLOCK(file);
+	if (read_locked)
+		RUNLOCK(file);
+	else
+		WUNLOCK(file);
 }
 
 bool
@@ -160,32 +165,28 @@ File::rename(std::string newpath)
 {
 	WLOCK(file);
 	if (::rename(string(rootpath + filename).c_str(), string(rootpath + newpath).c_str()) < 0) {
-		RWUNLOCK(file);
+		WUNLOCK(file);
 		return false;
 	}
 	filename = newpath;
-	RWUNLOCK(file);
+	WUNLOCK(file);
 	return true;
 }
 
 bool
 File::moveRootPath(std::string newpath)
 {
-	WLOCK(file);
+	scoped_lock<interprocess_upgradable_mutex> lock(rwl_file);
 	string old_path = rootpath + filename;
 	string new_path = newpath + filename;
 	try {
 		makePath(new_path);
 	} catch (FileException e) {
-		RWUNLOCK(file);
 		return false;
 	}
-	if (::rename(old_path.c_str(), new_path.c_str()) < 0) {
-		RWUNLOCK(file);
+	if (::rename(old_path.c_str(), new_path.c_str()) < 0)
 		return false;
-	}
 	rootpath = newpath;
-	RWUNLOCK(file);
 	return true;
 }
 

@@ -1,4 +1,4 @@
-#include <pthread.h>
+#include <boost/interprocess/sync/interprocess_upgradable_mutex.hpp>
 #include <string>
 #include <time.h>
 
@@ -118,7 +118,10 @@ private:
 	time_t lastInteraction;
 
 	//! \brief Mutex used to guard the file from open/close-ing
-	pthread_rwlock_t rwl_file;
+	boost::interprocess::interprocess_upgradable_mutex rwl_file;
+
+	//! \brief Are we locked for reading?
+	bool read_locked;
 };
 
 #endif /*  __TORTILLA_FILE_H__ */

@@ -65,7 +65,6 @@ AnnounceTier::getTracer() {
 TrackerTalker::TrackerTalker(Torrent* t, MetaDictionary* dictionary)
 {
 	torrent = t; httpRequest = NULL;
-	INIT_MUTEX(data);
 
 	MetaList* mlList = dynamic_cast<MetaList*>((*dictionary)["announce-list"]);
 	if (mlList == NULL) {

@@ -1,4 +1,6 @@
-#include <pthread.h>
+#include <boost/interprocess/sync/interprocess_mutex.hpp>
+#include <boost/thread.hpp>
+#include <boost/interprocess/sync/interprocess_condition.hpp>
 #include <queue>
 #include "torrent.h"
 
@@ -61,13 +63,13 @@ private:
 	std::list<HasherItem> hashQueue;
 
 	//! \brief Reference to our thread
-	pthread_t thread;
+	boost::thread thread;
 
 	//! \brief Mutex protecting our queue
-	pthread_mutex_t mtx_data;
+	boost::interprocess::interprocess_mutex mtx_data;
 
 	//! \brief Condition variable used to awaken the thread
-	pthread_cond_t cv;
+	boost::interprocess::interprocess_condition cv;
 
 	//! \brief Are we terminating?
 	bool terminating;

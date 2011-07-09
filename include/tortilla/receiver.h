@@ -1,4 +1,4 @@
-#include <pthread.h>
+#include <boost/thread.hpp>
 #include <list>
 #include <map>
 #include "file.h"
@@ -69,7 +69,7 @@ private:
 	Overseer* overseer;
 
 	//! \brief Lock used to protect our data
-	pthread_rwlock_t rwl_data;
+	boost::interprocess::interprocess_upgradable_mutex rwl_data;
 
 	//! \brief Peers managed by us
 	std::list<Peer*> /* [M=peers] */ peers;
@@ -80,11 +80,11 @@ private:
 	//! \brief Hash used to map file descriptors -> peers
 	std::map<int, Peer*> fdMap;
 
-	//! \brief Thread used by the peer manager
-	pthread_t thread;
-
 	//! \brief Are we terminating?
 	bool terminating;
+
+	//! \brief Thread used by the peer manager
+	boost::thread thread;
 };
 
 #endif /* __TORTILLA_FILEMANAGER_H__ */

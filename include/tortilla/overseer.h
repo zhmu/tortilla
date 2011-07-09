@@ -157,11 +157,11 @@ private:
 	//! \brief are we terminating?
 	bool terminating;
 
-	//! \brief Read/write lock used to protect the torrents list
-	pthread_rwlock_t rwl_torrents;
+	//! \brief Upgradable lock used to protect the torrents list
+	boost::interprocess::interprocess_upgradable_mutex rwl_torrents;
 
 	//! \brief Mutex used to protect the data fields
-	pthread_mutex_t mtx_data;
+	boost::interprocess::interprocess_mutex mtx_data;
 
 	//! \brief Peer ID used to identify ourselves
 	uint8_t peerid[TORRENT_PEERID_LEN];
@@ -182,7 +182,7 @@ private:
 	Hasher* hasher;
 
 	//! \brief Overseer thread
-	pthread_t thread;
+	boost::thread* thread;
 
 	/*! \brief Upload rate, in bytes/second
 	 *

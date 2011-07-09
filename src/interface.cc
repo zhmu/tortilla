@@ -16,8 +16,6 @@
 
 using namespace std;
 
-#define MIN(x,y) ((x)<(y)?(x):(y))
-
 Interface::Interface(Overseer* o)
 {
 	overseer = o; adding = false; searching = false; statusTime = 0;
@@ -357,7 +355,7 @@ Interface::handleCompletion()
 	     it != matches.end(); it++) {
 		string s = *it;
 		unsigned int len;
-		for (len = 0; len < MIN(s.size(), common_prefix.size()); len++) {
+		for (len = 0; len < std::min(s.size(), common_prefix.size()); len++) {
 			if (s[len] != common_prefix[len])
 				break;
 		}

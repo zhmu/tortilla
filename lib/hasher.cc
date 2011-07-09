@@ -8,6 +8,7 @@
 #include "sha1.h"
 
 using namespace std;
+using namespace boost::interprocess;
 
 #define TRACER (overseer->getTracer())
 
@@ -19,24 +20,17 @@ hasher_thread(void* ptr)
 }
 
 Hasher::Hasher(Overseer* o)
+	: thread(hasher_thread, this)
 {
 	terminating = false; overseer = o;
-
-	INIT_MUTEX(data);
-	pthread_cond_init(&cv, NULL);
-
-	pthread_create(&thread, NULL, hasher_thread, this);
 }
 
 Hasher::~Hasher()
 {
 	/* Request termination, kick the thread and wait till it's gone */
 	terminating = true;
-	pthread_cond_signal(&cv);
-	pthread_join(thread, NULL);
-
-	pthread_cond_destroy(&cv);
-	DESTROY_MUTEX(data);
+	cv.notify_one();
+	thread.join();
 }
 
 void
@@ -49,16 +43,16 @@ Hasher::addPiece(Torrent* t, unsigned int num)
 	UNLOCK(data);
 
 	/* Get back to work, you slacker! */
-	pthread_cond_signal(&cv);
+	cv.notify_one();
 }
 
 void
 Hasher::run() {
 	while(true) {
 		/* If needed, wait until some event arrives */
-		LOCK(data);
+		scoped_lock<interprocess_mutex> lock(mtx_data);
 		if (!terminating && hashQueue.empty())
-			pthread_cond_wait(&cv, &mtx_data);
+			cv.wait(lock);
 		if (terminating)
 			break;
 
@@ -66,7 +60,7 @@ Hasher::run() {
 		while (!hashQueue.empty() && !terminating) {
 			HasherItem hi = hashQueue.front();
 			hashQueue.pop_front();
-			UNLOCK(data);
+			/* XXX we really want to unlock data here */
 			TRACE(HASHER, "hashing started: torrent=%p,piece=%u", hi.getTorrent(), hi.getPiece());
 
 			/*
@@ -97,13 +91,8 @@ Hasher::run() {
 			bool ok = memcmp(h.getHash(), torrent->getPieceHash(piecenum), TORRENT_HASH_LEN) == 0;
 			TRACE(HASHER, "hashing completed: torrent=%p,piece=%u,ok=%u", torrent, piecenum, ok ? 1 : 0);
 			torrent->callbackCompleteHashing(piecenum, ok);
-
-			LOCK(data);
 		}
-		UNLOCK(data);
 	}
-
-	UNLOCK(data);
 }
 
 /* Helper for removeRequestsFromPeer */

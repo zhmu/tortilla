@@ -1,4 +1,6 @@
-#include <pthread.h>
+#include <boost/interprocess/sync/interprocess_mutex.hpp>
+#include <boost/interprocess/sync/interprocess_condition.hpp>
+#include <boost/thread.hpp>
 #include <queue>
 #include <stdint.h>
 #include "peer.h"
@@ -41,13 +43,10 @@ protected:
 
 private:
 	//! \brief Mutex protecting our local data
-	pthread_mutex_t mtx_data;
+	boost::interprocess::interprocess_mutex mtx_data;
 
 	//! \brief Condition variable used to kick the sender
-	pthread_cond_t cv;
-
-	//! \brief Thread used by the uploader
-	pthread_t thread;
+	boost::interprocess::interprocess_condition cv;
 
 	//! \brief Are we terminating?
 	bool terminating;
@@ -60,6 +59,9 @@ private:
 
 	//! \brief Overseer object we belong to
 	Overseer* overseer;
+
+	//! \brief Thread used by the uploader
+	boost::thread thread;
 };
 
 #endif /* __TORTILLA_SENDER_H__ */

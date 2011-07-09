@@ -2,6 +2,7 @@
 #include <sys/socket.h>
 #include <stdint.h>
 #include <string>
+#include <stdint.h>
 
 #ifndef __TORTILLA_CONNECTION_H__
 #define __TORTILLA_CONNECTION_H__

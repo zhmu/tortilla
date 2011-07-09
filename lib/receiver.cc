@@ -22,19 +22,15 @@ receiver_thread(void* ptr)
 }
 
 Receiver::Receiver(Overseer* o)
+	: overseer(o), terminating(false),
+	  thread(receiver_thread, this)
 {
-	INIT_RWLOCK(data);
-	overseer = o; terminating = false;
-
-	pthread_create(&thread, NULL, receiver_thread, this);
 }
 
 Receiver::~Receiver()
 {
 	terminating = true;
-	pthread_join(thread, NULL);
-
-	DESTROY_RWLOCK(data);
+	thread.join();
 }
 
 void
@@ -43,7 +39,7 @@ Receiver::addPeer(Peer* p)
 	WLOCK(data);
 	peers.push_back(p);
 	fdMap[p->getFD()] = p;
-	RWUNLOCK(data);
+	WUNLOCK(data);
 }
 
 void
@@ -52,7 +48,7 @@ Receiver::removePeer(Peer* p)
 	WLOCK(data);
 	fdMap.erase(p->getFD());
 	peers.remove(p);
-	RWUNLOCK(data);
+	WUNLOCK(data);
 
 	delete p;
 }
@@ -62,7 +58,7 @@ Receiver::addRequest(HTTPRequest* r)
 {
 	WLOCK(data);
 	requests.push_back(r);
-	RWUNLOCK(data);
+	WUNLOCK(data);
 }
 
 void
@@ -70,7 +66,7 @@ Receiver::removeRequest(HTTPRequest* r)
 {
 	WLOCK(data);
 	requests.remove(r);
-	RWUNLOCK(data);
+	WUNLOCK(data);
 
 	delete r;
 }
@@ -85,7 +81,7 @@ Receiver::findPeerByFDAndLock(int fd)
 		p = it->second;
 		p->lockForSending();
 	}
-	RWUNLOCK(data);
+	RUNLOCK(data);
 	return p;
 }
 
@@ -103,7 +99,7 @@ Receiver::removePeerByFD(int fd)
 	if (it != fdMap.end()) {
 		it->second->shutdown();
 	}
-	RWUNLOCK(data);
+	RUNLOCK(data);
 }
 
 void
@@ -146,7 +142,7 @@ Receiver::process()
 
 			reqit = requests.begin();
 		}
-		RWUNLOCK(data);
+		WUNLOCK(data);
 
 		/*
 		 * Construct our file descriptor set; we need to make read/write sets
@@ -176,7 +172,7 @@ Receiver::process()
 			if (r->isWaitingForWrite())
 				FD_SET(fd, &writefds);
 		}
-		RWUNLOCK(data);
+		RUNLOCK(data);
 
 		/*
 		 * Add the listener socket; it makes absolutely no sense to monitor this
@@ -246,7 +242,7 @@ Receiver::process()
 			if (FD_ISSET(fd, &readfds) || FD_ISSET(fd, &writefds))
 				r->process();
 		}
-		RWUNLOCK(data);
+		RUNLOCK(data);
 
 		/* If we need to accept new connections, handle that */
 		if (FD_ISSET(listenerFD, &readfds) && !terminating) {
@@ -269,7 +265,7 @@ Receiver::getSendablePeers(list<int>& m)
 			continue;
 		m.push_back(p->getFD());
 	}
-	RWUNLOCK(data);
+	RUNLOCK(data);
 }
 
 /* vim:set ts=2 sw=2: */

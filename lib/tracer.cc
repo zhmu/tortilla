@@ -5,14 +5,12 @@
 
 Tracer::Tracer()
 {
-	INIT_MUTEX(file);
 	tracefile = fopen("trace.log", "wt");
 	tracerMask = 0xffff;
 }
 
 Tracer::~Tracer()
 {
-	DESTROY_MUTEX(file);
 	if (tracefile != NULL)
 		fclose(tracefile);
 }

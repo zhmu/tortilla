@@ -1,6 +1,6 @@
+#include <boost/interprocess/sync/interprocess_mutex.hpp>
+#include <boost/interprocess/sync/interprocess_upgradable_mutex.hpp>
 #include <map>
-#include <pthread.h>
-#include <stdint.h>
 #include <string>
 #include <vector>
 #include "file.h"
@@ -437,16 +437,16 @@ private:
 	bool removeOK;
 
 	//! \brief Mutex protecting the peers list
-	pthread_rwlock_t rwl_peers;
+	boost::interprocess::interprocess_upgradable_mutex rwl_peers;
 
 	//! \brief Mutex protecting the files list
-	pthread_rwlock_t rwl_files;
+	boost::interprocess::interprocess_upgradable_mutex rwl_files;
 
 	//! \brief Mutex protecting the data
-	pthread_mutex_t mtx_data;
+	boost::interprocess::interprocess_mutex mtx_data;
 
 	//! \brief Mutex protecting the log
-	pthread_mutex_t mtx_log;
+	boost::interprocess::interprocess_mutex mtx_log;
 
 	//! \brief Receive rate, in bytes
 	uint32_t rx_rate;

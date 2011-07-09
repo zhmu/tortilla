@@ -4,7 +4,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <iostream>
-#include <pthread.h>
 #include <stdlib.h>
 #include <sstream>
 #include <stdarg.h>
@@ -48,11 +47,6 @@ Torrent::Torrent(Overseer* o, Metadata* md, std::string path)
 	/* force the thread to contact the tracker - but try so only each 10 minutes */
 	tracker_interval = 600; tracker_min_interval = 0;
 	lastTrackerContact = 0;
-
-	INIT_RWLOCK(peers);
-	INIT_RWLOCK(files);
-	INIT_MUTEX(data);
-	INIT_MUTEX(log);
 
 	/*
 	 * Ensure the 'info' and 'announce' metadata fields exist; we can't do much
@@ -317,7 +311,7 @@ Torrent::~Torrent()
 		overseer->removePeer(p);
 	}
 	peers.clear();
-	RWUNLOCK(peers);
+	WUNLOCK(peers);
 
 	/* Close all files, too */
 	WLOCK(files);
@@ -330,7 +324,7 @@ Torrent::~Torrent()
 		overseer->removeFile(f);
 		delete f;
 	}
-	RWUNLOCK(files);
+	WUNLOCK(files);
 
 	/* Delete pending peers and piece hashes */
 	while (!pendingPeers.empty()) {
@@ -339,11 +333,6 @@ Torrent::~Torrent()
 		delete pp;
 	}
 	delete[] pieceHash;
-
-	DESTROY_MUTEX(log);
-	DESTROY_MUTEX(data);
-	DESTROY_RWLOCK(peers);
-	DESTROY_RWLOCK(files);
 
 	delete torrentDictionary;
 }
@@ -686,7 +675,7 @@ Torrent::callbackCompleteChunk(Peer* p, unsigned int piece, uint32_t offset, con
 		p->cancelChunk(piece, offset, len);
 		p->cancelChunkRequest(piece, offset, len);
 	}
-	RWUNLOCK(peers);
+	RUNLOCK(peers);
 
 	LOCK(data);
 	downloaded += len;
@@ -781,7 +770,7 @@ Torrent::callbackCompleteHashing(unsigned int piece, bool result)
 		Peer* p = (*it);
 		p->have(piece);
 	}
-	RWUNLOCK(peers);
+	RUNLOCK(peers);
 
 	/* Try to use this as an attempt to signal disinterest in peers */
 	processPeerStatus();
@@ -838,7 +827,7 @@ Torrent::handleChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size
 		 * torrent is terminating, but do not rely on it; bad people
 	 	 * may use it to crash us.
 		 */
-		RWUNLOCK(files);
+		RUNLOCK(files);
 		return false;
 	}
 
@@ -868,7 +857,7 @@ Torrent::handleChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size
 		}
 		buf += partlen; length -= partlen;
 	}
-	RWUNLOCK(files);
+	RUNLOCK(files);
 	return true;
 }
 
@@ -940,7 +929,7 @@ Torrent::updateBandwidth()
 		p->timer();
 	}
 
-	RWUNLOCK(peers);
+	RUNLOCK(peers);
 
 	LOCK(data);
 	rx_rate = rx; tx_rate = tx;
@@ -962,7 +951,7 @@ Torrent::registerPeer(Peer* p)
 
 	WLOCK(peers);
 	peers.push_back(p);
-	RWUNLOCK(peers);
+	WUNLOCK(peers);
 
 	CALLBACK(addedPeer, this, p);
 }
@@ -986,7 +975,7 @@ Torrent::unregisterPeer(Peer* p)
 		peers.erase(peerit);
 		break;
 	}
-	RWUNLOCK(peers);
+	WUNLOCK(peers);
 	
 	/*
 	 * Deregister any requested pieces by this peer. This results in these pieces
@@ -1082,7 +1071,7 @@ Torrent::heartbeat()
 			 */
 			WLOCK(peers);
 			peers.push_back(p);
-			RWUNLOCK(peers);
+			WUNLOCK(peers);
 			overseer->addPeer(p);
 
 			/*
@@ -1111,7 +1100,7 @@ Torrent::handleUnchokingAlgorithm()
 			continue;
 		uiPeers.push_back(p);
 	}
-	RWUNLOCK(peers);
+	RUNLOCK(peers);
 
 	/* Given this list of peers, sort them by upload rate */
 	sort(uiPeers.begin(), uiPeers.end(), Peer::compareByUpload);
@@ -1135,7 +1124,7 @@ Torrent::handleUnchokingAlgorithm()
 			continue;
 		newChokes.push_back(p);
 	}
-	RWUNLOCK(peers);
+	RUNLOCK(peers);
 
 	int numChoked = 0, numUnchoked = 0;
 
@@ -1165,7 +1154,7 @@ Torrent::handleUnchokingAlgorithm()
 			continue;
 		curUnchoked++;
 	}
-	RWUNLOCK(peers);
+	RUNLOCK(peers);
 
 	lastChokingAlgorithm = time(NULL);
 	if (numChoked > 0 || numUnchoked > 0)
@@ -1225,7 +1214,7 @@ Torrent::processPeerStatus()
 		haveStuff ? p->claimInterest() : p->revokeInterest();
 	}
 
-	RWUNLOCK(peers); UNLOCK(data);
+	RUNLOCK(peers); UNLOCK(data);
 }
 
 unsigned int
@@ -1235,7 +1224,7 @@ Torrent::getNumPeers()
 
 	RLOCK(peers);
 	n = peers.size();
-	RWUNLOCK(peers);
+	RUNLOCK(peers);
 
 	return n;
 }
@@ -1270,7 +1259,7 @@ Torrent::getPeerDetails()
 		Peer* p = *it;
 		pi.push_back(PeerInfo(p));
 	}
-	RWUNLOCK(peers);
+	RUNLOCK(peers);
 
 	return pi;
 }
@@ -1449,7 +1438,7 @@ Torrent::debugDump(FILE* f)
 		PRINT("   <pieces available=\"%u\" missing=\"%u\"/>", num_pieces, numPieces - num_pieces);
 		PRINT("  </peer>");
 	}
-	RWUNLOCK(peers);
+	RUNLOCK(peers);
 	PRINT(" </peers>");
 
 	PRINT(" <files>");
@@ -1504,7 +1493,7 @@ Torrent::getFileDetails()
 
 		offset += f->getLength();
 	}
-	RWUNLOCK(files);
+	RUNLOCK(files);
 
 	/* safety guards */
 	assert((uint64_t)offset == total_size);
@@ -1703,7 +1692,7 @@ Torrent::setFilePath(std::string path)
 			(*it)->moveRootPath(old_path);
 		}
 	}
-	RWUNLOCK(files);
+	WUNLOCK(files);
 	return ok;
 }
 

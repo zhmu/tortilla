@@ -16,13 +16,11 @@ FileManager::FileManager(Overseer* o, unsigned int max)
 {
 	assert(max > 0);
 
-	INIT_RWLOCK(data);
 	overseer = o; curFiles = 0; maxFiles = max;
 }
 
 FileManager::~FileManager()
 {
-	DESTROY_RWLOCK(data);
 }
 
 void
@@ -52,7 +50,7 @@ FileManager::prepare(File* f)
 			f->open();
 			WLOCK(data);
 			curFiles++;
-			RWUNLOCK(data);
+			WUNLOCK(data);
 		}
 	} catch (FileException e) {
 		f->unlock(); /* don't leave file locked, this causes a deadlock */
@@ -66,12 +64,12 @@ FileManager::cleanup(File* f)
 	RLOCK(data);
 	unsigned int cur = curFiles;
 	if (cur < maxFiles) {
-		RWUNLOCK(data);
+		RUNLOCK(data);
 		return;
 	}
 	list<File*> sortedFiles = files;
 	sortedFiles.sort(File::compareByLastInteraction);
-	RWUNLOCK(data);
+	RUNLOCK(data);
 
 	/* Wade through the sorted file list, and get close the first possible file */
 	for (list<File*>::iterator it = sortedFiles.begin();
@@ -92,7 +90,7 @@ FileManager::cleanup(File* f)
 
 		WLOCK(data);
 		curFiles--;
-		RWUNLOCK(data);
+		WUNLOCK(data);
 
 		/* XXX exit immediately, or close more, say 10% of all files? */
 		break;
@@ -104,7 +102,7 @@ FileManager::addFile(File* f)
 {
 	WLOCK(data);
 	files.push_back(f);
-	RWUNLOCK(data);
+	WUNLOCK(data);
 }
 
 void
@@ -112,7 +110,7 @@ FileManager::removeFile(File* f)
 {
 	WLOCK(data);
 	files.remove(f);
-	RWUNLOCK(data);
+	WUNLOCK(data);
 }
 
 void
@@ -120,7 +118,7 @@ FileManager::setMaxOpenFiles(int max)
 {
 	WLOCK(data);
 	maxFiles = max;
-	RWUNLOCK(data);
+	WUNLOCK(data);
 
 	/* ensure the new maximum is honored (XXX is this safe to call?) */
 	cleanup();

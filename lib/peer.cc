@@ -24,9 +24,6 @@ Peer::__init(Torrent* t)
 	numPeerPieces = 0; rx_bytes = 0; tx_bytes = 0;
 	rx_total = 0; tx_total = 0;
 	peerID = ""; terminating = false;
-	INIT_MUTEX(data);
-	INIT_MUTEX(sending);
-	INIT_RWLOCK(send_queue);
 
 	/* Assume the peer doesn't have any pieces */
 	havePiece.reserve(t->getNumPieces());
@@ -71,7 +68,7 @@ Peer::~Peer()
 		delete sr;
 	}
 	send_queue.clear();
-	RWUNLOCK(send_queue);
+	WUNLOCK(send_queue);
 
 	/*
 	 * We force the shutdown state to be set, and then consequently, we attempt
@@ -88,11 +85,11 @@ Peer::~Peer()
 		if (havePiece[i])
 			lostPieces.push_back(i);
 	torrent->callbackPiecesRemoved(this, lostPieces);
-	DESTROY_MUTEX(data);
-	DESTROY_MUTEX(sending);
-	DESTROY_RWLOCK(send_queue);
 
 	delete connection;
+
+	/* Relinquish the sender lock */
+	UNLOCK(sending);
 }
 
 #define DATA_LEFT \
@@ -552,7 +549,7 @@ Peer::queueSenderRequest(SenderRequest* sr)
 
 	WLOCK(send_queue);
 	send_queue.push_back(sr);
-	RWUNLOCK(send_queue);
+	WUNLOCK(send_queue);
 
 	/* If the sender is sleeping, awaken it */
 	torrent->signalSender();
@@ -613,7 +610,7 @@ Peer::sendPieceRequest(unsigned int piece)
 		/* Fetch boy, fetch */
 		uint8_t msg[12];
 		WRITE_UINT32(msg, 0, piece);
-		WRITE_UINT32(msg, 4, missingChunk * TORRENT_CHUNK_SIZE);
+		WRITE_UINT32(msg, 4, (uint32_t)(missingChunk * TORRENT_CHUNK_SIZE));
 		WRITE_UINT32(msg, 8, request_length);
 		queueSenderRequest(new SenderRequest(PEER_MSGID_REQUEST, msg, 12));
 		TRACE(PROTOCOL, "sent request: peer=%s, piece=%u, offset=%u, length=%u", getID().c_str(), piece, missingChunk * TORRENT_CHUNK_SIZE, request_length);
@@ -697,12 +694,12 @@ Peer::processSenderQueue(ssize_t max_length)
 		 */
 		WLOCK(send_queue);
 		if (send_queue.empty()) {
-			RWUNLOCK(send_queue);
+			WUNLOCK(send_queue);
 			break;
 		}
 		SenderRequest* request = send_queue.front();
 		send_queue.pop_front();
-		RWUNLOCK(send_queue);
+		WUNLOCK(send_queue);
 
 		uint32_t sending_len = request->getMessageLength();
 		if (max_length >= 0 && (ssize_t)sending_len > max_length) {
@@ -740,7 +737,7 @@ Peer::processSenderQueue(ssize_t max_length)
 			/* Re-add the item at the beginning of the queue (!) */
 			WLOCK(send_queue);
 			send_queue.push_front(request);
-			RWUNLOCK(send_queue);
+			WUNLOCK(send_queue);
 		}
 
 		/* If the previous sending effort failed, bail; any subsequent won't work either */
@@ -770,7 +767,7 @@ Peer::cancelChunkRequest(unsigned int piece, unsigned int offset, unsigned int l
 		send_queue.erase(it);
 		it = send_queue.begin();
 	}
-	RWUNLOCK(send_queue);
+	WUNLOCK(send_queue);
 }
 
 void
@@ -924,7 +921,7 @@ Peer::isSenderQueueEmpty()
 {
 	RLOCK(send_queue);
 	bool b = send_queue.empty();
-	RWUNLOCK(send_queue);
+	RUNLOCK(send_queue);
 	return b;
 }
 

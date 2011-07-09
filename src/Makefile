@@ -7,7 +7,7 @@ CXXFLAGS += 	-I/usr/local/include
 # Below is needed for Linux
 CXXFLAGS +=	-D_FILE_OFFSET_BITS=64
 LDFLAGS +=	-L/usr/local/lib
-LDFLAGS +=	-pthread
+LDFLAGS +=	-pthread -lboost_thread
 
 all:		tortilla yoctorrent
 
