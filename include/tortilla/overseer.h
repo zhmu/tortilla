@@ -1,4 +1,5 @@
 #include <map>
+#include <stdint.h>
 #include <string>
 #include "connection.h"
 #include "hasher.h"

@@ -1,4 +1,5 @@
 #include <string>
+#include <stdint.h>
 
 class Peer;
 class File;

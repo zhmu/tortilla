@@ -1,5 +1,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <stdint.h>
 #include <string>
 
 #ifndef __TORTILLA_CONNECTION_H__

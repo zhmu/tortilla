@@ -1,6 +1,7 @@
 #include <list>
 #include <stdint.h>
 #include <iostream>
+#include <stdint.h>
 #include <string>
 #include "metafield.h"
 

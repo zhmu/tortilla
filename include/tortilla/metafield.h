@@ -1,6 +1,7 @@
 #include <ostream>
 #include <list>
 #include <map>
+#include <stdint.h>
 #include <string>
 
 #ifndef __TORTILLA_METAFIELD_H__

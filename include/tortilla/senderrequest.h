@@ -1,4 +1,5 @@
 #include <pthread.h>
+#include <stdint.h>
 #include <string>
 
 #ifndef __TORTILLA_SENDERREQUEST_H__

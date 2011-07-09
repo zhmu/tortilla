@@ -1,5 +1,6 @@
 #include <map>
 #include <pthread.h>
+#include <stdint.h>
 #include <string>
 #include <vector>
 #include "file.h"

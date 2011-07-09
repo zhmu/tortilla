@@ -1,4 +1,5 @@
 #include <openssl/sha.h>
+#include <stdint.h>
 #include <string>
 
 #ifndef __TORTILLA_SHA1_H__

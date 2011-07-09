@@ -1,5 +1,6 @@
 #include <pthread.h>
 #include <queue>
+#include <stdint.h>
 #include "peer.h"
 #include "senderrequest.h"
 
