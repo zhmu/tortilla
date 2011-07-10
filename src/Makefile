@@ -1,7 +1,7 @@
 OBJS =		main.o interface.o overview.o info.o
 CXXFLAGS =	-I../include -I../include/client -g -Wall -Werror
 LIBS =		../lib/libtortilla.a
-LDFLAGS +=	-lssl -lncurses
+LDFLAGS +=	-lncurses
 # Below are flags that are needed for FreeBSD
 CXXFLAGS += 	-I/usr/local/include
 # Below is needed for Linux
