@@ -1,3 +1,4 @@
+#include <boost/thread/locks.hpp>
 #include <sys/select.h>
 #include <assert.h>
 #include <signal.h>
@@ -14,6 +15,7 @@
 #include "tracer.h"
 
 using namespace std;
+using namespace boost;
 
 #define TRACER (tracer)
 
@@ -89,9 +91,8 @@ void
 Overseer::addTorrent(Torrent* t)
 {
 	string info((const char*)t->getInfoHash(), TORRENT_HASH_LEN);
-	RLOCK(torrents);
+	shared_lock<shared_mutex> lock(rwl_torrents);
 	torrents[info] = t;
-	RUNLOCK(torrents);
 }
 
 void
@@ -99,7 +100,7 @@ Overseer::removeTorrent(Torrent* t)
 {
 	string info((const char*)t->getInfoHash(), TORRENT_HASH_LEN);
 
-	RLOCK(torrents);
+	shared_lock<shared_mutex> lock(rwl_torrents);
 	map<string, Torrent*>::iterator it = torrents.find(info);
 	if (it != torrents.end()) {
 		/*
@@ -112,7 +113,6 @@ Overseer::removeTorrent(Torrent* t)
 		if (!t->isTerminating())
 			t->shutdown();
 	}
-	RUNLOCK(torrents);
 }
 
 void
@@ -121,12 +121,13 @@ Overseer::terminate()
 	terminating = true;
 
 	/* Request all torrents to shutdown */
-	RLOCK(torrents);
-	for (map<string, Torrent*>::iterator it = torrents.begin();
-	     it != torrents.end(); it++) {
-		it->second->shutdown();
+	{
+		shared_lock<shared_mutex> lock(rwl_torrents);
+		for (map<string, Torrent*>::iterator it = torrents.begin();
+				 it != torrents.end(); it++) {
+			it->second->shutdown();
+		}
 	}
-	RUNLOCK(torrents);
 }
 
 vector<Torrent*>
@@ -134,12 +135,13 @@ Overseer::getTorrents()
 {
 	vector<Torrent*> l;
 
-	RLOCK(torrents);
-	for (map<string, Torrent*>::iterator it = torrents.begin();
-			 it != torrents.end(); it++) {
-		l.push_back(it->second);
+	{
+		shared_lock<shared_mutex> lock(rwl_torrents);
+		for (map<string, Torrent*>::iterator it = torrents.begin();
+				 it != torrents.end(); it++) {
+			l.push_back(it->second);
+		}
 	}
-	RUNLOCK(torrents);
 
 	return l;
 }
@@ -161,19 +163,20 @@ Overseer::overseerThread()
 	 	 * bandwidth usage. This implies heartbeat() may not
 		 * block or stall.
 		 */
-		RLOCK(torrents);
 		int numTerminating = 0;
-		for (map<string, Torrent*>::iterator it = torrents.begin();
-				 it != torrents.end(); it++) {
-			Torrent* t = it->second;
-			if (!t->isTerminating()) {
-				t->updateBandwidth();
-				t->heartbeat();
-			} else {
-				numTerminating++;
+		{
+			shared_lock<shared_mutex> lock(rwl_torrents);
+			for (map<string, Torrent*>::iterator it = torrents.begin();
+					 it != torrents.end(); it++) {
+				Torrent* t = it->second;
+				if (!t->isTerminating()) {
+					t->updateBandwidth();
+					t->heartbeat();
+				} else {
+					numTerminating++;
+				}
 			}
 		}
-		RUNLOCK(torrents);
 
 		/*
 		 * If we are scheduled for termination, yet no torrents need to terminate,
@@ -192,25 +195,26 @@ Overseer::overseerThread()
 		 * take too much time, we just kill them off.
 		 */
 		time_t now = time(NULL);
-		WLOCK(torrents);
-		map<string, Torrent*>::iterator it = torrents.begin();
-		while (it != torrents.end()) {
-			Torrent* t = it->second;
-			if (t->isTerminating() &&
-			   (t->canBeDeleted() || t->getTerminationTime() + OVERSEER_TORRENT_SHUTDOWN_TIMEOUT < now)) {
-				/*
-				 * Either the torrent wants to be removed, or it has run out of time.
-				 * Run the callback first, */
-				callbacks->removingTorrent(t);
-				delete t;
-				torrents.erase(it);
-				it = torrents.begin();
-			} else {
-				it++;
-				continue;
+		{
+			unique_lock<shared_mutex> lock(rwl_torrents);
+			map<string, Torrent*>::iterator it = torrents.begin();
+			while (it != torrents.end()) {
+				Torrent* t = it->second;
+				if (t->isTerminating() &&
+					 (t->canBeDeleted() || t->getTerminationTime() + OVERSEER_TORRENT_SHUTDOWN_TIMEOUT < now)) {
+					/*
+					 * Either the torrent wants to be removed, or it has run out of time.
+					 * Run the callback first, */
+					callbacks->removingTorrent(t);
+					delete t;
+					torrents.erase(it);
+					it = torrents.begin();
+				} else {
+					it++;
+					continue;
+				}
 			}
 		}
-		WUNLOCK(torrents);
 	}
 }
 
@@ -251,12 +255,13 @@ Overseer::handleIncomingConnection(Connection* c)
 	}
 
 	/* Find the torrent that belongs to this info hash */
-	RLOCK(torrents);
 	Torrent* t = NULL;
-	map<string, Torrent*>::iterator it = torrents.find(info);
-	if (it != torrents.end())
-		t = it->second;
-	RUNLOCK(torrents);
+	{
+		shared_lock<shared_mutex> lock(rwl_torrents);
+		map<string, Torrent*>::iterator it = torrents.find(info);
+		if (it != torrents.end())
+			t = it->second;
+	}
 	if (t == NULL) {
 		TRACE(TORRENT, "connection %s: peer requests unknown info hash, dropping", c->getEndpoint().c_str());
 		delete c;
@@ -314,11 +319,12 @@ Overseer::findTorrent(const uint8_t* hash)
 	string hash_string((const char*)hash, TORRENT_HASH_LEN);
 	Torrent* t = NULL;
 
-	RLOCK(torrents);
-	map<string, Torrent*>::iterator it = torrents.find(hash_string);
-	if (it != torrents.end())
-		t = it->second;
-	RUNLOCK(torrents);
+	{
+		shared_lock<shared_mutex> lock(rwl_torrents);
+		map<string, Torrent*>::iterator it = torrents.find(hash_string);
+		if (it != torrents.end())
+			t = it->second;
+	}
 
 	return t;
 }

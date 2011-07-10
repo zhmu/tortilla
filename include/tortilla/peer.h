@@ -1,5 +1,5 @@
-#include <boost/interprocess/sync/interprocess_mutex.hpp>
-#include <boost/interprocess/sync/interprocess_upgradable_mutex.hpp>
+#include <boost/thread/mutex.hpp>
+#include <boost/thread/shared_mutex.hpp>
 #include <list>
 #include <stdint.h>
 #include <string>
@@ -342,7 +342,7 @@ private:
 	std::list<SenderRequest*> send_queue;
 
 	//! \brief Mutex protecting the peer data
-	boost::interprocess::interprocess_mutex mtx_data;
+	boost::mutex mtx_data;
 
 	/*! \brief Mutex indicating we are sending
 	 *
@@ -350,10 +350,10 @@ private:
 	 *  is currently transmitting something, this mutex is used to wait
 	 *  until it's gone.
 	 */
-	boost::interprocess::interprocess_mutex mtx_sending;
+	boost::mutex mtx_sending;
 
 	//! \brief Mutex protecting the queue
-	boost::interprocess::interprocess_upgradable_mutex rwl_send_queue;
+	boost::shared_mutex rwl_send_queue;
 };
 
 //! \brief Helper object, used to determine whether a peer matches

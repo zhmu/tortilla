@@ -1,4 +1,4 @@
-#include <boost/interprocess/sync/interprocess_upgradable_mutex.hpp>
+#include <boost/thread/shared_mutex.hpp>
 #include <string>
 #include <time.h>
 
@@ -118,7 +118,7 @@ private:
 	time_t lastInteraction;
 
 	//! \brief Mutex used to guard the file from open/close-ing
-	boost::interprocess::interprocess_upgradable_mutex rwl_file;
+	boost::shared_mutex rwl_file;
 
 	//! \brief Are we locked for reading?
 	bool read_locked;

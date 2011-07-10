@@ -1,3 +1,4 @@
+#include <boost/thread/locks.hpp>
 #include <algorithm>
 #include <assert.h>
 #include <errno.h>
@@ -11,6 +12,7 @@
 #include "tracer.h"
 
 using namespace std;
+using namespace boost;
 
 #define TRACER (overseer->getTracer())
 
@@ -36,19 +38,19 @@ Receiver::~Receiver()
 void
 Receiver::addPeer(Peer* p)
 {
-	WLOCK(data);
+	unique_lock<shared_mutex> lock(rwl_data);
 	peers.push_back(p);
 	fdMap[p->getFD()] = p;
-	WUNLOCK(data);
 }
 
 void
 Receiver::removePeer(Peer* p)
 {
-	WLOCK(data);
-	fdMap.erase(p->getFD());
-	peers.remove(p);
-	WUNLOCK(data);
+	{
+		unique_lock<shared_mutex> lock(rwl_data);
+		fdMap.erase(p->getFD());
+		peers.remove(p);
+	}
 
 	delete p;
 }
@@ -56,17 +58,17 @@ Receiver::removePeer(Peer* p)
 void
 Receiver::addRequest(HTTPRequest* r)
 {
-	WLOCK(data);
+	unique_lock<shared_mutex> lock(rwl_data);
 	requests.push_back(r);
-	WUNLOCK(data);
 }
 
 void
 Receiver::removeRequest(HTTPRequest* r)
 {
-	WLOCK(data);
-	requests.remove(r);
-	WUNLOCK(data);
+	{
+		unique_lock<shared_mutex> lock(rwl_data);
+		requests.remove(r);
+	}
 
 	delete r;
 }
@@ -74,14 +76,15 @@ Receiver::removeRequest(HTTPRequest* r)
 Peer*
 Receiver::findPeerByFDAndLock(int fd)
 {
-	RLOCK(data);
 	Peer* p = NULL;
-	map<int, Peer*>::iterator it = fdMap.find(fd);
-	if (it != fdMap.end()) {
-		p = it->second;
-		p->lockForSending();
+	{
+		shared_lock<shared_mutex> lock(rwl_data);
+		map<int, Peer*>::iterator it = fdMap.find(fd);
+		if (it != fdMap.end()) {
+			p = it->second;
+			p->lockForSending();
+		}
 	}
-	RUNLOCK(data);
 	return p;
 }
 
@@ -94,12 +97,11 @@ Receiver::removePeerByFD(int fd)
 	 * may still be references to it -- we just schedule it for termination and
 	 * have the receiver do the dirty work.
 	 */
-	RLOCK(data);
+	shared_lock<shared_mutex> lock(rwl_data);
 	map<int, Peer*>::iterator it = fdMap.find(fd);
 	if (it != fdMap.end()) {
 		it->second->shutdown();
 	}
-	RUNLOCK(data);
 }
 
 void
@@ -112,37 +114,38 @@ Receiver::process()
 		 * Gracefully handle any peers that are going away
 		 * XXX this is O(|peers|) which we can often skip if no peers are shutting down
 		 */
-		WLOCK(data);
-		list<Peer*>::iterator peerit = peers.begin();
-		while (peerit != peers.end()) {
-			Peer* p = *peerit;
-			if (!p->isShuttingDown()) {
-				peerit++;
-				continue;
+		{
+			unique_lock<shared_mutex> lock(rwl_data);
+			list<Peer*>::iterator peerit = peers.begin();
+			while (peerit != peers.end()) {
+				Peer* p = *peerit;
+				if (!p->isShuttingDown()) {
+					peerit++;
+					continue;
+				}
+
+				peers.erase(peerit);
+				fdMap.erase(p->getFD());
+				p->getTorrent()->unregisterPeer(p);
+				delete p;
+
+				peerit = peers.begin();
 			}
 
-			peers.erase(peerit);
-			fdMap.erase(p->getFD());
-			p->getTorrent()->unregisterPeer(p);
-			delete p;
+			/* Remove any requests that need to go, too */
+			list<HTTPRequest*>::iterator reqit = requests.begin();
+			while (reqit != requests.end()) {
+				HTTPRequest* r = *reqit;
+				if (!r->mustTerminate()) {
+					reqit++;
+					continue;
+				}
+				requests.erase(reqit);
+				delete r;
 
-			peerit = peers.begin();
-		}
-
-		/* Remove any requests that need to go, too */
-		list<HTTPRequest*>::iterator reqit = requests.begin();
-		while (reqit != requests.end()) {
-			HTTPRequest* r = *reqit;
-			if (!r->mustTerminate()) {
-				reqit++;
-				continue;
+				reqit = requests.begin();
 			}
-			requests.erase(reqit);
-			delete r;
-
-			reqit = requests.begin();
 		}
-		WUNLOCK(data);
 
 		/*
 		 * Construct our file descriptor set; we need to make read/write sets
@@ -150,29 +153,30 @@ Receiver::process()
 		 */
 		int maxfd = -1;
 		FD_ZERO(&readfds); FD_ZERO(&writefds);
-		RLOCK(data);
-		for (list<Peer*>::iterator it = peers.begin();
-		     it != peers.end(); it++) {
-			Peer* p = *it;
-			int fd = p->getFD();
-			if (maxfd < fd) maxfd = fd;
-			if (p->areConnecting())
-				FD_SET(fd, &writefds);
-			FD_SET(fd, &readfds);
-		}
-
-		/* Handle requests, too */
-		for (list<HTTPRequest*>::iterator it = requests.begin();
-		     it != requests.end(); it++) {
-			HTTPRequest* r = *it;
-			int fd = r->getFD();
-			if (maxfd < fd) maxfd = fd;
-			if (r->isWaitingForRead())
+		{
+			shared_lock<shared_mutex> lock(rwl_data);
+			for (list<Peer*>::iterator it = peers.begin();
+					 it != peers.end(); it++) {
+				Peer* p = *it;
+				int fd = p->getFD();
+				if (maxfd < fd) maxfd = fd;
+				if (p->areConnecting())
+					FD_SET(fd, &writefds);
 				FD_SET(fd, &readfds);
-			if (r->isWaitingForWrite())
-				FD_SET(fd, &writefds);
+			}
+
+			/* Handle requests, too */
+			for (list<HTTPRequest*>::iterator it = requests.begin();
+					 it != requests.end(); it++) {
+				HTTPRequest* r = *it;
+				int fd = r->getFD();
+				if (maxfd < fd) maxfd = fd;
+				if (r->isWaitingForRead())
+					FD_SET(fd, &readfds);
+				if (r->isWaitingForWrite())
+					FD_SET(fd, &writefds);
+			}
 		}
-		RUNLOCK(data);
 
 		/*
 		 * Add the listener socket; it makes absolutely no sense to monitor this
@@ -200,49 +204,50 @@ Receiver::process()
 		/*
 		 * Wade through all peers, handle any data to service.
 		 */
-		RLOCK(data);
-		for (list<Peer*>::iterator it = peers.begin();
-				 it != peers.end(); it++) {
-			Peer* p = (*it);
-			int fd = (*it)->getFD();
-			if (FD_ISSET(fd, &writefds)) {
-				/* Handle with made connections */
-				if (p->areConnecting())
-					p->connectionDone();
-			}
-			if (!FD_ISSET(fd, &readfds))
-				continue;
+		{
+			shared_lock<shared_mutex> lock(rwl_data);
+			for (list<Peer*>::iterator it = peers.begin();
+					 it != peers.end(); it++) {
+				Peer* p = (*it);
+				int fd = (*it)->getFD();
+				if (FD_ISSET(fd, &writefds)) {
+					/* Handle with made connections */
+					if (p->areConnecting())
+						p->connectionDone();
+				}
+				if (!FD_ISSET(fd, &readfds))
+					continue;
 
-			/*
-			 * There is data here.
-			 */
-			uint8_t buf[65536 /* XXX */];
-			ssize_t len = ::recv(fd, buf, sizeof(buf), MSG_DONTWAIT);
-			if (len <= 0) {
-				/* socket lost */
-				TRACE(TORRENT, "connection to peer=%s lost, socket closed, errno=%u, len=%ld", p->getID().c_str(), errno, len);
-				p->shutdown();
-				continue;
+				/*
+				 * There is data here.
+				 */
+				uint8_t buf[65536 /* XXX */];
+				ssize_t len = ::recv(fd, buf, sizeof(buf), MSG_DONTWAIT);
+				if (len <= 0) {
+					/* socket lost */
+					TRACE(TORRENT, "connection to peer=%s lost, socket closed, errno=%u, len=%ld", p->getID().c_str(), errno, len);
+					p->shutdown();
+					continue;
+				}
+
+				/* Hand the data off to the application */
+				if (p->receive(buf, len) == true) {
+					/* Need to sever the connection */
+					TRACE(TORRENT, "severing connection to peer=%s", p->getID().c_str());
+					p->shutdown();
+					continue;
+				}
 			}
 
-			/* Hand the data off to the application */
-			if (p->receive(buf, len) == true) {
-				/* Need to sever the connection */
-				TRACE(TORRENT, "severing connection to peer=%s", p->getID().c_str());
-				p->shutdown();
-				continue;
+			for (list<HTTPRequest*>::iterator it = requests.begin();
+					 it != requests.end(); it++) {
+				HTTPRequest* r = *it;
+				int fd = r->getFD();
+
+				if (FD_ISSET(fd, &readfds) || FD_ISSET(fd, &writefds))
+					r->process();
 			}
 		}
-
-		for (list<HTTPRequest*>::iterator it = requests.begin();
-		     it != requests.end(); it++) {
-			HTTPRequest* r = *it;
-			int fd = r->getFD();
-
-			if (FD_ISSET(fd, &readfds) || FD_ISSET(fd, &writefds))
-				r->process();
-		}
-		RUNLOCK(data);
 
 		/* If we need to accept new connections, handle that */
 		if (FD_ISSET(listenerFD, &readfds) && !terminating) {
@@ -257,7 +262,7 @@ Receiver::process()
 void
 Receiver::getSendablePeers(list<int>& m)
 {
-	RLOCK(data);
+	shared_lock<shared_mutex> lock(rwl_data);
 	for (list<Peer*>::iterator it = peers.begin();
 	     it != peers.end(); it++) {
 		Peer* p = *it;
@@ -265,7 +270,6 @@ Receiver::getSendablePeers(list<int>& m)
 			continue;
 		m.push_back(p->getFD());
 	}
-	RUNLOCK(data);
 }
 
 /* vim:set ts=2 sw=2: */

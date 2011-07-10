@@ -1,6 +1,7 @@
-#include <boost/interprocess/sync/interprocess_mutex.hpp>
 #include <boost/thread.hpp>
-#include <boost/interprocess/sync/interprocess_condition.hpp>
+#include <boost/thread/mutex.hpp>
+#include <boost/thread/shared_mutex.hpp>
+#include <boost/thread/condition_variable.hpp>
 #include <queue>
 #include "torrent.h"
 
@@ -66,10 +67,10 @@ private:
 	boost::thread thread;
 
 	//! \brief Mutex protecting our queue
-	boost::interprocess::interprocess_mutex mtx_data;
+	boost::mutex mtx_data;
 
 	//! \brief Condition variable used to awaken the thread
-	boost::interprocess::interprocess_condition cv;
+	boost::condition_variable cv;
 
 	//! \brief Are we terminating?
 	bool terminating;

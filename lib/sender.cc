@@ -1,3 +1,4 @@
+#include <boost/thread/locks.hpp>
 #include <assert.h>
 #include <poll.h>
 #include <stdlib.h>
@@ -11,7 +12,7 @@
 #include <algorithm>
 
 using namespace std;
-using namespace boost::interprocess;
+using namespace boost;
 
 #define TRACER (overseer->getTracer())
 
@@ -73,7 +74,7 @@ Sender::process()
 
 		/* If there is nothing to wait for, rest and try again */
 		if (cur_pfd == 0) {
-			scoped_lock<interprocess_mutex> lock(mtx_data);
+			unique_lock<mutex> lock(mtx_data);
 			cv.wait(lock);
 			continue;
 		}
@@ -120,9 +121,11 @@ Sender::process()
 			 * Update amount of bandwidth left; if this is zero, we stop as we can't
 			 * send anymore.
 			 */
-			LOCK(data);
-			uint32_t cur_tx = tx_left;
-			UNLOCK(data);
+			uint32_t cur_tx;
+			{
+				unique_lock<mutex> lock(mtx_data);
+				cur_tx = tx_left;
+			}
 			if (overseer->getUploadRate() > 0 && cur_tx == 0)
 				break;
 
@@ -136,11 +139,12 @@ Sender::process()
 			if (p != NULL) {
 				ssize_t amount = p->processSenderQueue(overseer->getUploadRate() > 0 ? cur_tx : -1);
 
-				LOCK(data);
-				if (tx_left > 0 && amount > 0)
-					tx_left -= amount;
-				cur_tx = tx_left;
-				UNLOCK(data);
+				{
+					unique_lock<mutex> lock(mtx_data);
+					if (tx_left > 0 && amount > 0)
+						tx_left -= amount;
+					cur_tx = tx_left;
+				}
 			}
 		}
 
@@ -160,9 +164,8 @@ Sender::process()
 void
 Sender::setAmountTransferrable(uint32_t amount)
 {
-	LOCK(data);
+	unique_lock<mutex> lock(mtx_data);
 	tx_left = amount;
-	UNLOCK(data);
 }
 
 void

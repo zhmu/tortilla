@@ -1,3 +1,5 @@
+#include <boost/thread/mutex.hpp>
+#include <boost/thread/shared_mutex.hpp>
 #include <map>
 #include <stdint.h>
 #include <string>
@@ -158,10 +160,10 @@ private:
 	bool terminating;
 
 	//! \brief Upgradable lock used to protect the torrents list
-	boost::interprocess::interprocess_upgradable_mutex rwl_torrents;
+	boost::shared_mutex rwl_torrents;
 
 	//! \brief Mutex used to protect the data fields
-	boost::interprocess::interprocess_mutex mtx_data;
+	boost::mutex mtx_data;
 
 	//! \brief Peer ID used to identify ourselves
 	uint8_t peerid[TORRENT_PEERID_LEN];

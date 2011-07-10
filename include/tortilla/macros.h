@@ -1,17 +1,6 @@
 #ifndef __TORTILLA_MACROS_H__
 #define __TORTILLA_MACROS_H__
 
-#define MIN(a,b) \
-	(((a) < (b)) ? (a) : (b))
-
-#define LOCK(x)			(mtx_##x).lock()
-#define UNLOCK(x)		(mtx_##x).unlock()
-
-#define RLOCK(x)		(rwl_##x).lock_sharable()
-#define WLOCK(x)		(rwl_##x).lock()
-#define WUNLOCK(x)		(rwl_##x).unlock()
-#define RUNLOCK(x)		(rwl_##x).unlock_sharable()
-
 #define WRITE_UINT32(ptr,offs,val) \
 	ptr[(offs) + 0] = (((val) >> 24) & 0xff); \
 	ptr[(offs) + 1] = (((val) >> 16) & 0xff); \

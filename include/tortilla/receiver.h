@@ -1,4 +1,5 @@
 #include <boost/thread.hpp>
+#include <boost/thread/shared_mutex.hpp>
 #include <list>
 #include <map>
 #include "file.h"
@@ -69,7 +70,7 @@ private:
 	Overseer* overseer;
 
 	//! \brief Lock used to protect our data
-	boost::interprocess::interprocess_upgradable_mutex rwl_data;
+	boost::shared_mutex rwl_data;
 
 	//! \brief Peers managed by us
 	std::list<Peer*> /* [M=peers] */ peers;

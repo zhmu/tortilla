@@ -1,5 +1,5 @@
-#include <boost/interprocess/sync/interprocess_mutex.hpp>
-#include <boost/interprocess/sync/interprocess_upgradable_mutex.hpp>
+#include <boost/thread/mutex.hpp>
+#include <boost/thread/shared_mutex.hpp>
 #include <map>
 #include <string>
 #include <vector>
@@ -437,16 +437,16 @@ private:
 	bool removeOK;
 
 	//! \brief Mutex protecting the peers list
-	boost::interprocess::interprocess_upgradable_mutex rwl_peers;
+	boost::shared_mutex rwl_peers;
 
 	//! \brief Mutex protecting the files list
-	boost::interprocess::interprocess_upgradable_mutex rwl_files;
+	boost::shared_mutex rwl_files;
 
 	//! \brief Mutex protecting the data
-	boost::interprocess::interprocess_mutex mtx_data;
+	boost::mutex mtx_data;
 
 	//! \brief Mutex protecting the log
-	boost::interprocess::interprocess_mutex mtx_log;
+	boost::mutex mtx_log;
 
 	//! \brief Receive rate, in bytes
 	uint32_t rx_rate;

@@ -1,3 +1,4 @@
+#include <boost/thread/locks.hpp>
 #include <algorithm>
 #include "trackertalker.h"
 #include "macros.h"
@@ -7,6 +8,7 @@
 #include "tracer.h"
 
 using namespace std;
+using namespace boost;
 
 #define TRACER (getTracer())
 
@@ -122,7 +124,7 @@ TrackerTalker::request(map<string, string> req)
 bool
 TrackerTalker::tryRequest()
 {
-	LOCK(data);
+	unique_lock<mutex> lock(mtx_data);
 	while (true) {
 		/* Find the next announcer to use */
 		if (currentTier >= tiers.size())
@@ -135,7 +137,7 @@ TrackerTalker::tryRequest()
 		}
 
 		/* OK, we got an URL - try to chat with it */
-		UNLOCK(data);
+		lock.unlock(); /* drop data lock while talking to tracker */
 		try {
 			TRACE(TRACKER, "attempting to contact tracker '%s'", url.c_str());
 			httpRequest = new HTTPRequest(this, url, currentRequest);
@@ -145,11 +147,9 @@ TrackerTalker::tryRequest()
 			TRACE(TRACKER, "unable to communicate with tracker '%s': %s", url.c_str(), e.what());
 		}
 
-		/* Fallthrough to the next tracker */
-		LOCK(data);
+		/* Fallthrough to the next tracker - reacquire lock */
+		lock.lock();
 	}
-
-	UNLOCK(data);
 	return false;
 }
 
@@ -159,9 +159,10 @@ TrackerTalker::callbackTrackerRequest(std::string result, bool error)
 	TRACE(TRACKER, "tracker callback: error=%u", error ? 1 : 0);
 
 	/* Get rid of the request ASAP - the receiver will clean it up */
-	LOCK(data);
-	httpRequest = NULL;
-	UNLOCK(data);
+	{
+		unique_lock<mutex> lock(mtx_data);
+		httpRequest = NULL;
+	}
 
 	AnnounceTier* at = tiers[currentTier];
 

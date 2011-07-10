@@ -1,4 +1,4 @@
-#include <boost/interprocess/sync/interprocess_upgradable_mutex.hpp>
+#include <boost/thread/shared_mutex.hpp>
 #include <list>
 #include "file.h"
 
@@ -74,7 +74,7 @@ private:
 	std::list<File*> files;
 
 	//! \brief Lock used to protect our data fields
-	boost::interprocess::interprocess_upgradable_mutex rwl_data;
+	boost::shared_mutex rwl_data;
 };
 
 #endif /* __TORTILLA_FILEMANAGER_H__ */

@@ -1,4 +1,4 @@
-#include <boost/interprocess/sync/interprocess_mutex.hpp>
+#include <boost/thread/mutex.hpp>
 #include <stdio.h>
 
 #ifndef __TORTILLA_TRACER_H__
@@ -46,7 +46,7 @@ private:
 	unsigned int tracerMask;
 
 	//! \brief Mutex ensuring we don't write between writes
-	boost::interprocess::interprocess_mutex mtx_file;
+	boost::mutex mtx_file;
 };
 
 #define TRACE(t,format,args...) \

@@ -1,7 +1,10 @@
+#include <boost/thread/locks.hpp>
 #include <stdarg.h>
 #include <time.h>
 #include "macros.h"
 #include "tracer.h"
+
+using namespace boost;
 
 Tracer::Tracer()
 {
@@ -31,12 +34,13 @@ Tracer::trace(unsigned int type, const char* msg, ...)
 	strftime(timestamp, sizeof(timestamp), "%b %d %T", &tm);
 	va_start(vl, msg);
 
-	LOCK(file);
-	fprintf(tracefile, "%s ", timestamp);
-	vfprintf(tracefile, msg, vl);
-	fprintf(tracefile, "\n");
-	fflush(tracefile);
-	UNLOCK(file);
+	{
+		unique_lock<mutex> lock(mtx_file);
+		fprintf(tracefile, "%s ", timestamp);
+		vfprintf(tracefile, msg, vl);
+		fprintf(tracefile, "\n");
+		fflush(tracefile);
+	}
 
 	va_end(vl);
 }

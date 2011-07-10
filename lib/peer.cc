@@ -1,3 +1,5 @@
+#include <boost/thread/locks.hpp>
+#include <algorithm>
 #include <assert.h>
 #include <errno.h>
 #include <string.h>
@@ -10,6 +12,7 @@
 #include "torrent.h"
 
 using namespace std;
+using namespace boost;
 
 #define TRACER (getTorrent()->getTracer())
 
@@ -61,14 +64,15 @@ Peer::~Peer()
 	shutdown();
 
 	/* Get rid of all outstanding requests; these will not be serviced */
-	WLOCK(send_queue);
-	while(!send_queue.empty()) {
-		SenderRequest* sr = send_queue.front();
-		send_queue.pop_front();
-		delete sr;
+	{
+		unique_lock<shared_mutex> lock(rwl_send_queue);
+		while(!send_queue.empty()) {
+			SenderRequest* sr = send_queue.front();
+			send_queue.pop_front();
+			delete sr;
+		}
+		send_queue.clear();
 	}
-	send_queue.clear();
-	WUNLOCK(send_queue);
 
 	/*
 	 * We force the shutdown state to be set, and then consequently, we attempt
@@ -78,18 +82,17 @@ Peer::~Peer()
 	 * requests to the sender queue while terminating, and it's not servicing
 	 * any requests now...
 	 */
-	LOCK(sending);
+	{
+		unique_lock<mutex> lock(mtx_sending);
 
-	/* We need to deregister all of our pieces */
-	for (unsigned int i = 0; i < torrent->getNumPieces(); i++)
-		if (havePiece[i])
-			lostPieces.push_back(i);
-	torrent->callbackPiecesRemoved(this, lostPieces);
+		/* We need to deregister all of our pieces */
+		for (unsigned int i = 0; i < torrent->getNumPieces(); i++)
+			if (havePiece[i])
+				lostPieces.push_back(i);
+		torrent->callbackPiecesRemoved(this, lostPieces);
 
-	delete connection;
-
-	/* Relinquish the sender lock */
-	UNLOCK(sending);
+		delete connection;
+	}
 }
 
 #define DATA_LEFT \
@@ -101,9 +104,10 @@ bool
 Peer::receive(const uint8_t* data, uint32_t data_len)
 {
 	assert (data_len > 0);
-	LOCK(data);
-	rx_bytes += data_len;
-	UNLOCK(data);
+	{
+		unique_lock<mutex> lock(mtx_data);
+		rx_bytes += data_len;
+	}
 
 	/*
 	 * First of all, check how much data we can still place into the buffer. If we run
@@ -121,7 +125,7 @@ Peer::receive(const uint8_t* data, uint32_t data_len)
 	 * Need to store the peer's data now. First of all, try to use the chunk from
 	 * write_pos ... buffer_size.
 	 */
-	uint32_t write_chunk = MIN((PEER_BUFFER_SIZE - command_buffer_writepos), data_len);
+	uint32_t write_chunk = std::min((PEER_BUFFER_SIZE - command_buffer_writepos), data_len);
 	memcpy((uint8_t*)(command_buffer + command_buffer_writepos), data, write_chunk);
 	data_len -= write_chunk; data += write_chunk;
 	command_buffer_writepos = (command_buffer_writepos + write_chunk) % PEER_BUFFER_SIZE;
@@ -478,9 +482,10 @@ Peer::msgPiece(const uint8_t* msg, uint32_t len)
 	len -= 8;
 	TRACE(PROTOCOL, "piece: peer=%s, index=%u, begin=%u, length=%u", getID().c_str(), index, begin, len);
 
-	LOCK(data);
-	chunk_requests.remove(OutstandingChunkRequest(index, begin, len));
-	UNLOCK(data);
+	{
+		unique_lock<mutex> lock(mtx_data);
+		chunk_requests.remove(OutstandingChunkRequest(index, begin, len));
+	}
 
 	if (len > TORRENT_CHUNK_SIZE || begin % TORRENT_CHUNK_SIZE != 0) {
 		/*
@@ -547,9 +552,10 @@ Peer::queueSenderRequest(SenderRequest* sr)
 	if (terminating)
 		return;
 
-	WLOCK(send_queue);
-	send_queue.push_back(sr);
-	WUNLOCK(send_queue);
+	{
+		unique_lock<shared_mutex> lock(rwl_send_queue);
+		send_queue.push_back(sr);
+	}
 
 	/* If the sender is sleeping, awaken it */
 	torrent->signalSender();
@@ -615,9 +621,10 @@ Peer::sendPieceRequest(unsigned int piece)
 		queueSenderRequest(new SenderRequest(PEER_MSGID_REQUEST, msg, 12));
 		TRACE(PROTOCOL, "sent request: peer=%s, piece=%u, offset=%u, length=%u", getID().c_str(), piece, missingChunk * TORRENT_CHUNK_SIZE, request_length);
 
-		LOCK(data);
-		chunk_requests.push_back(OutstandingChunkRequest(piece, missingChunk * TORRENT_CHUNK_SIZE, request_length));
-		UNLOCK(data);
+		{
+			unique_lock<mutex> lock(mtx_data);
+			chunk_requests.push_back(OutstandingChunkRequest(piece, missingChunk * TORRENT_CHUNK_SIZE, request_length));
+		}
 		numRequested++;
 	}
 	return numRequested;
@@ -692,14 +699,14 @@ Peer::processSenderQueue(ssize_t max_length)
 		 * Attempt to fetch an item from the queue. Note that we immediately remove
 		 * the item to prevent others from destroying it.
 		 */
-		WLOCK(send_queue);
-		if (send_queue.empty()) {
-			WUNLOCK(send_queue);
-			break;
+		SenderRequest* request;
+		{
+			unique_lock<shared_mutex> lock(rwl_send_queue);
+			if (send_queue.empty())
+				break;
+			request = send_queue.front();
+			send_queue.pop_front();
 		}
-		SenderRequest* request = send_queue.front();
-		send_queue.pop_front();
-		WUNLOCK(send_queue);
 
 		uint32_t sending_len = request->getMessageLength();
 		if (max_length >= 0 && (ssize_t)sending_len > max_length) {
@@ -735,9 +742,10 @@ Peer::processSenderQueue(ssize_t max_length)
 				request->skip(written);
 
 			/* Re-add the item at the beginning of the queue (!) */
-			WLOCK(send_queue);
-			send_queue.push_front(request);
-			WUNLOCK(send_queue);
+			{
+				unique_lock<shared_mutex> lock(rwl_send_queue);
+				send_queue.push_front(request);
+			}
 		}
 
 		/* If the previous sending effort failed, bail; any subsequent won't work either */
@@ -746,14 +754,15 @@ Peer::processSenderQueue(ssize_t max_length)
 	}
 
 	/* We are done sending */
-	UNLOCK(sending);
+	mtx_sending.unlock();
 	return total;
 }
 
 void
 Peer::cancelChunkRequest(unsigned int piece, unsigned int offset, unsigned int length)
 {
-	WLOCK(send_queue);
+	unique_lock<shared_mutex> lock(rwl_send_queue);
+
 	list<SenderRequest*>::iterator it = send_queue.begin();
 	while (it != send_queue.end()) {
 		SenderRequest* sr = *it;
@@ -767,20 +776,19 @@ Peer::cancelChunkRequest(unsigned int piece, unsigned int offset, unsigned int l
 		send_queue.erase(it);
 		it = send_queue.begin();
 	}
-	WUNLOCK(send_queue);
 }
 
 void
 Peer::timer() {
-	LOCK(data);
+	{
+		unique_lock<mutex> lock(mtx_data);
 
-	/* Increment the total peer's RX/TX counters */
-	rx_total += rx_bytes; tx_total += tx_bytes;
+		/* Increment the total peer's RX/TX counters */
+		rx_total += rx_bytes; tx_total += tx_bytes;
 
-	/* Reset the peer's received/transmitter counters */
-	rx_bytes = 0; tx_bytes = 0;
-
-	UNLOCK(data);
+		/* Reset the peer's received/transmitter counters */
+		rx_bytes = 0; tx_bytes = 0;
+	}
 
 	/* If we are inactive for too long, pull the plug */
 	if (time(NULL) > lastTime + PEER_KICK_SECONDS && !terminating) {
@@ -844,9 +852,8 @@ Peer::have(unsigned int piece)
 void
 Peer::shutdown()
 {
-	LOCK(data);
+	unique_lock<mutex> lock(mtx_data);
 	terminating = true;
-	UNLOCK(data);
 }
 
 void
@@ -868,9 +875,11 @@ Peer::getAverageRate(uint32_t* rx, uint32_t* tx)
 {
 	time_t now = time(NULL);
 
-	LOCK(data);
-	uint64_t cur_rx = rx_total, cur_tx = tx_total;
-	UNLOCK(data);
+	uint64_t cur_rx, cur_tx;
+	{
+		unique_lock<mutex> lock(mtx_data);
+		cur_rx = rx_total; cur_tx = tx_total;
+	}
 	if (now != launchTime) {
 		*rx = cur_rx / (now - launchTime);
 		*tx = cur_tx / (now - launchTime);
@@ -883,8 +892,9 @@ Peer::getAverageRate(uint32_t* rx, uint32_t* tx)
 void
 Peer::cancelChunk(uint32_t piece, uint32_t offset, uint32_t len)
 {
+	unique_lock<mutex> lock(mtx_data);
+
 	/* XXX we assume the list will only contain unique requests */
-	LOCK(data);
 	unsigned int samechunkcount=0;
 	for (list<OutstandingChunkRequest>::iterator it = chunk_requests.begin();
 	     it != chunk_requests.end(); it++) {
@@ -902,12 +912,10 @@ Peer::cancelChunk(uint32_t piece, uint32_t offset, uint32_t len)
 		WRITE_UINT32(msg, 4, offset);
 		WRITE_UINT32(msg, 8, len);
 		queueSenderRequest(new SenderRequest(PEER_MSGID_CANCEL, msg, 12));
-		UNLOCK(data);
 		TRACE(TORRENT, "cancelchunk: peer=%s, piece=%u, offset=%u, len=%u, cancelled",
 		 getID().c_str(), piece, offset, len);
 		return;
 	}
-	UNLOCK(data);
 }
 
 std::string
@@ -919,16 +927,18 @@ Peer::getID()
 bool
 Peer::isSenderQueueEmpty()
 {
-	RLOCK(send_queue);
-	bool b = send_queue.empty();
-	RUNLOCK(send_queue);
+	bool b;
+	{
+		shared_lock<shared_mutex> lock(rwl_send_queue);
+		b = send_queue.empty();
+	}
 	return b;
 }
 
 void
 Peer::lockForSending()
 {	
-	LOCK(sending);
+	mtx_sending.lock();
 }
 
 /* vim:set ts=2 sw=2: */

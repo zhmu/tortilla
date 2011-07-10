@@ -1,3 +1,4 @@
+#include <boost/thread/locks.hpp>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdint.h>
@@ -12,7 +13,7 @@
 #include "macros.h"
 
 using namespace std;
-using namespace boost::interprocess;
+using namespace boost;
 
 File::File(std::string path, off_t len, std::string root_path)
 {
@@ -95,7 +96,7 @@ File::read(off_t offset, void* buf, size_t len)
 File::~File()
 {
 	/* Lock the file before closing it; this ensures we wait until consumers are done */
-	scoped_lock<interprocess_upgradable_mutex> lock(rwl_file);
+	unique_lock<shared_mutex> lock(rwl_file);
 	close();
 }
 
@@ -134,14 +135,14 @@ File::close()
 void
 File::lockRead()
 {
-	RLOCK(file);
+	rwl_file.lock_shared();
 	read_locked = true;
 }
 
 void
 File::lockWrite()
 {
-	WLOCK(file);
+	rwl_file.lock();
 	read_locked = false;
 }
 
@@ -149,9 +150,9 @@ void
 File::unlock()
 {
 	if (read_locked)
-		RUNLOCK(file);
+		rwl_file.unlock_shared();
 	else
-		WUNLOCK(file);
+		rwl_file.unlock();
 }
 
 bool
@@ -163,20 +164,17 @@ File::compareByLastInteraction(File* a, File* b)
 bool
 File::rename(std::string newpath)
 {
-	WLOCK(file);
-	if (::rename(string(rootpath + filename).c_str(), string(rootpath + newpath).c_str()) < 0) {
-		WUNLOCK(file);
+	unique_lock<shared_mutex> lock(rwl_file);
+	if (::rename(string(rootpath + filename).c_str(), string(rootpath + newpath).c_str()) < 0)
 		return false;
-	}
 	filename = newpath;
-	WUNLOCK(file);
 	return true;
 }
 
 bool
 File::moveRootPath(std::string newpath)
 {
-	scoped_lock<interprocess_upgradable_mutex> lock(rwl_file);
+	unique_lock<shared_mutex> lock(rwl_file);
 	string old_path = rootpath + filename;
 	string new_path = newpath + filename;
 	try {

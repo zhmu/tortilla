@@ -1,3 +1,4 @@
+#include <boost/thread/locks.hpp>
 #include <algorithm>
 #include <assert.h>
 #include <list>
@@ -9,6 +10,7 @@
 #include "tracer.h"
 
 using namespace std;
+using namespace boost;
 
 #define TRACER (overseer->getTracer())
 
@@ -48,9 +50,10 @@ FileManager::prepare(File* f)
 		if (!f->isOpened()) {
 			cleanup(f);
 			f->open();
-			WLOCK(data);
-			curFiles++;
-			WUNLOCK(data);
+			{
+				unique_lock<shared_mutex> lock(rwl_data);
+				curFiles++;
+			}
 		}
 	} catch (FileException e) {
 		f->unlock(); /* don't leave file locked, this causes a deadlock */
@@ -61,15 +64,15 @@ FileManager::prepare(File* f)
 void
 FileManager::cleanup(File* f)
 {
-	RLOCK(data);
-	unsigned int cur = curFiles;
-	if (cur < maxFiles) {
-		RUNLOCK(data);
-		return;
+	list<File*> sortedFiles;
+	{
+		shared_lock<shared_mutex> lock(rwl_data);
+		unsigned int cur = curFiles;
+		if (cur < maxFiles)
+			return;
+		sortedFiles = files;
 	}
-	list<File*> sortedFiles = files;
 	sortedFiles.sort(File::compareByLastInteraction);
-	RUNLOCK(data);
 
 	/* Wade through the sorted file list, and get close the first possible file */
 	for (list<File*>::iterator it = sortedFiles.begin();
@@ -88,9 +91,10 @@ FileManager::cleanup(File* f)
 		file->close();
 		file->unlock();
 
-		WLOCK(data);
-		curFiles--;
-		WUNLOCK(data);
+		{
+			unique_lock<shared_mutex> lock(rwl_data);
+			curFiles--;
+		}
 
 		/* XXX exit immediately, or close more, say 10% of all files? */
 		break;
@@ -100,25 +104,24 @@ FileManager::cleanup(File* f)
 void
 FileManager::addFile(File* f)
 {
-	WLOCK(data);
+	unique_lock<shared_mutex> lock(rwl_data);
 	files.push_back(f);
-	WUNLOCK(data);
 }
 
 void
 FileManager::removeFile(File* f)
 {
-	WLOCK(data);
+	unique_lock<shared_mutex> lock(rwl_data);
 	files.remove(f);
-	WUNLOCK(data);
 }
 
 void
 FileManager::setMaxOpenFiles(int max)
 {
-	WLOCK(data);
-	maxFiles = max;
-	WUNLOCK(data);
+	{
+		unique_lock<shared_mutex> lock(rwl_data);
+		maxFiles = max;
+	}
 
 	/* ensure the new maximum is honored (XXX is this safe to call?) */
 	cleanup();
