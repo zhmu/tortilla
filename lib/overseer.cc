@@ -74,6 +74,7 @@ Overseer::~Overseer()
 	}
 
 	/* Remove the overseer thread */
+	thread->join();
 	delete thread;
 
 	/* The overseer thread should have removed all torrents by now */
