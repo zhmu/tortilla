@@ -33,7 +33,7 @@ void MetaList::stream(ostream& os) const
 	os << "e";
 }
 
-MetaList::MetaList(MetaList& ml)
+MetaList::MetaList(const MetaList& ml)
 {
 	std::list<MetaField*> srcList = ml.getList();
 	for (std::list<MetaField*>::const_iterator it = srcList.begin();
@@ -60,11 +60,11 @@ void MetaDictionary::stream(ostream& os) const
 	os << "e";
 }
 
-MetaField* MetaDictionary::operator[](std::string key)
+const MetaField* MetaDictionary::operator[](std::string key) const
 {
 	for (std::list<StringFieldMap*>::const_iterator it = dictionary.begin();
 	     it != dictionary.end(); it++) {
-		StringFieldMap* sfm = *it;
+		const StringFieldMap* sfm = *it;
 		if (sfm->getKey() == key)
 			return sfm->getValue();
 	}
@@ -83,9 +83,9 @@ MetaDictionary::~MetaDictionary()
 	}
 }
 
-MetaDictionary::MetaDictionary(MetaDictionary& src)
+MetaDictionary::MetaDictionary(const MetaDictionary& src)
 {
-	std::list<StringFieldMap*> srcDictionary = src.getDictionary();
+	const std::list<StringFieldMap*> srcDictionary = src.getDictionary();
 
 	for (std::list<StringFieldMap*>::const_iterator it = srcDictionary.begin();
 	     it != srcDictionary.end(); it++) {
@@ -95,22 +95,22 @@ MetaDictionary::MetaDictionary(MetaDictionary& src)
 }
 
 MetaField*
-MetaField::clone(MetaField* src)
+MetaField::clone(const MetaField* src)
 {
 	/*
 	 * I wish I could just use MetaField::MetaField() as copy constructor; but it
 	 * has a pure virtual, so that won't work :-(
 	 */
-	MetaString* ms = dynamic_cast<MetaString*>(src);
+	const MetaString* ms = dynamic_cast<const MetaString*>(src);
 	if (ms != NULL)
 		return new MetaString(*ms);
-	MetaInteger* mi = dynamic_cast<MetaInteger*>(src);
+	const MetaInteger* mi = dynamic_cast<const MetaInteger*>(src);
 	if (mi != NULL)
 		return new MetaInteger(*mi);
-	MetaList* ml = dynamic_cast<MetaList*>(src);
+	const MetaList* ml = dynamic_cast<const MetaList*>(src);
 	if (ml != NULL)
 		return new MetaList(*ml);
-	MetaDictionary* md = dynamic_cast<MetaDictionary*>(src);
+	const MetaDictionary* md = dynamic_cast<const MetaDictionary*>(src);
 	if (md != NULL)
 		return new MetaDictionary(*md);
 	return NULL;

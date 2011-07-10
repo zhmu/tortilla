@@ -31,13 +31,13 @@ public:
 
 protected:
 	//! \brief Retrieve the file descriptor used
-	int getFD();
+	int getFD() const;
 
 	//! \brief Need to awake the request for a read?
-	bool isWaitingForRead() { return waitingForRead; }
+	bool isWaitingForRead() const { return waitingForRead; }
 
 	//! \brief Need to awake the request for a write?
-	bool isWaitingForWrite() { return waitingForWrite; }
+	bool isWaitingForWrite() const { return waitingForWrite; }
 
 private:
 	//! \brief Tracker communicator we belong to

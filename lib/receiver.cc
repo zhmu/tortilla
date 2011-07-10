@@ -260,10 +260,10 @@ Receiver::process()
 }
 
 void
-Receiver::getSendablePeers(list<int>& m)
+Receiver::getSendablePeers(list<int>& m) const
 {
 	shared_lock<shared_mutex> lock(rwl_data);
-	for (list<Peer*>::iterator it = peers.begin();
+	for (list<Peer*>::const_iterator it = peers.begin();
 	     it != peers.end(); it++) {
 		Peer* p = *it;
 		if (p->isSenderQueueEmpty())

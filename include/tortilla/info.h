@@ -14,10 +14,10 @@ public:
 		this->hashing = hashing; this->queued = queued;
 	}
 
-	unsigned int getPieceNum() { return num; }
-	unsigned int getHave() { return have; }
-	unsigned int isHashing() { return hashing; }
-	unsigned int isQueued() { return queued; }
+	unsigned int getPieceNum() const { return num; }
+	unsigned int getHave() const { return have; }
+	unsigned int isHashing() const { return hashing; }
+	unsigned int isQueued() const { return queued; }
 
 private:
 	unsigned int num;
@@ -28,17 +28,17 @@ class PeerInfo {
 public:
 	PeerInfo(Peer* p);
 
-	bool isSnubbed() { return snubbed; }
-	bool isPeerInterested() { return peer_interested; }
-	bool isPeerChoked() { return peer_choked; }
-	bool areInterested() { return interested; }
-	bool areChoking() { return choking; }
-	bool isIncoming() { return incoming; }
-	uint32_t getRxRate() { return rx; }
-	uint32_t getTxRate() { return tx; }
-	uint32_t getNumPieces() { return num_pieces; }
+	bool isSnubbed() const { return snubbed; }
+	bool isPeerInterested() const { return peer_interested; }
+	bool isPeerChoked() const { return peer_choked; }
+	bool areInterested() const { return interested; }
+	bool areChoking() const { return choking; }
+	bool isIncoming() const { return incoming; }
+	uint32_t getRxRate() const { return rx; }
+	uint32_t getTxRate() const { return tx; }
+	uint32_t getNumPieces() const { return num_pieces; }
 
-	std::string getEndpoint() { return endpoint; }
+	const std::string& getEndpoint() const { return endpoint; }
 
 private:
 	bool snubbed, peer_interested, peer_choked, interested, choking, incoming;
@@ -50,11 +50,11 @@ class FileInfo {
 public:
 	FileInfo(File* f, unsigned int piece, unsigned int num);
 
-	std::string getFilename() { return fname; }
-	size_t getLength() { return length; }
+	const std::string& getFilename() const { return fname; }
+	size_t getLength() const { return length; }
 
-	unsigned int getFirstPieceNum() { return firstPiece; }
-	unsigned int getNumPieces() { return numPieces; }
+	unsigned int getFirstPieceNum() const { return firstPiece; }
+	unsigned int getNumPieces() const { return numPieces; }
 
 private:
 	std::string fname;

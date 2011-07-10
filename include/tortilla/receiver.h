@@ -63,14 +63,14 @@ public:
 	void removePeerByFD(int fd);
 
 	//! \brief Request a map of file descriptor for sending
-	void getSendablePeers(std::list<int>& m);
+	void getSendablePeers(std::list<int>& m) const;
 
 private:
 	//! \brief Our overseer object
 	Overseer* overseer;
 
 	//! \brief Lock used to protect our data
-	boost::shared_mutex rwl_data;
+	mutable boost::shared_mutex rwl_data;
 
 	//! \brief Peers managed by us
 	std::list<Peer*> /* [M=peers] */ peers;

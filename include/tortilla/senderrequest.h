@@ -22,25 +22,25 @@ public:
 	bool isServiced();
 
 	//! \brief Retrieve the data to upload
-	const uint8_t* getMessage();
+	const uint8_t* getMessage() const;
 
 	//! \brief Retrieve the number of bytes to upload
-	const uint32_t getMessageLength();
+	const uint32_t getMessageLength() const;
 
 	//! \brief Retrieves the piece to download
-	const uint32_t getPiece() { return piece; }
+	const uint32_t getPiece() const { return piece; }
 
 	//! \brief Retrieve the offset to download
-	const uint32_t getOffset() { return offset; }
+	const uint32_t getOffset() const { return offset; }
 
 	//! \brief Retrieve the length of the piece to download
-	const uint32_t getPieceLength() { return piece_length; }
+	const uint32_t getPieceLength() const { return piece_length; }
 
 	//! \brief Is this a request to send data?
-	const bool haveData() { return (message == NULL); }
+	const bool haveData() const { return (message == NULL); }
 
 	//! \brief Is this request partial?
-	bool isPartialRequest() { return skip_num > 0; }
+	bool isPartialRequest() const { return skip_num > 0; }
 
 	//! \brief Skip a specific number of bytes
 	void skip(uint32_t l) { skip_num += l; }

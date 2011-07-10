@@ -32,9 +32,6 @@ public:
 	//! \brief Retrieve the dictionary
 	inline MetaDictionary* getDictionary() { return dictionary; }
 
-	//! \brief Retrieve the 'announce' URL
-	std::string getAnnounceURL();
-
 private:
 	/*! \brief Retrieves the next byte from the metadata buffer
 	 *  \throws MetaDataException on failure

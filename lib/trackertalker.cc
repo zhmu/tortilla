@@ -12,10 +12,10 @@ using namespace boost;
 
 #define TRACER (getTracer())
 
-AnnounceTier::AnnounceTier(TrackerTalker* tt, MetaList* ml)
+AnnounceTier::AnnounceTier(TrackerTalker* tt, const MetaList* ml)
 {
 	talker = tt;
-	for (list<MetaField*>::iterator it = ml->getList().begin();
+	for (list<MetaField*>::const_iterator it = ml->getList().begin();
 		   it != ml->getList().end(); it++) {
 		MetaString* ms = dynamic_cast<MetaString*>(*it);
 		if (ms == NULL)
@@ -68,10 +68,10 @@ TrackerTalker::TrackerTalker(Torrent* t, MetaDictionary* dictionary)
 {
 	torrent = t; httpRequest = NULL;
 
-	MetaList* mlList = dynamic_cast<MetaList*>((*dictionary)["announce-list"]);
+	const MetaList* mlList = dynamic_cast<const MetaList*>((*dictionary)["announce-list"]);
 	if (mlList == NULL) {
 		/* New-style announce list unavailable; revert to old single URL */
-		MetaString* msAnnounce = dynamic_cast<MetaString*>((*dictionary)["announce"]);
+		const MetaString* msAnnounce = dynamic_cast<const MetaString*>((*dictionary)["announce"]);
 		if (msAnnounce == NULL)
 			throw TrackerException("metadata doesn't contain an announce URL or list");
 
@@ -86,7 +86,7 @@ TrackerTalker::TrackerTalker(Torrent* t, MetaDictionary* dictionary)
 	 * announcement tier, and contains a list of strings which must be shuffeled
 	 * and stored. Each of the tiers must be tried in-order.
  	 */
-	for (list<MetaField*>::iterator it = mlList->getList().begin();
+	for (list<MetaField*>::const_iterator it = mlList->getList().begin();
 		   it != mlList->getList().end(); it++) {
 			MetaList* tierList = dynamic_cast<MetaList*>(*it);
 			if (tierList == NULL)

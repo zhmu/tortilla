@@ -17,7 +17,7 @@ public:
 	 *  \param tt Talker we belong to
 	 *  \param ml Metalist to use for the trackers
 	 */
-	AnnounceTier(TrackerTalker* tt, MetaList* ml);
+	AnnounceTier(TrackerTalker* tt, const MetaList* ml);
 
 	/*! \brief Constructs a new announce tier object based on a single tracker URL
 	 *  \param tt Talker we belong to

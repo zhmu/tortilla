@@ -55,9 +55,9 @@ public:
 		       length == r.getLength();
 	}
 
-	unsigned int getPiece() { return piece; }
-	unsigned int getOffset() { return offset; }
-	unsigned int getLength() { return length; }
+	unsigned int getPiece() const { return piece; }
+	unsigned int getOffset() const { return offset; }
+	unsigned int getLength() const { return length; }
 
 private:
 	unsigned int piece, offset, length;
@@ -89,7 +89,7 @@ public:
 	~Peer();
 
 	//! \brief Retrieve the file descriptor associated with this peer
-	inline int getFD() { return connection->getFD(); }
+	inline int getFD() const { return connection->getFD(); }
 
 	/*! \brief Called if data is received for this peer
 	 *  \returns true if the connection must be severed
@@ -97,10 +97,10 @@ public:
 	bool receive(const uint8_t* data, uint32_t data_len);
 
 	//! \brief Retrieve the piece map of the peer
-	std::vector<bool>& getPieceMap() { return havePiece; }
+	const std::vector<bool>& getPieceMap() const { return havePiece; }
 
 	//! \brief Retrieve the peer ID
-	std::string getPeerID() { return peerID; }
+	const std::string& getPeerID() const { return peerID; }
 
 	//! \brief Called if we should express interest in this peer
 	void claimInterest();
@@ -122,10 +122,10 @@ public:
 	bool hasPiece(unsigned int num);
 
 	//! \brief Retrieve receive rate, in bytes/second
-	uint32_t getRxRate() { return rx_bytes; }
+	uint32_t getRxRate() const { return rx_bytes; }
 
 	//! \brief Retrieve transmit rate, in bytes/second
-	uint32_t getTxRate() { return tx_bytes; }
+	uint32_t getTxRate() const { return tx_bytes; }
 
 	//! \brief Retrieves the average send/transmit rate, in bytes/second
 	void getAverageRate(uint32_t* rx, uint32_t* tx);
@@ -137,16 +137,16 @@ public:
 	bool isPeerSnubbed();
 
 	//! \brief Is this peer interested?
-	bool isPeerInterested() { return peer_interested; }
+	bool isPeerInterested() const { return peer_interested; }
 
 	//! \brief Is this peer choked?
-	bool isPeerChoked() { return peer_choked; }
+	bool isPeerChoked() const { return peer_choked; }
 
 	//! \brief Are we interested in this peer?
-	bool isInterested() { return am_interested; }
+	bool isInterested() const { return am_interested; }
 
 	//! \brief Are we choking this peer?
-	bool isChoking() { return am_choked; }
+	bool isChoking() const { return am_choked; }
 
 	//! \brief Compares two peers based on upload rate
 	static bool compareByUpload(Peer* a, Peer* b);
@@ -167,28 +167,28 @@ public:
 	void shutdown();
 
 	//! \brief Are we terminating?
-	bool isShuttingDown() { return terminating; }
+	bool isShuttingDown() const { return terminating; }
 
 	//! \brief Set the peer ID
 	void setPeerID(std::string peer_id);
 
 	//! \brief Is this an incoming connection?
-	bool isIncoming() { return incoming; }
+	bool isIncoming() const { return incoming; }
 
 	//! \brief Retrieve the endpoint in human-readable notation
-	std::string getEndpoint() { return connection->getEndpoint(); }
+	const std::string& getEndpoint() const { return connection->getEndpoint(); }
 
 	//! \brief Retrieve the peer ID in human-readable notation
 	std::string getID();
 
 	//! \brief Retrieves the torrent corresponding to this peer
-	Torrent* getTorrent() { return torrent; }
+	Torrent* getTorrent() const { return torrent; }
 
 	//! \brief Retrieve the number of pieces this peer has
-	unsigned int getNumPeerPieces() { return numPeerPieces; }
+	unsigned int getNumPeerPieces() const { return numPeerPieces; }
 
 	//! \brief Is the peer still connecting to the endpoint?
-	bool areConnecting() { return connection->areConnecting(); }
+	bool areConnecting() const { return connection->areConnecting(); }
 
 	//! \brief Signal that we finished connecting
 	void connectionDone();
@@ -274,7 +274,7 @@ private:
 	 *  \param t Torrent the peer is connected to
 	 *
 	 *  This is designed to be called from the constructor, since C++
-	 *  doesn't seem to compeletely support delegated constructors yet.
+	 *  doesn't seem to completely support delegated constructors yet.
 	 */
 	void __init(Torrent* t);
 

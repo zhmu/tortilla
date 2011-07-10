@@ -44,13 +44,13 @@ SenderRequest::SenderRequest(const uint8_t* data, uint32_t len)
 }
 
 const uint8_t* 
-SenderRequest::getMessage()
+SenderRequest::getMessage() const
 {
 	return (const uint8_t*)(message + skip_num);
 }
 
 const uint32_t
-SenderRequest::getMessageLength() {
+SenderRequest::getMessageLength() const {
 	return length - skip_num;
 }
 

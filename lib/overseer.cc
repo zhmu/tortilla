@@ -315,14 +315,14 @@ Overseer::handleIncomingConnection(Connection* c)
 }
 
 Torrent*
-Overseer::findTorrent(const uint8_t* hash)
+Overseer::findTorrent(const uint8_t* hash) const
 {
 	string hash_string((const char*)hash, TORRENT_HASH_LEN);
 	Torrent* t = NULL;
 
 	{
 		shared_lock<shared_mutex> lock(rwl_torrents);
-		map<string, Torrent*>::iterator it = torrents.find(hash_string);
+		map<string, Torrent*>::const_iterator it = torrents.find(hash_string);
 		if (it != torrents.end())
 			t = it->second;
 	}

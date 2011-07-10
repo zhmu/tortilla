@@ -46,13 +46,13 @@ public:
 	Connection* acceptConnection();
 
 	//! \brief Retrieve the file descriptor associated with this connection
-	inline int getFD() { return fd; }
+	inline int getFD() const { return fd; }
 
 	//! \brief Retrieve a human-readable endpoint description
-	inline std::string getEndpoint() { return endpoint; }
+	inline const std::string& getEndpoint() const { return endpoint; }
 
 	//! \brief Are we connecting?
-	bool areConnecting() { return connecting; }
+	bool areConnecting() const { return connecting; }
 
 	//! \brief Used to signal connection is done!
 	void connectionDone() { connecting = false; }

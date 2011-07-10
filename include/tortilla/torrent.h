@@ -71,13 +71,13 @@ public:
 	~Torrent();
 
 	//! \brief Fetch the info hash
-	const uint8_t* getInfoHash() { return infoHash; }
+	const uint8_t* getInfoHash() const { return infoHash; }
 
 	//! \brief Retrieve the number of pieces
-	unsigned int getNumPieces() { return numPieces; }
+	unsigned int getNumPieces() const { return numPieces; }
 
 	//! \brief Retrieve the size of a single piece
-	unsigned int getPieceLength() { return pieceLen; }
+	unsigned int getPieceLength() const { return pieceLen; }
 
 	/*! \brief Returns the first chunk we don't have of a piece
 	 *  \param p Peer to check
@@ -87,21 +87,21 @@ public:
 	int getMissingChunk(Peer* p, unsigned int piece);
 
 	//! \brief Do we have a piece?
-	bool hasPiece(unsigned int piece);
+	bool hasPiece(unsigned int piece) const;
 
 	//! \brief How much data is in this torrent?
-	const uint64_t getTotalSize() { return total_size; }
+	const uint64_t getTotalSize() const { return total_size; }
 
 	/*! \brief Retrieve the hash of a piece
 	 *  \param piece Piece number to use
 	 */
-	const uint8_t* getPieceHash(unsigned int piece);
+	const uint8_t* getPieceHash(unsigned int piece) const;
 
 	/*! \brief Returns the number of pieces for a given chunk */
-	unsigned int calculateChunksInPiece(unsigned int piece);
+	unsigned int calculateChunksInPiece(unsigned int piece) const;
 
 	/*! \brief Retrieve the torrent's peer ID */
-	const uint8_t* getPeerID();
+	const uint8_t* getPeerID() const;
 
 	/*! \brief Add an peer to us
 	 *  \param p Peer
@@ -109,19 +109,19 @@ public:
 	void registerPeer(Peer* p);
 
 	//! \brief Retrieve the number of pieces we are hashing
-	unsigned int getNumPiecesHashing();
+	unsigned int getNumPiecesHashing() const;
 
 	//! \brief Retrieve the number of pieces we have complete
-	unsigned int getNumPiecesComplete();
+	unsigned int getNumPiecesComplete() const;
 
 	//! \brief Retrieve how many bytes are left
-	uint64_t getBytesLeft() { return left; }
+	uint64_t getBytesLeft() const { return left; }
 
 	//! \brief Retrieve how many bytes have been uploaded
-	uint64_t getBytesUploaded() { return uploaded; }
+	uint64_t getBytesUploaded() const { return uploaded; }
 
 	//! \brief Retrieve how many bytes have been downloaded
-	uint64_t getBytesDownloaded() { return downloaded; }
+	uint64_t getBytesDownloaded() const { return downloaded; }
 
 	/*! \brief Retrieves the receive/transmit rates
 	 *  \param rx Receive rate, in bytes/second
@@ -133,53 +133,50 @@ public:
 	std::string getName() const { return name; }
 
 	/*! \brief Fetch the number of peers */
-	unsigned int getNumPeers();
+	unsigned int getNumPeers() const;
 
 	//! \brief Retrieve the number of pending peers
-	unsigned int getNumPendingPeers();
+	unsigned int getNumPendingPeers() const;
 
 	//! \brief Retrieve the tracer object to use
-	Tracer* getTracer();
-
-	//! \brief Retrieve a map of fd's that need to send
-	void getSendablePeers(std::list<int>& m);
+	Tracer* getTracer() const;
 
 	/*! \brief Retrieve details on all pieces */
-	std::vector<PieceInfo> getPieceDetails();
+	std::vector<PieceInfo> getPieceDetails() const;
 
 	/*! \brief Retrieve details on all peers */
-	std::vector<PeerInfo> getPeerDetails();
+	std::vector<PeerInfo> getPeerDetails() const;
 
 	/*! \brief Retrieve details on all files */
-	std::vector<FileInfo> getFileDetails();
+	std::vector<FileInfo> getFileDetails() const;
 
 	//! \brief Can we accept yet another peer?
-	bool canAcceptPeer();
+	bool canAcceptPeer() const;
 
 	//! \brief Retrieve the torrent's message log
-	std::list<std::string> getMessageLog();
+	std::list<std::string> getMessageLog() const;
 
 	//! \brief Clears the torrent's message log
 	void clearMessageLog();
 
 	//! \brief Are we currently in endgame mode?
-	inline bool isEndgameMode() { return endgame_mode; }
+	inline bool isEndgameMode() const { return endgame_mode; }
 
 	//! \brief Are we terminating?
-	inline bool isTerminating() { return terminating; }
+	inline bool isTerminating() const { return terminating; }
 
 	//! \brief At which time were we terminating?
-	inline time_t getTerminationTime() { return terminateTime; }
+	inline time_t getTerminationTime() const { return terminateTime; }
 
 	/*! \brief Can we be deleted?
 	 *
 	 *  This will be set if the torrent was requested to terminate and
 	 *  it has heard from the tracker.
 	 */
-	inline bool canBeDeleted() { return removeOK; }
+	inline bool canBeDeleted() const { return removeOK; }
 
 	//! \brief Perform a debugging dump of the entire torrent status
-	void debugDump(FILE* f);
+	void debugDump(FILE* f) const;
 
 	/*! \brief Requests a torrent to cleanup
 	 *
@@ -195,7 +192,7 @@ public:
 	/*! \brief Returns the torrent metadata with current status
 	 *  \returns Metadata structure consistant with torrent structure
 	 */
-	Metadata* storeStatus();
+	Metadata* storeStatus() const;
 
 	/*! \brief Obtain a torrent info hash from metadata
 	 *  \param md Metadata to use
@@ -285,7 +282,7 @@ protected:
 	void schedulePeerRequests(Peer* p);
 
 	//! \brief Request the sender to awaken
-	void signalSender();
+	void signalSender() const;
 
 	/*! \brief Log a message
 	 *  \param p If set, use this peer
@@ -299,7 +296,7 @@ protected:
 	/*! \brief Parses a status metadata structure
 	 *  \returns true on success
 	 */
-	bool restoreStatus(MetaDictionary* status);
+	bool restoreStatus(const MetaDictionary* status);
 
 	/*! \brief Sets the new path of the torrent files
 	 *  \param path New path to use
@@ -350,7 +347,7 @@ private:
 	/*! \brief Convert an integer to a string
 	 *  \param i Integer to use
 	 */
-	std::string convertInteger(uint64_t i);
+	static std::string convertInteger(uint64_t i);
 
 	//! \brief Runs the optimistic unchoking algorithm
 	void handleUnchokingAlgorithm();
@@ -437,16 +434,16 @@ private:
 	bool removeOK;
 
 	//! \brief Mutex protecting the peers list
-	boost::shared_mutex rwl_peers;
+	mutable boost::shared_mutex rwl_peers;
 
 	//! \brief Mutex protecting the files list
-	boost::shared_mutex rwl_files;
+	mutable boost::shared_mutex rwl_files;
 
 	//! \brief Mutex protecting the data
-	boost::mutex mtx_data;
+	mutable boost::mutex mtx_data;
 
 	//! \brief Mutex protecting the log
-	boost::mutex mtx_log;
+	mutable boost::mutex mtx_log;
 
 	//! \brief Receive rate, in bytes
 	uint32_t rx_rate;

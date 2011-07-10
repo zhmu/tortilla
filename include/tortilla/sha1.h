@@ -44,7 +44,7 @@ public:
 	const uint8_t* getHash();
 
 	//! \brief Retrieves the chunk size used to calculate the hash
-	size_t getChunkSize() { return 1024; }
+	static size_t getChunkSize() { return 1024; }
 
 private:
 	//! \brief Length of a SHA1 hash

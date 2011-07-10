@@ -55,12 +55,12 @@ Torrent::Torrent(Overseer* o, Metadata* md, std::string path)
 	 * without them.
 	 */
 	MetaDictionary* dictionary = md->getDictionary();
-	MetaDictionary* info = dynamic_cast<MetaDictionary*>((*dictionary)["info"]);
+	const MetaDictionary* info = dynamic_cast<const MetaDictionary*>((*dictionary)["info"]);
 	if (info == NULL)
 		throw TorrentException("metadata doesn't contain an info dictionary");
 
-	MetaInteger* miPieceLength = dynamic_cast<MetaInteger*>((*info)["piece length"]);
-	MetaString* miPieces = dynamic_cast<MetaString*>((*info)["pieces"]);
+	const MetaInteger* miPieceLength = dynamic_cast<const MetaInteger*>((*info)["piece length"]);
+	const MetaString* miPieces = dynamic_cast<const MetaString*>((*info)["pieces"]);
 
 	if (miPieceLength == NULL)
 		throw TorrentException("metadata doesn't contain piece length");
@@ -113,24 +113,24 @@ Torrent::Torrent(Overseer* o, Metadata* md, std::string path)
 	 * In case (2), there is a 'files' list, which houses the
 	 * dictionaries containing 'length' and 'path' information.
 	 */
-	MetaString* msName = dynamic_cast<MetaString*>((*info)["name"]);
+	const MetaString* msName = dynamic_cast<const MetaString*>((*info)["name"]);
 	if (msName == NULL)
 		throw TorrentException("info dictionary doesn't contain a name!");
 	name = msName->getString();
 
 	/* XXX check name for badness */
 	total_size = 0;
-	MetaList* mlFiles = dynamic_cast<MetaList*>((*info)["files"]);
+	const MetaList* mlFiles = dynamic_cast<const MetaList*>((*info)["files"]);
 	if (mlFiles != NULL) {
-		for (list<MetaField*>::iterator it = mlFiles->getList().begin();
+		for (list<MetaField*>::const_iterator it = mlFiles->getList().begin();
 			   it != mlFiles->getList().end(); it++) {
-				MetaDictionary* md = dynamic_cast<MetaDictionary*>(*it);
+				const MetaDictionary* md = dynamic_cast<const MetaDictionary*>(*it);
 				if (md == NULL)
 					throw TorrentException("files list doesn't contain dictionaries");
 
 				/* Fetch the file length and path */
-				MetaInteger* miLength = dynamic_cast<MetaInteger*>((*md)["length"]);
-				MetaList* mlPath = dynamic_cast<MetaList*>((*md)["path"]);
+				const MetaInteger* miLength = dynamic_cast<const MetaInteger*>((*md)["length"]);
+				const MetaList* mlPath = dynamic_cast<const MetaList*>((*md)["path"]);
 				if (miLength == NULL)
 					throw TorrentException("file dictionary doesn't contain a length");
 				if (mlPath == NULL)
@@ -138,9 +138,9 @@ Torrent::Torrent(Overseer* o, Metadata* md, std::string path)
 
 				/* Construct the full path of the torrent file */
 				string fullPath = msName->getString();
-				for (list<MetaField*>::iterator itt = mlPath->getList().begin();
+				for (list<MetaField*>::const_iterator itt = mlPath->getList().begin();
 						 itt != mlPath->getList().end(); itt++) {
-					MetaString* ms = dynamic_cast<MetaString*>(*itt);
+					const MetaString* ms = dynamic_cast<const MetaString*>(*itt);
 					if (ms == NULL)
 						throw TorrentException("file path list doesn't contain strings");
 					/* XXX check string for badness */
@@ -154,7 +154,7 @@ Torrent::Torrent(Overseer* o, Metadata* md, std::string path)
 			}
 	} else {
 		/* There is only a single file in this torrent - all too easy */
-		MetaInteger* miLength = dynamic_cast<MetaInteger*>((*info)["length"]);
+		const MetaInteger* miLength = dynamic_cast<const MetaInteger*>((*info)["length"]);
 		if (miLength == NULL)
 			throw TorrentException("info dictionary doesn't contain a length");
 
@@ -200,7 +200,7 @@ Torrent::Torrent(Overseer* o, Metadata* md, std::string path)
 	 * will use to prevent duplicate downloading of informating, needness hashing etc.
 	 */
 	bool restoredStatus = false;
-	MetaDictionary* status = dynamic_cast<MetaDictionary*>((*dictionary)["taStatus"]);
+	const MetaDictionary* status = dynamic_cast<const MetaDictionary*>((*dictionary)["taStatus"]);
 	if (status != NULL) {
 		/*
 		 * Before we do anything with the status data, we must have all files in
@@ -401,7 +401,7 @@ Torrent::handleTrackerReply(string reply)
 	 * If we got here, the result is valid metadata. However, a failure may have
 	 * been reported.
 	 */
-	MetaString* ms = dynamic_cast<MetaString*>((*md->getDictionary())["failure reason"]);
+	const MetaString* ms = dynamic_cast<const MetaString*>((*md->getDictionary())["failure reason"]);
 	if (ms != NULL) {
 		string failure = ms->getString();
 		delete md; /* Prevent memory leak */
@@ -413,21 +413,21 @@ Torrent::handleTrackerReply(string reply)
 	/*
 	 * Fetch the tracker interval times. The maximum interval must be present.
 	 */
-	MetaInteger* msInterval = dynamic_cast<MetaInteger*>((*md->getDictionary())["interval"]);
+	const MetaInteger* msInterval = dynamic_cast<const MetaInteger*>((*md->getDictionary())["interval"]);
 	if (msInterval == NULL)
 		log(NULL, "tracker didn't report interval, ignoring reply");
 	tracker_interval = msInterval->getInteger();
-	MetaInteger* msMinInterval = dynamic_cast<MetaInteger*>((*md->getDictionary())["min interval"]);
+	const MetaInteger* msMinInterval = dynamic_cast<const MetaInteger*>((*md->getDictionary())["min interval"]);
 	if (msMinInterval != NULL)
 		tracker_min_interval = msMinInterval->getInteger();
 	else
 		tracker_min_interval = 0;
-	MetaString* msKey = dynamic_cast<MetaString*>((*md->getDictionary())["key"]);
+	const MetaString* msKey = dynamic_cast<const MetaString*>((*md->getDictionary())["key"]);
 	if (msKey != NULL)
 		tracker_key = msKey->getString();
 
 	int numNewPeers = 0;
-	MetaList* peerslist = dynamic_cast<MetaList*>((*md->getDictionary())["peers"]);
+	const MetaList* peerslist = dynamic_cast<const MetaList*>((*md->getDictionary())["peers"]);
 	TRACE(TRACKER, "contacted tracker: torrent=%p, interval=%u, min_interval=%u, key='%s',peers=%u",
 	 this, tracker_interval, tracker_min_interval, tracker_key.c_str(),
 	 peerslist != NULL ? peerslist->getList().size() : 0);
@@ -438,16 +438,16 @@ Torrent::handleTrackerReply(string reply)
 		 * incomplete, as it makes no sense to try to find new peers in such
 		 * a case (let them find us instead)
 		 */
-		for (list<MetaField*>::iterator it = peerslist->getList().begin();
+		for (list<MetaField*>::const_iterator it = peerslist->getList().begin();
 		    it != peerslist->getList().end(); it++) {
-			MetaDictionary* dict = dynamic_cast<MetaDictionary*>(*it);
+			const MetaDictionary* dict = dynamic_cast<const MetaDictionary*>(*it);
 			if (dict == NULL)
 				continue;
 
 			/* Grab all fields we really need; if any isn't available, ignore the entry */
-			MetaString*  msHost   = dynamic_cast<MetaString*>((*dict)["ip"]);
-			MetaString*  msPeerID = dynamic_cast<MetaString*>((*dict)["peer id"]);
-			MetaInteger* msPort   = dynamic_cast<MetaInteger*>((*dict)["port"]);
+			const MetaString*  msHost   = dynamic_cast<const MetaString*>((*dict)["ip"]);
+			const MetaString*  msPeerID = dynamic_cast<const MetaString*>((*dict)["peer id"]);
+			const MetaInteger* msPort   = dynamic_cast<const MetaInteger*>((*dict)["port"]);
 			if (msHost == NULL || msPeerID == NULL || msPort == NULL)
 				continue;
 
@@ -471,7 +471,7 @@ Torrent::handleTrackerReply(string reply)
 
 	int compactpeerSize = 6;
 
-	MetaString* peerstring = dynamic_cast<MetaString*>((*md->getDictionary())["peers"]);
+	const MetaString* peerstring = dynamic_cast<const MetaString*>((*md->getDictionary())["peers"]);
 	if (peerstring != NULL && peerstring->getString().size() % compactpeerSize == 0) {
 		/*We got a compact peer list! */
 		TRACE(TRACKER, "contacted tracker: torrent=%p, compact peers=%u",
@@ -625,7 +625,7 @@ Torrent::callbackCompletePiece(Peer* p, unsigned int piece)
 }
 
 unsigned int
-Torrent::calculateChunksInPiece(unsigned int piece)
+Torrent::calculateChunksInPiece(unsigned int piece) const
 {
 	assert(piece < numPieces);
 
@@ -711,7 +711,7 @@ Torrent::callbackCompleteChunk(Peer* p, unsigned int piece, uint32_t offset, con
 }
 
 bool
-Torrent::hasPiece(unsigned int piece)
+Torrent::hasPiece(unsigned int piece) const
 {
 	assert (piece < numPieces);
 
@@ -889,7 +889,7 @@ Torrent::readChunk(unsigned int piece, unsigned int offset, uint8_t* buf, size_t
 }
 
 const uint8_t*
-Torrent::getPieceHash(unsigned int piece)
+Torrent::getPieceHash(unsigned int piece) const
 {
 	assert(piece < numPieces);
 	return (pieceHash + (piece * TORRENT_HASH_LEN));
@@ -1012,7 +1012,7 @@ Torrent::unregisterPeer(Peer* p)
 }
 
 const uint8_t*
-Torrent::getPeerID()
+Torrent::getPeerID() const
 {
 	return overseer->getPeerID();
 }
@@ -1238,7 +1238,7 @@ Torrent::processPeerStatus()
 }
 
 unsigned int
-Torrent::getNumPeers()
+Torrent::getNumPeers() const
 {
 	unsigned int n;
 
@@ -1251,7 +1251,7 @@ Torrent::getNumPeers()
 }
 
 vector<PieceInfo>
-Torrent::getPieceDetails()
+Torrent::getPieceDetails() const
 {
 	vector<PieceInfo> pi;
 
@@ -1271,13 +1271,13 @@ Torrent::getPieceDetails()
 }
 
 vector<PeerInfo>
-Torrent::getPeerDetails()
+Torrent::getPeerDetails() const
 {
 	vector<PeerInfo> pi;
 
 	{
 		shared_lock<shared_mutex> lock(rwl_peers);
-		for (vector<Peer*>::iterator it = peers.begin();
+		for (vector<Peer*>::const_iterator it = peers.begin();
 				 it != peers.end(); it++) {
 			Peer* p = *it;
 			pi.push_back(PeerInfo(p));
@@ -1288,7 +1288,7 @@ Torrent::getPeerDetails()
 }
 
 unsigned int 
-Torrent::getNumPiecesComplete()
+Torrent::getNumPiecesComplete() const
 {
 	unsigned int num = 0;
 
@@ -1303,7 +1303,7 @@ Torrent::getNumPiecesComplete()
 }
 
 unsigned int
-Torrent::getNumPendingPeers()
+Torrent::getNumPendingPeers() const
 {
 	unsigned int num;
 
@@ -1315,18 +1315,19 @@ Torrent::getNumPendingPeers()
 }
 
 Tracer*
-Torrent::getTracer() {
+Torrent::getTracer() const
+{
 	return overseer->getTracer();
 }
 
 void
-Torrent::signalSender()
+Torrent::signalSender() const
 {
 	overseer->signalSender();
 }
 
 bool
-Torrent::canAcceptPeer()
+Torrent::canAcceptPeer() const
 {	
 	/*
 	 * Only accept if we have finished hashing and if there are enough peer slots
@@ -1336,7 +1337,7 @@ Torrent::canAcceptPeer()
 }
 
 unsigned int
-Torrent::getNumPiecesHashing()
+Torrent::getNumPiecesHashing() const
 {
 	unsigned int n;
 	{
@@ -1347,7 +1348,7 @@ Torrent::getNumPiecesHashing()
 }
 
 std::list<std::string>
-Torrent::getMessageLog()
+Torrent::getMessageLog() const
 {
 	unique_lock<mutex> lock(mtx_log);
 	std::list<std::string> l = messageLog;
@@ -1392,7 +1393,7 @@ Torrent::log(Peer* p, const char* fmt, ...)
 }
 
 void
-Torrent::debugDump(FILE* f)
+Torrent::debugDump(FILE* f) const
 {
 	unique_lock<mutex> lock(mtx_data);
 
@@ -1420,7 +1421,7 @@ Torrent::debugDump(FILE* f)
 					if (haveChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j]) {
 						PRINT("    <complete/>");
 					} else {
-						for (PeerList::iterator it = haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j].begin();
+						for (PeerList::const_iterator it = haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j].begin();
 								 it != haveRequestedChunk[(piece * (pieceLen / TORRENT_CHUNK_SIZE)) + j].end(); it++) {
 							Peer* p = *it;
 							PRINT("    <requested fromPeer=\"%s\"/>", p->getID().c_str());
@@ -1437,7 +1438,7 @@ Torrent::debugDump(FILE* f)
 	PRINT(" <peers>");
 	{
 		shared_lock<shared_mutex> lock(rwl_peers);
-		for (vector<Peer*>::iterator it = peers.begin();
+		for (vector<Peer*>::const_iterator it = peers.begin();
 			 it != peers.end(); it++) {
 			Peer* p = *it;
 			PRINT("  <peer id=\"%s\">", p->getID().c_str());
@@ -1481,7 +1482,7 @@ Torrent::debugDump(FILE* f)
 }
 
 std::vector<FileInfo>
-Torrent::getFileDetails()
+Torrent::getFileDetails() const
 {
 	vector<FileInfo> fi;
 
@@ -1495,7 +1496,7 @@ Torrent::getFileDetails()
 	unsigned int piece, num; /* outside for loop for assertion below */
 	{
 		shared_lock<shared_mutex> lock(rwl_files);
-		for (vector<File*>::iterator it = files.begin();
+		for (vector<File*>::const_iterator it = files.begin();
 				 it != files.end(); it++) {
 			File* f = *it;
 
@@ -1584,7 +1585,7 @@ Torrent::shutdown()
 }
 
 Metadata*
-Torrent::storeStatus()
+Torrent::storeStatus() const
 {
 	Metadata* md = new Metadata(*torrentDictionary);
 
@@ -1631,10 +1632,10 @@ Torrent::storeStatus()
 }
 
 bool
-Torrent::restoreStatus(MetaDictionary* status)
+Torrent::restoreStatus(const MetaDictionary* status)
 {
-	MetaString* pieceOK = dynamic_cast<MetaString*>((*status)["pieceOK"]);
-	MetaString* chunkOK = dynamic_cast<MetaString*>((*status)["chunkOK"]);
+	const MetaString* pieceOK = dynamic_cast<const MetaString*>((*status)["pieceOK"]);
+	const MetaString* chunkOK = dynamic_cast<const MetaString*>((*status)["chunkOK"]);
 	if (pieceOK == NULL || chunkOK == NULL)
 		return false;
 
@@ -1728,8 +1729,8 @@ Torrent::constructInfoHash(Metadata* md, uint8_t* hash)
 	 * 'info' dictionary. So, first of all, grab the
 	 * dictionary.
 	 */
-	MetaDictionary* dictionary = md->getDictionary();
-	MetaDictionary* info = dynamic_cast<MetaDictionary*>((*dictionary)["info"]);
+	const MetaDictionary* dictionary = md->getDictionary();
+	const MetaDictionary* info = dynamic_cast<const MetaDictionary*>((*dictionary)["info"]);
 	if (info == NULL)
 		return false;
 

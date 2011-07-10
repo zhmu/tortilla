@@ -39,16 +39,16 @@ public:
 	void read(off_t offset, void* buf, size_t len);
 
 	//! \brief Retrieve the file length
-	off_t getLength() { return length; }
+	off_t getLength() const { return length; }
 
 	//! \brief Have we opened a preexisting file?
-	bool haveReopened() { return reopened; }
+	bool haveReopened() const { return reopened; }
 
 	//! \brief Retrieve the file name
-	std::string getFilename() { return filename; }
+	const std::string& getFilename() const { return filename; }
 
 	//! \brief Retrieves last interaction timestamp
-	time_t getLastInteraction() { return lastInteraction; }
+	time_t getLastInteraction() const { return lastInteraction; }
 
 	//! \brief Compares two files based on last interaction timestamp
 	static bool compareByLastInteraction(File* a, File* b);
@@ -62,7 +62,7 @@ public:
 	bool rename(std::string newpath);
 
 	//! \brief Retrieve the root path
-	std::string getRootPath() { return rootpath; }
+	const std::string& getRootPath() const { return rootpath; }
 
 	/*! \brief Move the file to a new root path
 	 *  \param newpath New root path to use

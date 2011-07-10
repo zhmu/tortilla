@@ -147,7 +147,7 @@ HTTPRequest::process()
 }
 
 int
-HTTPRequest::getFD() {
+HTTPRequest::getFD() const {
 	return connection->getFD();
 }
 

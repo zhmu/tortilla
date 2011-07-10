@@ -53,13 +53,13 @@ public:
 	void terminate();
 
 	//! \brief Obtain the peer ID
-	const uint8_t* getPeerID() { return peerid; }
+	const uint8_t* getPeerID() const { return peerid; }
 
 	//! \brief Obtain the listening port number
-	const unsigned int getListeningPort() { return port; }
+	const unsigned int getListeningPort() const { return port; }
 
 	//! \brief Are we terminating?
-	bool isTerminating() { return terminating; }
+	bool isTerminating() const { return terminating; }
 
 	//! \brief Retrieve a list of torrents
 	std::vector<Torrent*> getTorrents();
@@ -68,7 +68,7 @@ public:
 	 *  \param hash Hash to find
 	 *  \return Torrent object, or NULL if not found
 	 */
-	Torrent* findTorrent(const uint8_t* hash);
+	Torrent* findTorrent(const uint8_t* hash) const;
 
 	/*! \brief Set the upload rate, in bytes/second
 	 *
@@ -78,7 +78,7 @@ public:
 	inline void setUploadRate(uint32_t rate) { upload_rate = rate; }
 
 	//! \brief Retrieve the upload rate, in bytes/second
-	inline uint32_t getUploadRate() { return upload_rate; }
+	inline uint32_t getUploadRate() const { return upload_rate; }
 
 	//! \brief Retrieve our tracer object
 	Tracer* getTracer() { return tracer; } 
@@ -160,7 +160,7 @@ private:
 	bool terminating;
 
 	//! \brief Upgradable lock used to protect the torrents list
-	boost::shared_mutex rwl_torrents;
+	mutable boost::shared_mutex rwl_torrents;
 
 	//! \brief Mutex used to protect the data fields
 	boost::mutex mtx_data;

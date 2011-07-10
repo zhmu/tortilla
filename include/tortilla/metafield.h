@@ -16,7 +16,7 @@ public:
 	MetaField() { };
 	inline virtual ~MetaField() { }
 
-	static MetaField* clone(MetaField* src);
+	static MetaField* clone(const MetaField* src);
 
 protected:
 	/*! \brief Stream field to an output stream
@@ -29,8 +29,8 @@ protected:
 class MetaString : public MetaField {
 public:
 	inline MetaString(std::string s) { string = s; }
-	inline MetaString(MetaString& ms) { string = ms.getString(); }
-	inline const std::string getString() { return string; }
+	inline MetaString(const MetaString& ms) { string = ms.getString(); }
+	inline const std::string& getString() const { return string; }
 
 protected:
 	void stream(std::ostream& o) const;
@@ -44,11 +44,11 @@ public:
 	inline MetaInteger (uint64_t i) {
 		integer = i;
 	}
-	inline MetaInteger(MetaInteger& mi) {
+	inline MetaInteger(const MetaInteger& mi) {
 		integer = mi.getInteger();
 	}
 
-	inline uint64_t getInteger() { return integer; }
+	inline uint64_t getInteger() const { return integer; }
 
 protected:
 	void stream(std::ostream& o) const;
@@ -60,13 +60,13 @@ private:
 class MetaList : public MetaField {
 public:
 	MetaList() { };
-	MetaList(MetaList& ml);
+	MetaList(const MetaList& ml);
 
 	inline void addItem(MetaField* f) {
 		list.push_back(f);
 	}
 
-	inline std::list<MetaField*>& getList() { return list; }
+	inline const std::list<MetaField*>& getList() const { return list; }
 
 protected:
 	void stream(std::ostream& o) const;
@@ -81,8 +81,8 @@ public:
 		key = k; value = v;
 	}
 
-	std::string getKey() { return key; }
-	MetaField* getValue() { return value; }
+	const std::string& getKey() const { return key; }
+	const MetaField* getValue() const { return value; }
 
 	friend std::ostream& operator<<(std::ostream& os, const StringFieldMap& sfm);
 
@@ -97,19 +97,19 @@ private:
 class MetaDictionary : public MetaField {
 public:
 	MetaDictionary() { };
-	MetaDictionary(MetaDictionary& mi);
+	MetaDictionary(const MetaDictionary& mi);
 	virtual ~MetaDictionary();
 
-	inline void assign(std::string str, MetaField* f) {
+	inline void assign(const std::string& str, MetaField* f) {
 		StringFieldMap* sfm = new StringFieldMap(str, f);
 		dictionary.push_back(sfm);
 	}
 
-	MetaField* operator[](std::string key);
+	const MetaField* operator[](std::string key) const;
 
 protected:
 	void stream(std::ostream& o) const;
-	std::list<StringFieldMap*> getDictionary() { return dictionary; }
+	const std::list<StringFieldMap*>& getDictionary() const { return dictionary; }
 
 private:
 	std::list<StringFieldMap*> dictionary;
