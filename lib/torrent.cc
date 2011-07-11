@@ -654,6 +654,7 @@ Torrent::callbackCompleteChunk(Peer* p, unsigned int piece, uint32_t offset, con
 			 * last data while we are hashing. If this happens, just ignore the
 			 * data alltogether.
 			 */
+			mtx_data.unlock();
 			schedulePeerRequests(p);
 			return;
 		}
