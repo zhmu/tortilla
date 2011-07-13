@@ -339,6 +339,7 @@ Torrent::~Torrent()
 	delete[] pieceHash;
 
 	delete torrentDictionary;
+	delete trackerTalker;
 }
 
 void
@@ -346,7 +347,7 @@ Torrent::contactTracker(std::string event)
 {
 	map<string, string> m;
 
-TRACE(DEBUG, "contacttracker: '%s'\n", event.c_str());
+	TRACE(DEBUG, "contacttracker: '%s'", event.c_str());
 
 	/* Construct the tracker request, and off it goes */
 	string h((const char*)infoHash, sizeof(infoHash));
@@ -1575,9 +1576,6 @@ Torrent::shutdown()
 
 	/* Cancel any hashing attempt; it's a waste of resources at this point */
 	overseer->cancelHashing(this);
-
-	if (trackerTalker == NULL)
-		return;
 
 	/*
 	 * Inform the tracker that we are going away.
