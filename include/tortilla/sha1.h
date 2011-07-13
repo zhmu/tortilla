@@ -48,13 +48,13 @@ public:
 
 private:
 	//! \brief Length of a SHA1 hash
-	static const int SHA_DIGEST_LENGTH = 20;
+	static const int SHA1_DIGEST_LENGTH = 20;
 
 	//! \brief Have we computed the hash
 	bool computed;
 
 	//! \brief Computed hash, if any
-	uint8_t hash[SHA_DIGEST_LENGTH];
+	uint8_t hash[SHA1_DIGEST_LENGTH];
 
         //! \brief *Process the next 512 bits of the message
         void ProcessMessageBlock();
