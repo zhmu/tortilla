@@ -4,6 +4,8 @@
 #ifndef __TORTILLA_SHA1_H__
 #define __TORTILLA_SHA1_H__
 
+namespace Tortilla {
+
 /*
  * The HashSHA1 code is based on Paul E. Jones <paulej@packetizer.com>'s
  * freeware SHA1 code, obtainable from http://www.packetizer.com/security/sha1/
@@ -78,5 +80,7 @@ private:
         bool Computed;                      // Is the digest computed?
         bool Corrupted;                     // Is the message digest corruped?
 };
+
+}
 
 #endif /* __TORTILLA_SHA1_H__ */

@@ -6,6 +6,7 @@
 #include "trackertalker.h"
 
 using namespace std;
+using namespace Tortilla;
 
 HTTPRequest::HTTPRequest(TrackerTalker* tt, string url, map<string, string> params)
 {

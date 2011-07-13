@@ -11,8 +11,8 @@
 using namespace std;
 
 Interface* interface = NULL;
-Overseer* overseer = NULL;
-Tracer* tracer = NULL;
+Tortilla::Overseer* overseer = NULL;
+Tortilla::Tracer* tracer = NULL;
 
 void
 sigint(int s)
@@ -76,8 +76,8 @@ main(int argc, char** argv)
 
 	/* XXX handle it if the connection burns */
 	//overseer = new Overseer(1024 + rand() % 10000);
-	tracer = new Tracer();
-	overseer = new Overseer(port, tracer);
+	tracer = new Tortilla::Tracer();
+	overseer = new Tortilla::Overseer(port, tracer);
 	interface = new Interface(overseer);
 	overseer->setUploadRate(upload * 1024);
 

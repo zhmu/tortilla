@@ -8,6 +8,8 @@
 #ifndef __TORTILLA_METADATA_H__
 #define __TORTILLA_METADATA_H__
 
+namespace Tortilla {
+
 /*! \brief Contains torrent file metadata
  */
 class Metadata {
@@ -55,5 +57,7 @@ private:
 	//! \brief The input stream used
 	std::istream* is;
 };
+
+}
 
 #endif /* __TORTILLA_METADATA_H__ */

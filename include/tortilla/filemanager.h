@@ -5,6 +5,8 @@
 #ifndef __TORTILLA_FILEMANAGER_H__
 #define __TORTILLA_FILEMANAGER_H__
 
+namespace Tortilla {
+
 class Overseer;
 
 /*! \brief Responsible for handeling the pool of torrent files
@@ -76,5 +78,7 @@ private:
 	//! \brief Lock used to protect our data fields
 	boost::shared_mutex rwl_data;
 };
+
+}
 
 #endif /* __TORTILLA_FILEMANAGER_H__ */

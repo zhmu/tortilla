@@ -5,6 +5,8 @@
 #ifndef __TORTILLA_FILE_H__
 #define __TORTILLA_FILE_H__
 
+namespace Tortilla {
+
 class FileManager;
 
 //! \brief Implements a basic file suitable for reading/writing
@@ -123,5 +125,7 @@ private:
 	//! \brief Are we locked for reading?
 	bool read_locked;
 };
+
+}
 
 #endif /*  __TORTILLA_FILE_H__ */

@@ -68,7 +68,7 @@ main(int argc, char* argv[])
 		fprintf(stderr, "hashing using own implementation    : ");
 		struct timespec cur_time, done_time;
 		clock_gettime(CLOCK_REALTIME, &cur_time);
-		HashSHA1 hash;
+		Tortilla::HashSHA1 hash;
 		for (unsigned long pos = 0; pos < l; /* nothing */) {
 			unsigned int chunk_len = std::min(l - pos, (unsigned long)CHUNK_SIZE);
 			if (chunk_len == 0)

@@ -9,7 +9,7 @@ Info::Info(Interface* iface)
 }
 
 void
-Info::draw(Torrent* t)
+Info::draw(Tortilla::Torrent* t)
 {
 	werase(window);
 	if (t == NULL) {
@@ -83,9 +83,9 @@ Info::scrollDown()
 }
 
 void
-Info::drawPieces(Torrent* t, unsigned int& y)
+Info::drawPieces(Tortilla::Torrent* t, unsigned int& y)
 {
-	vector<PieceInfo> pieces = t->getPieceDetails();
+	vector<Tortilla::PieceInfo> pieces = t->getPieceDetails();
 	for (unsigned int i = 0; i < pieces.size(); i += 40) {
 		char line[1024 /* XXX */];
 		snprintf(line, sizeof(line), "%5u: ", i);
@@ -94,7 +94,7 @@ Info::drawPieces(Torrent* t, unsigned int& y)
 			if (i + j >= pieces.size())
 				break;
 			char tmp[2];
-			PieceInfo& pi = pieces[i + j];
+			Tortilla::PieceInfo& pi = pieces[i + j];
 			if (pi.getHave())
 				tmp[0] = pi.isHashing() ? '?' : '#';
 			else if (pi.isQueued())
@@ -111,11 +111,11 @@ Info::drawPieces(Torrent* t, unsigned int& y)
 }
 
 void
-Info::drawPeers(Torrent* t, unsigned int& y)
+Info::drawPeers(Tortilla::Torrent* t, unsigned int& y)
 {
-	vector<PeerInfo> peers = t->getPeerDetails();
+	vector<Tortilla::PeerInfo> peers = t->getPeerDetails();
 	for (unsigned int i = 0; i < peers.size(); i++) {
-		PeerInfo& pi = peers[i];
+		Tortilla::PeerInfo& pi = peers[i];
 
 		char line[1024 /* XXX */];
 		snprintf(line, sizeof(line), "[%3u%%] %s (%s), rx/tx: %s / %s",
@@ -144,7 +144,7 @@ Info::drawPeers(Torrent* t, unsigned int& y)
 }
 
 void
-Info::drawLog(Torrent* t, unsigned int& y)
+Info::drawLog(Tortilla::Torrent* t, unsigned int& y)
 {
 	list<string> messages = t->getMessageLog();
 
@@ -161,13 +161,13 @@ Info::drawLog(Torrent* t, unsigned int& y)
 }
 
 void
-Info::drawFiles(Torrent* t, unsigned int& y)
+Info::drawFiles(Tortilla::Torrent* t, unsigned int& y)
 {
-	vector<PieceInfo> pieces = t->getPieceDetails();
-	vector<FileInfo> files = t->getFileDetails();
+	vector<Tortilla::PieceInfo> pieces = t->getPieceDetails();
+	vector<Tortilla::FileInfo> files = t->getFileDetails();
 
 	for (unsigned int i = 0; i < files.size(); i++) {
-		FileInfo& fi = files[i];
+		Tortilla::FileInfo& fi = files[i];
 	
 		unsigned int completed = 0;
 		for (unsigned int p = 0; p < fi.getNumPieces(); p++) {

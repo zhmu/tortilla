@@ -16,7 +16,7 @@ public:
 	Info(Interface* iface);
 	void setWindow(WINDOW* w) { window = w; }
 
-	void draw(Torrent* t);
+	void draw(Tortilla::Torrent* t);
 
 	//! \brief Scroll half a page up
 	void scrollUp();
@@ -34,10 +34,10 @@ protected:
 	//! \brief Number of lines written	
 	unsigned int num_lines;
 
-	void drawPieces(Torrent* t, unsigned int& y);
-	void drawPeers(Torrent* t, unsigned int& y);
-	void drawLog(Torrent* t, unsigned int& y);
-	void drawFiles(Torrent* t, unsigned int& y);
+	void drawPieces(Tortilla::Torrent* t, unsigned int& y);
+	void drawPeers(Tortilla::Torrent* t, unsigned int& y);
+	void drawLog(Tortilla::Torrent* t, unsigned int& y);
+	void drawFiles(Tortilla::Torrent* t, unsigned int& y);
 
 private:
 	WINDOW* window;

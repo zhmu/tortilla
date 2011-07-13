@@ -14,6 +14,7 @@
 
 using namespace std;
 using namespace boost;
+using namespace Tortilla;
 
 File::File(std::string path, off_t len, std::string root_path)
 {

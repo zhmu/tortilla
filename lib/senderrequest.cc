@@ -6,6 +6,7 @@
 #include "torrent.h"
 
 using namespace std;
+using namespace Tortilla;
 
 void
 SenderRequest::__init(uint32_t len)

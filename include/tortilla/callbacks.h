@@ -3,6 +3,8 @@
 #ifndef __TORTILLA_CALLBACKS_H__
 #define __TORTILLA_CALLBACKS_H__
 
+namespace Tortilla {
+
 class Torrent;
 class Peer;
 
@@ -58,5 +60,7 @@ public:
 	 */
 	virtual void removingPeer(Torrent* t, Peer* p) { }
 };
+
+}
 
 #endif /* __TORTILLA_CALLBACKS_H__ */

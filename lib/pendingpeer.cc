@@ -4,6 +4,8 @@
 #include "torrent.h"
 #include "tracer.h"
 
+using namespace Tortilla;
+
 #define TRACER (torrent->getTracer())
 
 PendingPeer::PendingPeer(Torrent* t, std::string ip, uint16_t port, std::string peerid)

@@ -8,6 +8,8 @@
 #ifndef __TORTILLA_METAFIELD_H__
 #define __TORTILLA_METAFIELD_H__
 
+namespace Tortilla {
+
 class MetaField {
 public:
 	friend std::ostream& operator<<(std::ostream& os, const MetaField& mf);
@@ -114,5 +116,7 @@ protected:
 private:
 	std::list<StringFieldMap*> dictionary;
 };
+
+}
 
 #endif /* __TORTILLA_METAFIELD_H__ */

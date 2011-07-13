@@ -11,11 +11,11 @@ public:
 
 	void draw();
 
-	Torrent* getSelectedTorrent();
+	Tortilla::Torrent* getSelectedTorrent();
 
 	void upTorrent();
 	void downTorrent();
-	void selectTorrent(Torrent* t);
+	void selectTorrent(Tortilla::Torrent* t);
 
 private:
 	WINDOW* window;

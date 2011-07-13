@@ -6,24 +6,29 @@
 #include "metafield.h"
 
 using namespace std;
+using namespace Tortilla;
 
-ostream& operator<<(ostream& os, const MetaField& mf)
+ostream&
+Tortilla::operator<<(ostream& os, const MetaField& mf)
 {
 	mf.stream(os);
 	return os;
 }
 
-void MetaString::stream(ostream& os) const
+void
+Tortilla::MetaString::stream(ostream& os) const
 {
 	os << string.size(); os << ":"; os << string;
 }
 
-void MetaInteger::stream(ostream& os) const
+void
+Tortilla::MetaInteger::stream(ostream& os) const
 {
 	os << "i"; os << integer; os << "e";
 }
 
-void MetaList::stream(ostream& os) const
+void
+Tortilla::MetaList::stream(ostream& os) const
 {
 	os << "l";
 	for (std::list<MetaField*>::const_iterator it = list.begin();
@@ -33,7 +38,7 @@ void MetaList::stream(ostream& os) const
 	os << "e";
 }
 
-MetaList::MetaList(const MetaList& ml)
+Tortilla::MetaList::MetaList(const MetaList& ml)
 {
 	std::list<MetaField*> srcList = ml.getList();
 	for (std::list<MetaField*>::const_iterator it = srcList.begin();
@@ -42,7 +47,8 @@ MetaList::MetaList(const MetaList& ml)
 	}
 }
 
-std::ostream& operator<<(std::ostream& os, const StringFieldMap& sfm)
+std::ostream&
+Tortilla::operator<<(std::ostream& os, const StringFieldMap& sfm)
 {
 	MetaString ms(sfm.key);
 	os << ms;
@@ -50,7 +56,8 @@ std::ostream& operator<<(std::ostream& os, const StringFieldMap& sfm)
 	return os;
 }
 
-void MetaDictionary::stream(ostream& os) const
+void
+Tortilla::MetaDictionary::stream(ostream& os) const
 {
 	os << "d";
 	for (std::list<StringFieldMap*>::const_iterator it = dictionary.begin();
@@ -60,7 +67,8 @@ void MetaDictionary::stream(ostream& os) const
 	os << "e";
 }
 
-const MetaField* MetaDictionary::operator[](std::string key) const
+const MetaField*
+Tortilla::MetaDictionary::operator[](std::string key) const
 {
 	for (std::list<StringFieldMap*>::const_iterator it = dictionary.begin();
 	     it != dictionary.end(); it++) {
@@ -71,7 +79,7 @@ const MetaField* MetaDictionary::operator[](std::string key) const
 	return NULL;
 }
 
-MetaDictionary::~MetaDictionary()
+Tortilla::MetaDictionary::~MetaDictionary()
 {
 	std::list<StringFieldMap*>::iterator it = dictionary.begin();
 	while (it != dictionary.end()) {
@@ -83,7 +91,7 @@ MetaDictionary::~MetaDictionary()
 	}
 }
 
-MetaDictionary::MetaDictionary(const MetaDictionary& src)
+Tortilla::MetaDictionary::MetaDictionary(const MetaDictionary& src)
 {
 	const std::list<StringFieldMap*> srcDictionary = src.getDictionary();
 
@@ -94,8 +102,8 @@ MetaDictionary::MetaDictionary(const MetaDictionary& src)
 	}
 }
 
-MetaField*
-MetaField::clone(const MetaField* src)
+Tortilla::MetaField*
+Tortilla::MetaField::clone(const MetaField* src)
 {
 	/*
 	 * I wish I could just use MetaField::MetaField() as copy constructor; but it

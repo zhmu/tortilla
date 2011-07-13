@@ -1,11 +1,13 @@
 #include <string>
 #include <stdint.h>
 
-class Peer;
-class File;
-
 #ifndef __TORTILLA_INFO_H__
 #define __TORTILLA_INFO_H__
+
+namespace Tortilla {
+
+class Peer;
+class File;
 
 class PieceInfo {
 public:
@@ -61,5 +63,7 @@ private:
 	size_t length;
 	unsigned int firstPiece, numPieces;
 };
+
+}
 
 #endif /* __TORTILLA_INFO_H__ */

@@ -4,6 +4,8 @@
 #ifndef __TORTILLA_TRACER_H__
 #define __TORTILLA_TRACER_H__
 
+namespace Tortilla {
+
 //! \brief Trace network connect/disconnect events
 #define TRACER_TYPE_NETWORK	0x0001
 
@@ -52,5 +54,7 @@ private:
 #define TRACE(t,format,args...) \
 	if ((TRACER) != NULL) \
 		(TRACER)->trace(TRACER_TYPE_ ## t, format, ## args)
+
+}
 
 #endif /* __TORTILLA_TRACER_H__ */

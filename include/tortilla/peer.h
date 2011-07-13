@@ -9,6 +9,8 @@
 #ifndef __TORTILLA_PEER_H__
 #define __TORTILLA_PEER_H__
 
+namespace Tortilla {
+
 class Torrent;
 class SenderRequest;
 class Overseer;
@@ -369,5 +371,7 @@ private:
 
 //! \brief List of peers
 typedef std::list<Peer*> PeerList;
+
+}
 
 #endif /* __TORTILLA_PEER_H__ */

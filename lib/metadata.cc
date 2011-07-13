@@ -6,8 +6,8 @@
 
 using namespace std;
 
-MetaField*
-Metadata::handleField()
+Tortilla::MetaField*
+Tortilla::Metadata::handleField()
 {
 	uint8_t b = getByte();
 	if (is->eof())
@@ -66,7 +66,7 @@ Metadata::handleField()
 		throw MetadataException("unsupported field type");
 }
 
-Metadata::Metadata(std::istream& s)
+Tortilla::Metadata::Metadata(std::istream& s)
 {
 	is = &s;
 
@@ -75,25 +75,25 @@ Metadata::Metadata(std::istream& s)
 		throw MetadataException("metadata content isn't a dictionary");
 }
 
-Metadata::Metadata()
+Tortilla::Metadata::Metadata()
 {
 	is = NULL;
 	dictionary = new MetaDictionary();
 }
 
-Metadata::Metadata(MetaDictionary& md)
+Tortilla::Metadata::Metadata(MetaDictionary& md)
 {
 	is = NULL;
 	dictionary = new MetaDictionary(md);
 }
 
-Metadata::~Metadata()
+Tortilla::Metadata::~Metadata()
 {
 	delete dictionary;
 }
 
 uint8_t
-Metadata::getByte()
+Tortilla::Metadata::getByte()
 {
 	uint8_t c;
 	is->read((char*)&c, 1);
@@ -101,7 +101,7 @@ Metadata::getByte()
 }
 
 uint64_t
-Metadata::getInteger(uint8_t terminator, uint8_t curch)
+Tortilla::Metadata::getInteger(uint8_t terminator, uint8_t curch)
 {
 	uint64_t v = 0;
 
@@ -122,7 +122,7 @@ Metadata::getInteger(uint8_t terminator, uint8_t curch)
 }
 
 ostream&
-operator<<(ostream& os, const Metadata& md)
+Tortilla::operator<<(ostream& os, const Metadata& md)
 {
 	os << *md.dictionary;
 	return os;

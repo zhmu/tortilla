@@ -16,22 +16,22 @@
 
 using namespace std;
 
-class yoctoCallbacks : public Callbacks {
+class yoctoCallbacks : public Tortilla::Callbacks {
 public:
-	void gotTrackerReply(Torrent* t, int newPeers, std::string message);
-	void completedPiece(Torrent* t, int piece);
-	void completedTorrent(Torrent* t);
-	void removingTorrent(Torrent* t);
-	void addedPeer(Torrent* t, Peer* p);
-	void removingPeer(Torrent* t, Peer* p);
+	void gotTrackerReply(Tortilla::Torrent* t, int newPeers, std::string message);
+	void completedPiece(Tortilla::Torrent* t, int piece);
+	void completedTorrent(Tortilla::Torrent* t);
+	void removingTorrent(Tortilla::Torrent* t);
+	void addedPeer(Tortilla::Torrent* t, Tortilla::Peer* p);
+	void removingPeer(Tortilla::Torrent* t, Tortilla::Peer* p);
 };
 
-Overseer* overseer = NULL;
-Tracer* tracer = NULL;
-Callbacks* callbacks = NULL;
+Tortilla::Overseer* overseer = NULL;
+Tortilla::Tracer* tracer = NULL;
+Tortilla::Callbacks* callbacks = NULL;
 
 void
-yoctoCallbacks::gotTrackerReply(Torrent* t, int newPeers, std::string message)
+yoctoCallbacks::gotTrackerReply(Tortilla::Torrent* t, int newPeers, std::string message)
 {
 	printf(">>>> Got a tracker %s reply, %i new peers, message '%s'\n",
 	 newPeers >= 0 ? "success" : "FAILURE",
@@ -39,31 +39,31 @@ yoctoCallbacks::gotTrackerReply(Torrent* t, int newPeers, std::string message)
 }
 
 void
-yoctoCallbacks::completedPiece(Torrent* t, int piece)
+yoctoCallbacks::completedPiece(Tortilla::Torrent* t, int piece)
 {
 	printf(">>>> Completed piece %u\n", piece);
 }
 
 void
-yoctoCallbacks::completedTorrent(Torrent* t)
+yoctoCallbacks::completedTorrent(Tortilla::Torrent* t)
 {
 	printf(">>>> Completed torrent\n");
 }
 
 void
-yoctoCallbacks::removingTorrent(Torrent* t)
+yoctoCallbacks::removingTorrent(Tortilla::Torrent* t)
 {
 	printf(">>>> Torrent removed from torrent list\n");
 }
 
 void
-yoctoCallbacks::addedPeer(Torrent* t, Peer* p)
+yoctoCallbacks::addedPeer(Tortilla::Torrent* t, Tortilla::Peer* p)
 {
 	printf(">>>> Peer %s added to torrent\n", p->getID().c_str());
 }
 
 void
-yoctoCallbacks::removingPeer(Torrent* t, Peer* p)
+yoctoCallbacks::removingPeer(Tortilla::Torrent* t, Tortilla::Peer* p)
 {
 	printf(">>>> Peer %s removed from torrent\n", p->getID().c_str());
 }
@@ -78,11 +78,11 @@ void
 run()
 {
 	while (!overseer->isTerminating()) {
-		vector<Torrent*> torrents = overseer->getTorrents();
+		vector<Tortilla::Torrent*> torrents = overseer->getTorrents();
 
-		for (vector<Torrent*>::iterator it = torrents.begin();
+		for (vector<Tortilla::Torrent*>::iterator it = torrents.begin();
 				it != torrents.end(); it++) {
-			Torrent* t = *it;
+			Tortilla::Torrent* t = *it;
 			uint32_t rx, tx;
 			t->getRateCounters(&rx, &tx);
 			unsigned long long up = t->getBytesUploaded();
@@ -101,10 +101,10 @@ run()
 			 ((float)(t->getTotalSize() - t->getBytesLeft()) / (float)t->getTotalSize()) * 100.0f,
 				rx, tx, up, down);
 
-			vector<PieceInfo> pieces = t->getPieceDetails();
-			vector<PeerInfo> peers = t->getPeerDetails();
+			vector<Tortilla::PieceInfo> pieces = t->getPieceDetails();
+			vector<Tortilla::PeerInfo> peers = t->getPeerDetails();
 			for (unsigned int i = 0; i < peers.size(); i++) {
-				PeerInfo& pi = peers[i];
+				Tortilla::PeerInfo& pi = peers[i];
 
 				printf("  (%3u%%) %c-%s, rx/tx: %u / %u,",
           (int)((pi.getNumPieces() / (float)pieces.size()) * 100.0f),
@@ -177,14 +177,14 @@ main(int argc, char** argv)
 	/* XXX handle it if the connection burns */
 	//overseer = new Overseer(1024 + rand() % 10000);
 	//callbacks = new yoctoCallbacks();
-	tracer = new Tracer();
-	overseer = new Overseer(port, tracer, callbacks);
+	tracer = new Tortilla::Tracer();
+	overseer = new Tortilla::Overseer(port, tracer, callbacks);
 	overseer->setUploadRate(upload * 1024);
 
 	ifstream is;
 	is.open(argv[0], ios::binary);
-	Metadata* md = new Metadata(is);
-	overseer->addTorrent(new Torrent(overseer, md, ""));
+	Tortilla::Metadata* md = new Tortilla::Metadata(is);
+	overseer->addTorrent(new Tortilla::Torrent(overseer, md, ""));
 	delete md;
 
 	signal(SIGINT, sigint);

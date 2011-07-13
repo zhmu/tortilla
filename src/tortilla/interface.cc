@@ -16,7 +16,7 @@
 
 using namespace std;
 
-Interface::Interface(Overseer* o)
+Interface::Interface(Tortilla::Overseer* o)
 {
 	overseer = o; adding = false; searching = false; statusTime = 0;
 
@@ -225,13 +225,13 @@ Interface::update()
 
 	/* If there is no status message, show overview */
 	if (statusMessage == "") {
-		vector<Torrent*> torrents = getOverseer()->getTorrents();
+		vector<Tortilla::Torrent*> torrents = getOverseer()->getTorrents();
 		uint32_t totalRx = 0, totalTx = 0;
 		uint64_t totalUp = 0, totalDown = 0;
-		for (vector<Torrent*>::iterator it = torrents.begin();
+		for (vector<Tortilla::Torrent*>::iterator it = torrents.begin();
 		     it != torrents.end(); it++) {
 			uint32_t rx, tx;
-			Torrent* t = *it;
+			Tortilla::Torrent* t = *it;
 			t->getRateCounters(&rx, &tx);
 			totalRx += rx; totalTx += tx;
 			totalUp += t->getBytesUploaded();
@@ -277,7 +277,7 @@ Interface::addTorrent(std::string fname)
 {
 	ifstream is;
 	is.open(fname.c_str(), ios::binary);
-	Metadata* md = new Metadata(is);
+	Tortilla::Metadata* md = new Tortilla::Metadata(is);
 
 	/*
 	 * Grab the torrent's info hash - we use it to figure out whether the torrent
@@ -285,18 +285,18 @@ Interface::addTorrent(std::string fname)
 	 * torrent into oblivion)
 	 */
 	uint8_t infohash[TORRENT_HASH_LEN];
-	if (!Torrent::constructInfoHash(md, infohash)) {
+	if (!Tortilla::Torrent::constructInfoHash(md, infohash)) {
 		/* We couldn't build a hash; this means the torrent won't get far either */
 		delete md;
-		throw TorrentException("Cannot generate info hash of source file (corrupt .torrent?)");
+		throw Tortilla::TorrentException("Cannot generate info hash of source file (corrupt .torrent?)");
 	}
 	if (overseer->findTorrent(infohash) != NULL) {
 		delete md;
-		throw TorrentException("Torrent already added");
+		throw Tortilla::TorrentException("Torrent already added");
 	}
 
 	try {
-		overseer->addTorrent(new Torrent(overseer, md, ""));
+		overseer->addTorrent(new Tortilla::Torrent(overseer, md, ""));
 	} catch (exception e) {
 		/* Prevent memory leak */
 		delete md;
@@ -443,10 +443,10 @@ Interface::handleSearchInput(int ch)
 				/*
 			 	 * Wade through all torrents and see if we have a match!
 			 	 */
-				vector<Torrent*> torrents = getOverseer()->getTorrents();
-				for (vector<Torrent*>::iterator it = torrents.begin();
+				vector<Tortilla::Torrent*> torrents = getOverseer()->getTorrents();
+				for (vector<Tortilla::Torrent*>::iterator it = torrents.begin();
 				     it != torrents.end(); it++) {
-					Torrent* t = *it;
+					Tortilla::Torrent* t = *it;
 					string torrentName(t->getName());
 					if (torrentName.size() < s.size())
 						continue;

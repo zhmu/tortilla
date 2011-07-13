@@ -26,6 +26,7 @@
 #include "sha1.h"
 
 using namespace std;
+using namespace Tortilla;
 
 HashSHA1::HashSHA1()
 	: computed(false), Length_Low(0), Length_High(0), Message_Block_Index(0)

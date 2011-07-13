@@ -11,14 +11,16 @@
 
 using namespace std;
 using namespace boost;
+using namespace Tortilla;
 
 #define TRACER (overseer->getTracer())
 
-void*
-hasher_thread(void* ptr)
-{
-	((Hasher*)ptr)->run();
-	return NULL;
+namespace Tortilla {
+	void* hasher_thread(void* ptr)
+	{
+		((Hasher*)ptr)->run();
+		return NULL;
+	}
 }
 
 Hasher::Hasher(Overseer* o)

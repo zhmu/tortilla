@@ -5,6 +5,8 @@
 #ifndef __TORTILLA_PENDINGPEER_H__
 #define __TORTILLA_PENDINGPEER_H__
 
+namespace Tortilla {
+
 /*! \brief Implements a pending peer
  *
  *  A pending peer is a peer reported by the tracker, but not yet used; they
@@ -36,5 +38,7 @@ private:
 	//! \brief ID of the new peer, if known (may be blank)
 	std::string peerid;
 };
+
+}
 
 #endif /* __TORTILLA_PENDINGPEER_H__ */

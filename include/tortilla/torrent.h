@@ -11,6 +11,8 @@
 #ifndef __TORTILLA_TORRENT_H__
 #define __TORTILLA_TORRENT_H__
 
+namespace Tortilla {
+
 #define TORRENT_HASH_LEN 20
 
 //! \brief A chunk is an atomically transferable piece of data between peers
@@ -503,5 +505,7 @@ private:
 	//! \brief Metadata dictionary of the torrent
 	MetaDictionary* torrentDictionary;
 };
+
+}
 
 #endif /* __TORTILLA_TORRENT_H__ */

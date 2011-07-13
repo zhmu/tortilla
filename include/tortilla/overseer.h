@@ -11,6 +11,8 @@
 #ifndef __TORTILLA_OVERSEER_H__
 #define __TORTILLA_OVERSEER_H__
 
+namespace Tortilla {
+
 /*! \brief Number of seconds a torrent is given to shutdown
  *
  *  This is the amount of time it has to tell its tracker that it is
@@ -201,5 +203,7 @@ private:
 	//! \brief Callbacks object used
 	Callbacks* callbacks;
 };
+
+}
 
 #endif /* __TORTILLA_OVERSEER_H__ */

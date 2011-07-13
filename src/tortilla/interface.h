@@ -13,12 +13,12 @@ class Info;
 
 class Interface {
 public:
-	Interface(Overseer* o);
+	Interface(Tortilla::Overseer* o);
 	~Interface();
 
 	void run();
 
-	Overseer* getOverseer() { return overseer; }
+	Tortilla::Overseer* getOverseer() { return overseer; }
 
 	static std::string formatNumber(uint64_t n);
 	static std::string formatHex(const uint8_t* hex, unsigned int len);
@@ -41,7 +41,7 @@ private:
 
 	void updateWindows();
 
-	Overseer* overseer;
+	Tortilla::Overseer* overseer;
 	Overview* overview;
 	Info* info;
 

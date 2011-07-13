@@ -2,6 +2,8 @@
 #include "info.h"
 #include "file.h"
 
+using namespace Tortilla;
+
 PeerInfo::PeerInfo(Peer* p)
 {
 	snubbed = p->isPeerSnubbed();

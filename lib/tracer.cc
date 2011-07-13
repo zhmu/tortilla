@@ -5,6 +5,7 @@
 #include "tracer.h"
 
 using namespace boost;
+using namespace Tortilla;
 
 Tracer::Tracer()
 {

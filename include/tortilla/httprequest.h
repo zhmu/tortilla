@@ -5,6 +5,8 @@
 #ifndef __TORTILLA_HTTPREQUEST_H__
 #define __TORTILLA_HTTPREQUEST_H__
 
+namespace Tortilla {
+
 class TrackerTalker;
 
 class HTTPRequest {
@@ -64,5 +66,7 @@ private:
 	//! \brief Do we need to be terminated?
 	bool terminate;
 };
+
+}
 
 #endif /* __TORTILLA_HTTPREQUEST_H__ */

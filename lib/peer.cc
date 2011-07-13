@@ -13,6 +13,7 @@
 
 using namespace std;
 using namespace boost;
+using namespace Tortilla;
 
 #define TRACER (getTorrent()->getTracer())
 

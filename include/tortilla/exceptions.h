@@ -4,6 +4,8 @@
 #ifndef __TORTILLA_EXCEPTION_H__
 #define __TORTILLA_EXCEPTION_H__
 
+namespace Tortilla {
+
 //! \brief Base exception class
 class TortillaException : public std::exception {
 public:
@@ -60,5 +62,7 @@ class TrackerException : public TortillaException {
 public:
 	TrackerException(const std::string errstr) : TortillaException(errstr) { }
 };
+
+}
 
 #endif /* __TORTILLA_EXCEPTION_H__ */

@@ -7,6 +7,8 @@
 #ifndef __TORTILLA_RECEIVER_H__
 #define __TORTILLA_RECEIVER_H__
 
+namespace Tortilla {
+
 class Overseer;
 class Peer;
 class HTTPRequest;
@@ -87,5 +89,7 @@ private:
 	//! \brief Thread used by the peer manager
 	boost::thread thread;
 };
+
+}
 
 #endif /* __TORTILLA_FILEMANAGER_H__ */

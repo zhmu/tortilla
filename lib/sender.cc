@@ -13,14 +13,16 @@
 
 using namespace std;
 using namespace boost;
+using namespace Tortilla;
 
 #define TRACER (overseer->getTracer())
 
-void*
-sender_thread(void* ptr)
-{
-	((Sender*)ptr)->process();
-	return NULL;
+namespace Tortilla {
+	void* sender_thread(void* ptr)
+	{
+		((Sender*)ptr)->process();
+		return NULL;
+	}
 }
 
 Sender::Sender(Overseer* o)

@@ -3,6 +3,8 @@
 #ifndef __TORTILLA_SENDERREQUEST_H__
 #define __TORTILLA_SENDERREQUEST_H__
 
+namespace Tortilla {
+
 /*! \brief A message to be sent */
 class SenderRequest {
 public:
@@ -76,5 +78,6 @@ private:
 	uint32_t piece_length;
 };
 
+}
 
 #endif /* __TORTILLA_SENDERREQUEST_H__ */

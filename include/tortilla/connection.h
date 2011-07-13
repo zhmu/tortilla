@@ -7,6 +7,8 @@
 #ifndef __TORTILLA_CONNECTION_H__
 #define __TORTILLA_CONNECTION_H__
 
+namespace Tortilla {
+
 /*! \brief Implements a TCP connection
  */
 class Connection {
@@ -75,5 +77,7 @@ private:
 	//! \brief Human-readable endpoint name
 	std::string endpoint;
 };
+
+}
 
 #endif /* __TORTILLA_CONNECTION_H__ */

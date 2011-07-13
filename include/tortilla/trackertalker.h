@@ -7,6 +7,8 @@
 #ifndef __TORTILLA_TRACKERTALKER__
 #define __TORTILLA_TRACKERTALKER__
 
+namespace Tortilla {
+
 class HTTPRequest;
 
 /*! \brief Contains a list of trackers in a given tier
@@ -114,5 +116,7 @@ protected:
 	//! \brief Mutex protecting the data
 	boost::mutex mtx_data;
 };
+
+}
 
 #endif /* __TORTILLA_TRACKERTALKER__ */

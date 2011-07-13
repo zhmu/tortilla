@@ -8,6 +8,8 @@
 #ifndef __TORTILLA_HASHER_H__
 #define __TORTILLA_HASHER_H__
 
+namespace Tortilla {
+
 //! \brief Number of bytes used to calculate hash
 #define HASHER_CHUNK_SIZE 16384
 
@@ -78,5 +80,7 @@ private:
 	//! \brief Overseer we are bound to
 	Overseer* overseer;
 };
+
+}
 
 #endif /* __TORTILLA_HASHER_H__ */

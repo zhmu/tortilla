@@ -16,14 +16,16 @@
 
 using namespace std;
 using namespace boost;
+using namespace Tortilla;
 
 #define TRACER (tracer)
 
-void*
-overseer_thread(void* ptr)
-{
-	((Overseer*)ptr)->overseerThread();
-	return NULL;
+namespace Tortilla {
+	void* overseer_thread(void* ptr)
+	{
+		((Overseer*)ptr)->overseerThread();
+		return NULL;
+	}
 }
 
 Overseer::Overseer(unsigned int portnum, Tracer* tr, Callbacks* cb)

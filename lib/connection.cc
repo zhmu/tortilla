@@ -12,6 +12,7 @@
 #include "connection.h"
 
 using namespace std;
+using namespace Tortilla;
 
 Connection::Connection(string host, uint16_t port)
 {

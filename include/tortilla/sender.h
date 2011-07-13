@@ -6,10 +6,12 @@
 #include "peer.h"
 #include "senderrequest.h"
 
-class Overseer;
-
 #ifndef __TORTILLA_SENDER_H__
 #define __TORTILLA_SENDER_H__
+
+namespace Tortilla {
+
+class Overseer;
 
 /*! \brief Handles sending data to peers
  *
@@ -63,5 +65,7 @@ private:
 	//! \brief Thread used by the uploader
 	boost::thread thread;
 };
+
+}
 
 #endif /* __TORTILLA_SENDER_H__ */

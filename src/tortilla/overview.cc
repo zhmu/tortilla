@@ -13,8 +13,8 @@ Overview::Overview(Interface* iface)
 void
 Overview::draw()
 {
-	vector<Torrent*> torrents = interface->getOverseer()->getTorrents();
-	sort(torrents.begin(), torrents.end(), Torrent::compareTorrentNames);
+	vector<Tortilla::Torrent*> torrents = interface->getOverseer()->getTorrents();
+	sort(torrents.begin(), torrents.end(), Tortilla::Torrent::compareTorrentNames);
 
 	unsigned int y = 1;
 	werase(window);
@@ -32,7 +32,7 @@ Overview::draw()
 			curSelection - (torrentsPerScreen / 2) : 0;
 
 	for (unsigned int i = firstTorrentIndex; i < torrents.size(); i++) {
-		Torrent* t = torrents[i];
+		Tortilla::Torrent* t = torrents[i];
 		uint32_t rx, tx;
 		t->getRateCounters(&rx, &tx);
 
@@ -62,11 +62,11 @@ Overview::draw()
 	wrefresh(window);
 }
 
-Torrent*
+Tortilla::Torrent*
 Overview::getSelectedTorrent()
 {
-	vector<Torrent*> torrents = interface->getOverseer()->getTorrents();
-	sort(torrents.begin(), torrents.end(), Torrent::compareTorrentNames);
+	vector<Tortilla::Torrent*> torrents = interface->getOverseer()->getTorrents();
+	sort(torrents.begin(), torrents.end(), Tortilla::Torrent::compareTorrentNames);
 	if (curSelection >= torrents.size())
 		return NULL;
 	return torrents[curSelection];
@@ -92,15 +92,15 @@ Overview::upTorrent()
 }
 
 void
-Overview::selectTorrent(Torrent* t)
+Overview::selectTorrent(Tortilla::Torrent* t)
 {
-	vector<Torrent*> torrents = interface->getOverseer()->getTorrents();
-	sort(torrents.begin(), torrents.end(), Torrent::compareTorrentNames);
+	vector<Tortilla::Torrent*> torrents = interface->getOverseer()->getTorrents();
+	sort(torrents.begin(), torrents.end(), Tortilla::Torrent::compareTorrentNames);
 
 	unsigned int torrentIndex = 0;
-	for (vector<Torrent*>::iterator it = torrents.begin();
+	for (vector<Tortilla::Torrent*>::iterator it = torrents.begin();
 	     it != torrents.end(); it++, torrentIndex++) {
-		Torrent* torrent = *it;
+		Tortilla::Torrent* torrent = *it;
 		if (torrent != t)
 			continue;
 
