@@ -124,12 +124,10 @@ Receiver::process()
 					continue;
 				}
 
-				peers.erase(peerit);
+				peerit = peers.erase(peerit);
 				fdMap.erase(p->getFD());
 				p->getTorrent()->unregisterPeer(p);
 				delete p;
-
-				peerit = peers.begin();
 			}
 
 			/* Remove any requests that need to go, too */
@@ -140,10 +138,8 @@ Receiver::process()
 					reqit++;
 					continue;
 				}
-				requests.erase(reqit);
+				reqit = requests.erase(reqit);
 				delete r;
-
-				reqit = requests.begin();
 			}
 		}
 

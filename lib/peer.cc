@@ -773,8 +773,7 @@ Peer::cancelChunkRequest(unsigned int piece, unsigned int offset, unsigned int l
 		}
 
 		delete sr;
-		send_queue.erase(it);
-		it = send_queue.begin();
+		it = send_queue.erase(it);
 	}
 }
 
@@ -895,15 +894,10 @@ Peer::cancelChunk(uint32_t piece, uint32_t offset, uint32_t len)
 	unique_lock<mutex> lock(mtx_data);
 
 	/* XXX we assume the list will only contain unique requests */
-	unsigned int samechunkcount=0;
 	for (list<OutstandingChunkRequest>::iterator it = chunk_requests.begin();
 	     it != chunk_requests.end(); it++) {
 		if (!((*it) == OutstandingChunkRequest(piece, offset, len)))
 			continue;
-		else	{
-			samechunkcount++;
-			assert(samechunkcount<=1);
-		}
 
 		/* This chunk matches! Say goodbye */
 		chunk_requests.erase(it);
