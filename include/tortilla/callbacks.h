@@ -22,20 +22,20 @@ public:
 	 *  \param newPeers Number of new peers, or -1 on error
 	 *  \param message Message reported by the tracker, if any
 	 */
-	virtual void gotTrackerReply(Torrent* t, int newPeers, std::string message) { };
+	virtual void gotTrackerReply(Torrent* t, int newPeers, std::string message) { }
 
 	/*! \brief Called if a piece was correctly transferred
 	 *  \param t Torrent being reported
-	 *  \param piece Piece number being reportedz
+	 *  \param piece Piece number being reported
 	 *
 	 *  This will only be called if the piece hash checks out.
 	 */
-	virtual void completedPiece(Torrent* t, int piece) { };
+	virtual void completedPiece(Torrent* t, int piece) { }
 
 	/*! \brief Called if a torrent was completely transferred
 	 *  \param t Torrent being reported
 	 */
-	virtual void completedTorrent(Torrent* t) { };
+	virtual void completedTorrent(Torrent* t) { }
 
 	/*! \brief Called just before a torrent is completely removed
 	 *  \param t Torrent being removed
@@ -44,7 +44,7 @@ public:
 	 *  is removed from the list, and allows for status storage. The
 	 *  attempt cannot be cancelled.
 	 */
-	virtual void removingTorrent(Torrent* t) { };
+	virtual void removingTorrent(Torrent* t) { }
 
 	/*! \brief Called after a peer was added to the torrent
 	 *  \param t Torrent being reported
@@ -56,7 +56,7 @@ public:
 	 *  \param t Torrent being reported
 	 *  \param p Peer being removed
 	 */
-	virtual void removingPeer(Torrent* t, Peer* p) { };
+	virtual void removingPeer(Torrent* t, Peer* p) { }
 };
 
 #endif /* __TORTILLA_CALLBACKS_H__ */
