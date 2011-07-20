@@ -161,6 +161,7 @@ Sender::process()
 		}
 	}
 
+	free(pfds);
 }
 
 void
