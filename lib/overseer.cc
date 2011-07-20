@@ -32,7 +32,7 @@ Overseer::Overseer(unsigned int portnum, Tracer* tr, Callbacks* cb)
 {
 	terminating = false; port = portnum; tracer = tr;
 	if (cb == NULL)
-		callbacks = new Callbacks();
+		callbacks = &dummy_callbacks;
 	else
 		callbacks = cb;
 	upload_rate = 0;
@@ -87,7 +87,6 @@ Overseer::~Overseer()
 	delete receiver;
 	delete incoming;
 	delete filemanager;
-	delete callbacks;
 }
 
 void

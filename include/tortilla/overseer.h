@@ -3,6 +3,7 @@
 #include <map>
 #include <stdint.h>
 #include <string>
+#include "callbacks.h"
 #include "connection.h"
 #include "hasher.h"
 #include "torrent.h"
@@ -202,6 +203,9 @@ private:
 
 	//! \brief Callbacks object used
 	Callbacks* callbacks;
+
+	//! \brief Dummy callbacks if none were presented
+	Callbacks dummy_callbacks;
 };
 
 }
