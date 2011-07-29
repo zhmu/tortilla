@@ -132,7 +132,7 @@ public:
 	void getRateCounters(uint32_t* rx, uint32_t* tx);
 
 	//! \brief Retrieve the torrent name
-	std::string getName() const { return name; }
+	const std::string& getName() const { return name; }
 
 	/*! \brief Fetch the number of peers */
 	unsigned int getNumPeers() const;
