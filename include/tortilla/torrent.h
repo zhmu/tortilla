@@ -210,6 +210,9 @@ public:
 	 */
 	static bool compareTorrentNames(const Torrent* a, const Torrent* b);
 
+	//! \brief User pointer
+	void* user_ptr;
+
 protected:
 	/*! \brief Called by a peer if pieces are added to the map */
 	void callbackPiecesAdded(Peer* p, std::vector<unsigned int>& pieces);

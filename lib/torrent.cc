@@ -44,7 +44,7 @@ Torrent::Torrent(Overseer* o, Metadata* md, std::string path)
 	terminating = false; terminateTime = 0; removeOK = false; complete = false;
 	lastChokingAlgorithm = 0; pendingRequest = NULL;
 	optimisticUnchokedPeer = NULL; tracker_key = "";
-	name = ""; endgame_mode = false;
+	name = ""; endgame_mode = false; user_ptr = NULL;
 	rx_rate = 0; tx_rate = 0; 
 
 	/* force the thread to contact the tracker - but try so only each 10 minutes */
