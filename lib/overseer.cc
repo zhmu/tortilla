@@ -93,8 +93,11 @@ void
 Overseer::addTorrent(Torrent* t)
 {
 	string info((const char*)t->getInfoHash(), TORRENT_HASH_LEN);
-	shared_lock<shared_mutex> lock(rwl_torrents);
-	torrents[info] = t;
+	{
+		shared_lock<shared_mutex> lock(rwl_torrents);
+		torrents[info] = t;
+	}
+	callbacks->addedTorrent(t);
 }
 
 void

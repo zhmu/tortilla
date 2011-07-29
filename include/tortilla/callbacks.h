@@ -34,6 +34,14 @@ public:
 	 */
 	virtual void completedPiece(Torrent* t, int piece) { }
 
+	/*! \brief Called if a torrent was successfully added
+	 *  \param t Torrent that was added
+	 *
+	 *  Called once a torrent was added, before any pieces are
+	 *  hashed. All file information can be retrieved.
+	 */
+	virtual void addedTorrent(Torrent* t) { }
+
 	/*! \brief Called if a torrent was completely transferred
 	 *  \param t Torrent being reported
 	 */
