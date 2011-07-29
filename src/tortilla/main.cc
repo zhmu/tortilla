@@ -2,23 +2,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
-#include "tortilla/exceptions.h"
-#include "tortilla/overseer.h"
-#include "tortilla/tracer.h"
-#include "tortilla/torrent.h"
-#include "interface.h"
+#include "client.h"
 
 using namespace std;
 
-Interface* interface = NULL;
-Tortilla::Overseer* overseer = NULL;
-Tortilla::Tracer* tracer = NULL;
-
-void
-sigint(int s)
-{
-	overseer->terminate();
-}
+static Client* client = NULL;
 
 void
 usage()
@@ -30,12 +18,17 @@ usage()
 	exit(EXIT_FAILURE);
 }
 
-
-void
+static void
 handle_resize(int)
 {
-	interface->handleResize();
+	client->handleResize();
 	signal(SIGWINCH, handle_resize);
+}
+
+static void
+handle_sigint(int s)
+{
+	client->terminate();
 }
 
 int
@@ -47,7 +40,6 @@ main(int argc, char** argv)
 
 	/* XXX */
 	signal(SIGPIPE, SIG_IGN);
-	signal(SIGWINCH, handle_resize);
 
 	int ch;
 	while ((ch = getopt(argc, argv, "?hu:p:")) != -1) {
@@ -74,31 +66,27 @@ main(int argc, char** argv)
 	argc -= optind;
 	argv += optind;
 
-	/* XXX handle it if the connection burns */
-	//overseer = new Overseer(1024 + rand() % 10000);
-	tracer = new Tortilla::Tracer();
-	overseer = new Tortilla::Overseer(port, tracer);
-	interface = new Interface(overseer);
-	overseer->setUploadRate(upload * 1024);
+	client = new Client(port);
+	client->setUploadRate(upload * 1024);
+
+	/* XXX */
+	signal(SIGWINCH, handle_resize);
+	signal(SIGINT, handle_sigint);
 
 	/*
 	 * Add the torrents one by one.
 	 */
 	for (int i = 0; i < argc; i++) {
 		try {
-			interface->addTorrent(argv[i]);
+			client->addTorrent(argv[i]);
 		} catch (exception e) {
 			/* XXX handle me */
 		}
 	}
 
-	signal(SIGINT, sigint);
+	client->run();
+	delete client;
 
-	interface->run();
-
-	delete interface;
-	delete overseer;
-	delete tracer;
 	return 0;
 }
 

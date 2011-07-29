@@ -1,6 +1,7 @@
 #include <ncurses.h>
 #include <string>
-#include "tortilla/overseer.h"
+#include <vector>
+#include <stdint.h>
 
 #ifndef __INTERFACE_H__
 #define __INTERFACE_H__
@@ -8,17 +9,16 @@
 //! \brief Number of seconds after which we reset the status message
 #define INTERFACE_STATUS_TIMEOUT 5
 
+class Client;
 class Overview;
 class Info;
 
 class Interface {
 public:
-	Interface(Tortilla::Overseer* o);
+	Interface(Client* c);
 	~Interface();
 
 	void run();
-
-	Tortilla::Overseer* getOverseer() { return overseer; }
 
 	static std::string formatNumber(uint64_t n);
 	static std::string formatHex(const uint8_t* hex, unsigned int len);
@@ -41,7 +41,7 @@ private:
 
 	void updateWindows();
 
-	Tortilla::Overseer* overseer;
+	Client* client;
 	Overview* overview;
 	Info* info;
 

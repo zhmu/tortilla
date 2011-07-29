@@ -11,12 +11,14 @@
 #define PANEL_FILES	3
 #define PANEL_MAX	(PANEL_FILES+1)
 
+class TorrentInfo;
+
 class Info {
 public:
 	Info(Interface* iface);
 	void setWindow(WINDOW* w) { window = w; }
 
-	void draw(Tortilla::Torrent* t);
+	void draw(TorrentInfo* t);
 
 	//! \brief Scroll half a page up
 	void scrollUp();
@@ -34,10 +36,10 @@ protected:
 	//! \brief Number of lines written	
 	unsigned int num_lines;
 
-	void drawPieces(Tortilla::Torrent* t, unsigned int& y);
-	void drawPeers(Tortilla::Torrent* t, unsigned int& y);
-	void drawLog(Tortilla::Torrent* t, unsigned int& y);
-	void drawFiles(Tortilla::Torrent* t, unsigned int& y);
+	void drawPieces(TorrentInfo* ti, unsigned int& y);
+	void drawPeers(TorrentInfo* ti, unsigned int& y);
+	void drawLog(TorrentInfo* ti, unsigned int& y);
+	void drawFiles(TorrentInfo* ti, unsigned int& y);
 
 private:
 	WINDOW* window;

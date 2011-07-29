@@ -1,25 +1,28 @@
+#include <list>
 #include <ncurses.h>
 #include "interface.h"
 
 #ifndef __OVERVIEW_H__
 #define  __OVERVIEW_H__
 
+class Client;
+
 class Overview {
 public:
-	Overview(Interface* iface);
+	Overview(Client* c);
 	void setWindow(WINDOW* w) { window = w; }
 
 	void draw();
 
-	Tortilla::Torrent* getSelectedTorrent();
+	TorrentInfo* getSelectedTorrent();
 
 	void upTorrent();
 	void downTorrent();
-	void selectTorrent(Tortilla::Torrent* t);
+	void selectTorrent(TorrentInfo* t);
 
 private:
 	WINDOW* window;
-	Interface* interface;
+	Client* client;
 
 	unsigned int curSelection, firstTorrentIndex;
 };

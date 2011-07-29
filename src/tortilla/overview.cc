@@ -1,20 +1,23 @@
 #include <algorithm>
 #include <string.h>
+#include "client.h"
 #include "overview.h"
+#include "tortilla/torrent.h"
+#include "torrentinfo.h"
 
 using namespace std;
 
-Overview::Overview(Interface* iface)
+Overview::Overview(Client* c)
 {
-	window = NULL; interface = iface;
+	window = NULL; client = c;
 	curSelection = 0; firstTorrentIndex = 0;
 }
 
 void
 Overview::draw()
 {
-	vector<Tortilla::Torrent*> torrents = interface->getOverseer()->getTorrents();
-	sort(torrents.begin(), torrents.end(), Tortilla::Torrent::compareTorrentNames);
+	TorrentInfoVector& torrents = client->getTorrents();
+	//sort(torrents.begin(), torrents.end(), Tortilla::Torrent::compareTorrentNames);
 
 	unsigned int y = 1;
 	werase(window);
@@ -31,42 +34,44 @@ Overview::draw()
 		firstTorrentIndex = (curSelection > (torrentsPerScreen / 2)) ? 
 			curSelection - (torrentsPerScreen / 2) : 0;
 
-	for (unsigned int i = firstTorrentIndex; i < torrents.size(); i++) {
-		Tortilla::Torrent* t = torrents[i];
+	TorrentInfoVector::iterator it = torrents.begin() + firstTorrentIndex;
+	unsigned int i = firstTorrentIndex;
+	while (it != torrents.end()) {
+		TorrentInfo* ti = *it;
 		uint32_t rx, tx;
-		t->getRateCounters(&rx, &tx);
+		ti->getTorrent()->getRateCounters(&rx, &tx);
 
-		unsigned int numHashing = t->getNumPiecesHashing();
+		unsigned int numHashing = ti->getNumPiecesHashing();
 
 		mvwprintw(window, y,     4, "(%.02f%%) %s",
-		 ((float)(t->getTotalSize() - t->getBytesLeft()) / (float)t->getTotalSize()) * 100.0f,
-		t->getName().c_str());
+		 ((float)(ti->getTotalSize() - ti->getNumBytesLeft()) / (float)ti->getTotalSize()) * 100.0f,
+		ti->getName().c_str());
 
-		if (t->isTerminating()) {
+		if (ti->getTorrent()->isTerminating()) {
 			mvwprintw(window, y + 1, 4, "[terminating]");
 		} else if (numHashing > 0) {
 			mvwprintw(window, y + 1, 4, "Hashing, %.02f%% completed",
-			 100.0f - ((float)numHashing / (float)t->getNumPieces()) * 100.0f);
+			 100.0f - ((float)numHashing / (float)ti->getNumPieces()) * 100.0f);
 		} else {
 			mvwprintw(window, y + 1, 4, "RX/TX rate: %s / %s",
 				 Interface::formatNumber(rx).c_str(), Interface::formatNumber(tx).c_str());
 			mvwprintw(window, y + 2, 4, "Total: %s up, %s down",
-				 Interface::formatNumber(t->getBytesUploaded()).c_str(),
-				 Interface::formatNumber(t->getBytesDownloaded()).c_str());
+				 Interface::formatNumber(ti->getBytesUploaded()).c_str(),
+				 Interface::formatNumber(ti->getBytesDownloaded()).c_str());
 		}
 		mvwprintw(window, y    , 2, "%c", (curSelection == i) ? '*' : ' ');
 		
-		y += 4;
+		y += 4; it++; i++;
 	}
 
 	wrefresh(window);
 }
 
-Tortilla::Torrent*
+TorrentInfo*
 Overview::getSelectedTorrent()
 {
-	vector<Tortilla::Torrent*> torrents = interface->getOverseer()->getTorrents();
-	sort(torrents.begin(), torrents.end(), Tortilla::Torrent::compareTorrentNames);
+	TorrentInfoVector& torrents = client->getTorrents();
+	//sort(torrents.begin(), torrents.end(), Tortilla::Torrent::compareTorrentNames);
 	if (curSelection >= torrents.size())
 		return NULL;
 	return torrents[curSelection];
@@ -75,7 +80,7 @@ Overview::getSelectedTorrent()
 void
 Overview::downTorrent()
 {
-	int num = interface->getOverseer()->getTorrents().size();
+	int num = client->getTorrents().size();
 	if (num > 0)
 		curSelection = (curSelection + 1) % num;
 	else
@@ -85,23 +90,26 @@ Overview::downTorrent()
 void
 Overview::upTorrent()
 {
+	int num = client->getTorrents().size();
+	if (num == 0)
+		return;
 	if (curSelection == 0)
-		curSelection = interface->getOverseer()->getTorrents().size() - 1;
+		curSelection = num - 1;
 	else
 		curSelection--;
 }
 
 void
-Overview::selectTorrent(Tortilla::Torrent* t)
+Overview::selectTorrent(TorrentInfo* t)
 {
-	vector<Tortilla::Torrent*> torrents = interface->getOverseer()->getTorrents();
-	sort(torrents.begin(), torrents.end(), Tortilla::Torrent::compareTorrentNames);
+	TorrentInfoVector& torrents = client->getTorrents();
+	//sort(torrents.begin(), torrents.end(), Tortilla::Torrent::compareTorrentNames);
 
 	unsigned int torrentIndex = 0;
-	for (vector<Tortilla::Torrent*>::iterator it = torrents.begin();
+	for (TorrentInfoVector::iterator it = torrents.begin();
 	     it != torrents.end(); it++, torrentIndex++) {
-		Tortilla::Torrent* torrent = *it;
-		if (torrent != t)
+		TorrentInfo* ti = *it;
+		if (ti != t)
 			continue;
 
 		/* Ensure the selected torrent fits */

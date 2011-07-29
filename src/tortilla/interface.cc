@@ -9,25 +9,27 @@
 #include <string.h>
 #include "tortilla/exceptions.h"
 #include "tortilla/info.h"
-#include "tortilla/overseer.h"
+#include "tortilla/torrent.h"
+#include "client.h"
 #include "interface.h"
-#include "overview.h"
 #include "info.h"
+#include "overview.h"
+#include "torrentinfo.h"
 
 using namespace std;
 
-Interface::Interface(Tortilla::Overseer* o)
+Interface::Interface(Client* c)
 {
-	overseer = o; adding = false; searching = false; statusTime = 0;
+	client = c; adding = false; searching = false; statusTime = 0;
 
 	initscr(); start_color();
 	raw(); cbreak(); keypad(stdscr, TRUE);
 	noecho(); curs_set(0); refresh();
 
-	overview = new Overview(this);
+	overview = new Overview(c);
 	info = new Info(this);
 
-	overviewWindow = NULL; infoWindow = NULL;
+	overviewWindow = NULL; infoWindow = NULL; statusLine = NULL;
 	updateWindows();
 
 }
@@ -45,7 +47,7 @@ void
 Interface::run()
 {
 
-	while (!overseer->isTerminating()) {
+	while (!client->isTerminating()) {
 		redraw();
 
 		/*
@@ -111,7 +113,7 @@ Interface::handleInput()
 
 	switch(ch) {
 		case 0x11: /* control-q */
-			overseer->terminate();
+			client->terminate();
 			break;
 		case KEY_NPAGE:
 			info->scrollDown();
@@ -157,13 +159,13 @@ Interface::handleInput()
 			break;
 		case KEY_DC: /* delete */
 			if (overview->getSelectedTorrent() != NULL)
-				overseer->removeTorrent(overview->getSelectedTorrent());
+				client->removeTorrent(overview->getSelectedTorrent());
 			break;
 		case 'D':
 			if (overview->getSelectedTorrent() != NULL) {
 				FILE* f = fopen("dump.xml", "w");
 				if (f != NULL) {
-					overview->getSelectedTorrent()->debugDump(f);
+					overview->getSelectedTorrent()->getTorrent()->debugDump(f);
 					fclose(f);
 				}
 			}
@@ -225,17 +227,17 @@ Interface::update()
 
 	/* If there is no status message, show overview */
 	if (statusMessage == "") {
-		vector<Tortilla::Torrent*> torrents = getOverseer()->getTorrents();
+		TorrentInfoVector torrents = client->getTorrents();
 		uint32_t totalRx = 0, totalTx = 0;
 		uint64_t totalUp = 0, totalDown = 0;
-		for (vector<Tortilla::Torrent*>::iterator it = torrents.begin();
+		for (TorrentInfoVector ::const_iterator it = torrents.begin();
 		     it != torrents.end(); it++) {
 			uint32_t rx, tx;
-			Tortilla::Torrent* t = *it;
-			t->getRateCounters(&rx, &tx);
+			TorrentInfo* t = *it;
+			t->getTorrent()->getRateCounters(&rx, &tx);
 			totalRx += rx; totalTx += tx;
-			totalUp += t->getBytesUploaded();
-			totalDown += t->getBytesDownloaded();
+			totalUp += t->getTorrent()->getBytesUploaded();
+			totalDown += t->getTorrent()->getBytesDownloaded();
 		}
 		string status;
 		status  = "RX/TX: rate " + Interface::formatNumber(totalRx) + " / " + Interface::formatNumber(totalTx);
@@ -275,34 +277,7 @@ Interface::setStatusMessage(std::string msg)
 void
 Interface::addTorrent(std::string fname)
 {
-	ifstream is;
-	is.open(fname.c_str(), ios::binary);
-	Tortilla::Metadata* md = new Tortilla::Metadata(is);
-
-	/*
-	 * Grab the torrent's info hash - we use it to figure out whether the torrent
-	 * is already added (without this, we would just overwrite the previous
-	 * torrent into oblivion)
-	 */
-	uint8_t infohash[TORRENT_HASH_LEN];
-	if (!Tortilla::Torrent::constructInfoHash(md, infohash)) {
-		/* We couldn't build a hash; this means the torrent won't get far either */
-		delete md;
-		throw Tortilla::TorrentException("Cannot generate info hash of source file (corrupt .torrent?)");
-	}
-	if (overseer->findTorrent(infohash) != NULL) {
-		delete md;
-		throw Tortilla::TorrentException("Torrent already added");
-	}
-
-	try {
-		overseer->addTorrent(new Tortilla::Torrent(overseer, md, ""));
-	} catch (exception e) {
-		/* Prevent memory leak */
-		delete md;
-		throw e;
-	}
-	delete md;
+	client->addTorrent(fname);
 }
 
 void
@@ -370,12 +345,12 @@ Interface::handleCompletion()
 void
 Interface::alterUploadRate(int delta)
 {
-	unsigned int rate = overseer->getUploadRate();
+	unsigned int rate = client->getUploadRate();
 	if (delta < 0 && rate < (unsigned int)-delta)
 		rate = 0;
 	else
 		rate += delta;
-	overseer->setUploadRate(rate);
+	client->setUploadRate(rate);
 
 	char tmp[64];
 	if (rate == 0) {
@@ -443,11 +418,11 @@ Interface::handleSearchInput(int ch)
 				/*
 			 	 * Wade through all torrents and see if we have a match!
 			 	 */
-				vector<Tortilla::Torrent*> torrents = getOverseer()->getTorrents();
-				for (vector<Tortilla::Torrent*>::iterator it = torrents.begin();
+				TorrentInfoVector& torrents = client->getTorrents();
+				for (TorrentInfoVector ::iterator it = torrents.begin();
 				     it != torrents.end(); it++) {
-					Tortilla::Torrent* t = *it;
-					string torrentName(t->getName());
+					TorrentInfo* ti = *it;
+					string torrentName(ti->getTorrent()->getName());
 					if (torrentName.size() < s.size())
 						continue;
 					transform(torrentName.begin(), torrentName.end(), torrentName.begin(), ::tolower);
@@ -456,7 +431,7 @@ Interface::handleSearchInput(int ch)
 						continue;
 
 					/* Got it! */
-					overview->selectTorrent(t);
+					overview->selectTorrent(ti);
 					break;
 				}
 			}

@@ -1,4 +1,6 @@
 #include <string.h>
+#include "tortilla/torrent.h"
+#include "torrentinfo.h"
 #include "info.h"
 
 using namespace std;
@@ -9,37 +11,38 @@ Info::Info(Interface* iface)
 }
 
 void
-Info::draw(Tortilla::Torrent* t)
+Info::draw(TorrentInfo* ti)
 {
 	werase(window);
-	if (t == NULL) {
+	if (ti == NULL) {
 		printxyf(0, 0, "<no torrent selected>");
 		wrefresh(window);
 		return;
 	}
 
 	printxyf(0, 0, "Info hash:      %s",
-	 Interface::formatHex(t->getInfoHash(), TORRENT_HASH_LEN).c_str());
+	 Interface::formatHex(ti->getInfoHash(), TORRENT_HASH_LEN).c_str());
 	printxyf(0, 1, "Pieces:         %u / %u (%u hashing)",
-	 t->getNumPiecesComplete(), t->getNumPieces(), t->getNumPiecesHashing());
+	 ti->getNumPiecesCompleted(), ti->getNumPieces(), ti->getNumPiecesHashing());
 	printxyf(0, 2, "Data left:      %s / %s",
-	 Interface::formatNumber(t->getBytesLeft()).c_str(),
-	 Interface::formatNumber(t->getTotalSize()).c_str());
-	printxyf(0, 3, "Peers:          %u active / %u pending", t->getNumPeers(), t->getNumPendingPeers());
+	 Interface::formatNumber(ti->getNumBytesLeft()).c_str(),
+	 Interface::formatNumber(ti->getTotalSize()).c_str());
+	printxyf(0, 3, "Peers:          %u active / %u pending",
+	 ti->getNumPeers(), ti->getNumPendingPeers());
 
 	unsigned int y = 4;
 	switch(panel) {
 		case PANEL_PIECES:
-			drawPieces(t, y);
+			drawPieces(ti, y);
 			break;
 		case PANEL_PEERS:
-			drawPeers(t, y);
+			drawPeers(ti, y);
 			break;
 		case PANEL_LOG:
-			drawLog(t, y);
+			drawLog(ti, y);
 			break;
 		case PANEL_FILES:
-			drawFiles(t, y);
+			drawFiles(ti, y);
 			break;
 	}
 	num_lines = y;
@@ -83,9 +86,9 @@ Info::scrollDown()
 }
 
 void
-Info::drawPieces(Tortilla::Torrent* t, unsigned int& y)
+Info::drawPieces(TorrentInfo* ti, unsigned int& y)
 {
-	vector<Tortilla::PieceInfo> pieces = t->getPieceDetails();
+	vector<Tortilla::PieceInfo> pieces = ti->getTorrent()->getPieceDetails();
 	for (unsigned int i = 0; i < pieces.size(); i += 40) {
 		char line[1024 /* XXX */];
 		snprintf(line, sizeof(line), "%5u: ", i);
@@ -111,15 +114,15 @@ Info::drawPieces(Tortilla::Torrent* t, unsigned int& y)
 }
 
 void
-Info::drawPeers(Tortilla::Torrent* t, unsigned int& y)
+Info::drawPeers(TorrentInfo* ti, unsigned int& y)
 {
-	vector<Tortilla::PeerInfo> peers = t->getPeerDetails();
+	vector<Tortilla::PeerInfo> peers = ti->getTorrent()->getPeerDetails();
 	for (unsigned int i = 0; i < peers.size(); i++) {
 		Tortilla::PeerInfo& pi = peers[i];
 
 		char line[1024 /* XXX */];
 		snprintf(line, sizeof(line), "[%3u%%] %s (%s), rx/tx: %s / %s",
-		 (int)((pi.getNumPieces() / (float)t->getNumPieces()) * 100.0f),
+		 (int)((pi.getNumPieces() / (float)ti->getTorrent()->getNumPieces()) * 100.0f),
 		 pi.getEndpoint().c_str(), 
 		 pi.isIncoming() ? " in" : "out",
 		 Interface::formatNumber(pi.getRxRate()).c_str(),
@@ -144,9 +147,9 @@ Info::drawPeers(Tortilla::Torrent* t, unsigned int& y)
 }
 
 void
-Info::drawLog(Tortilla::Torrent* t, unsigned int& y)
+Info::drawLog(TorrentInfo* ti, unsigned int& y)
 {
-	list<string> messages = t->getMessageLog();
+	list<string> messages = ti->getTorrent()->getMessageLog();
 
 	if (messages.size() == 0) {
 		printxyf(0, y, "<message log is empty>");
@@ -161,10 +164,10 @@ Info::drawLog(Tortilla::Torrent* t, unsigned int& y)
 }
 
 void
-Info::drawFiles(Tortilla::Torrent* t, unsigned int& y)
+Info::drawFiles(TorrentInfo* ti, unsigned int& y)
 {
-	vector<Tortilla::PieceInfo> pieces = t->getPieceDetails();
-	vector<Tortilla::FileInfo> files = t->getFileDetails();
+	vector<Tortilla::PieceInfo> pieces = ti->getTorrent()->getPieceDetails();
+	vector<Tortilla::FileInfo> files = ti->getTorrent()->getFileDetails();
 
 	for (unsigned int i = 0; i < files.size(); i++) {
 		Tortilla::FileInfo& fi = files[i];
