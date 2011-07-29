@@ -45,7 +45,7 @@ Torrent::Torrent(Overseer* o, Metadata* md, std::string path)
 	lastChokingAlgorithm = 0; pendingRequest = NULL;
 	optimisticUnchokedPeer = NULL; tracker_key = "";
 	name = ""; endgame_mode = false;
-	rx_rate = 0; tx_rate = 0;
+	rx_rate = 0; tx_rate = 0; 
 
 	/* force the thread to contact the tracker - but try so only each 10 minutes */
 	tracker_interval = 600; tracker_min_interval = 0;
@@ -969,8 +969,6 @@ Torrent::getRateCounters(uint32_t* rx, uint32_t* tx)
 void
 Torrent::registerPeer(Peer* p)
 {
-	assert(p->getPeerID().size() == TORRENT_PEERID_LEN);
-
 	{
 		unique_lock<shared_mutex> lock(rwl_peers);
 		peers.push_back(p);
@@ -1090,10 +1088,7 @@ Torrent::heartbeat()
 			 * It seems possible to connect to this peer; we should add it to both ourselves
 			 * and the overseer.
 			 */
-			{
-				unique_lock<shared_mutex> lock(rwl_peers);
-				peers.push_back(p);
-			}
+			registerPeer(p);
 			overseer->addPeer(p);
 
 			/*
