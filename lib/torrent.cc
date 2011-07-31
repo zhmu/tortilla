@@ -195,6 +195,9 @@ Torrent::Torrent(Overseer* o, Metadata* md, std::string path)
 	 */
 	torrentDictionary = new MetaDictionary(*md->getDictionary());
 
+	/* Initializer our talker; this will speak with the trackers */
+	trackerTalker = new TrackerTalker(this, torrentDictionary);
+
 	/*
 	 * If there is a 'taStatus' dictionary in the torrent, we must parse it. This is a
 	 * Tortilla-specific dictionary containing the current torrent status, which we
@@ -294,9 +297,6 @@ Torrent::Torrent(Overseer* o, Metadata* md, std::string path)
 	 * We must have processed as many pieces as there are in the file.
 	 */
 	assert(piecenum == numPieces);
-
-	/* Initializer our talker; this will speak with the trackers */
-	trackerTalker = new TrackerTalker(this, dictionary);
 }
 
 Torrent::~Torrent()
