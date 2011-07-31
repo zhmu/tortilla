@@ -70,31 +70,46 @@ TrackerTalker::TrackerTalker(Torrent* t, MetaDictionary* dictionary)
 	torrent = t; httpRequest = NULL;
 
 	const MetaList* mlList = dynamic_cast<const MetaList*>((*dictionary)["announce-list"]);
-	if (mlList == NULL) {
-		/* New-style announce list unavailable; revert to old single URL */
-		const MetaString* msAnnounce = dynamic_cast<const MetaString*>((*dictionary)["announce"]);
-		if (msAnnounce == NULL)
-			throw TrackerException("metadata doesn't contain an announce URL or list");
+	if (mlList != NULL) {
+		/*
+		 * An announce-list is made up of lists of sublists. Each sublist is an
+		 * announcement tier, and contains a list of strings which must be shuffeled
+		 * and stored. Each of the tiers must be tried in-order.
+		 */
+		try {
+			for (list<MetaField*>::const_iterator it = mlList->getList().begin();
+					 it != mlList->getList().end(); it++) {
+					MetaList* tierList = dynamic_cast<MetaList*>(*it);
+					if (tierList == NULL)
+						throw TorrentException("announce list doesn't contain a list element");
 
-		string url = msAnnounce->getString();
-		TRACE(TRACKER, "added old-style tracker: %s", url.c_str());
-		tiers.push_back(new AnnounceTier(this, url));
+					tiers.push_back(new AnnounceTier(this, tierList));
+			}
+		} catch (TortillaException) {
+			/*
+			 * Something went wrong while adding tiers; throw them all away and
+			 * attempt to add the old-style single URL.
+			 */
+			for (vector<AnnounceTier*>::iterator it = tiers.begin();
+					 it != tiers.end(); it++) {
+				delete (*it);
+			}
+			tiers.clear();
+		}
+	}
+
+	/* If we have an announce list, we're good to go */
+	if (!tiers.empty())
 		return;
-	}
 
-	/*
-	 * An announce-list is made up of lists of sublists. Each sublist is an
-	 * announcement tier, and contains a list of strings which must be shuffeled
-	 * and stored. Each of the tiers must be tried in-order.
- 	 */
-	for (list<MetaField*>::const_iterator it = mlList->getList().begin();
-		   it != mlList->getList().end(); it++) {
-			MetaList* tierList = dynamic_cast<MetaList*>(*it);
-			if (tierList == NULL)
-				throw TorrentException("announce list doesn't contain a list element");
+	/* New-style announce list unavailable or corrupt; revert to old single URL */
+	const MetaString* msAnnounce = dynamic_cast<const MetaString*>((*dictionary)["announce"]);
+	if (msAnnounce == NULL)
+		throw TrackerException("metadata doesn't contain an announce URL or list");
 
-			tiers.push_back(new AnnounceTier(this, tierList));
-	}
+	string url = msAnnounce->getString();
+	TRACE(TRACKER, "added old-style tracker: %s", url.c_str());
+	tiers.push_back(new AnnounceTier(this, url));
 }
 
 TrackerTalker::~TrackerTalker()
